@@ -44,7 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/create").hasRole("ADMIN")
                         .requestMatchers("/api/users/update").hasAnyRole("STAFF","ADMIN")
                         .requestMatchers("/api/roles/list","/api/roles/find-by-id").hasAnyRole("VIEW_ROLE","ADMINISTRATOR")
-                        .requestMatchers("/api/roles/create").hasAnyRole("CREATE_ROLE","ADMINISTRATOR")
+                        .requestMatchers("/api/roles/create").hasAnyRole("STAFF","ADMIN")
                         .requestMatchers("/api/roles/update").hasAnyRole("UPDATE_ROLE","ADMINISTRATOR")
                         .requestMatchers("/api/departments/list","/api/departments/get-department").hasAnyRole("VIEW_DEPARTMENT","ADMINISTRATOR")
                         .requestMatchers("/api/departments/create").hasAnyRole("CREATE_DEPARTMENT","ADMINISTRATOR")
