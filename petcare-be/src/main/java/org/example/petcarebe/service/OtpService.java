@@ -82,7 +82,7 @@ public class OtpService {
             helper.setSubject("Mã Xác Thực OTP từ PetCare");
 
             // Tạo URL chứa mã OTP
-            String otpLink = "http://localhost:5173/otp-verification?email=" + email + "&otp=" + otp;
+            String otpLink = "http://localhost:5173/verify-otp?email=" + email + "&otp=" + otp;
 
             // Nội dung email
             String emailBody = """
