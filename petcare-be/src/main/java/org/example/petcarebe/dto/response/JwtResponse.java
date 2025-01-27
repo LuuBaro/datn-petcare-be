@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -19,4 +21,6 @@ public class JwtResponse {
     private String email;
     private boolean isStatus;
     private String imageUrl;
+    private LocalDate registration_date;
+    private double totalSpent;
 }

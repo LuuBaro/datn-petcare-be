@@ -5,6 +5,7 @@ import jakarta.mail.internet.MimeMessage;
 import jakarta.persistence.EntityNotFoundException;
 import org.example.petcarebe.dto.UpdateUserDTO;
 import org.example.petcarebe.dto.request.ChangePasswordRequest;
+import org.example.petcarebe.dto.request.UserUpdateRequest;
 import org.example.petcarebe.model.User;
 import org.example.petcarebe.model.UserRole;
 import org.example.petcarebe.repository.RoleRepository;
@@ -16,12 +17,14 @@ import org.example.petcarebe.model.Role;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -59,10 +62,11 @@ public class UserService implements UserDetailsService {
     public void saveUser(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setStatus(true); // Đặt trạng thái mặc định là true khi tạo// Mã hóa mật khẩu trước khi lưu
-        userRepository.save(user);
+        user.setRegistration_date(LocalDate.now());
 
+        userRepository.save(user);
         // Gán vai trò mặc định "Người dùng" nếu không có vai trò nào được chỉ định
-        Role defaultRole = roleRepository.findByRoleName("Người dùng");
+        Role defaultRole = roleRepository.findByRoleName("USER");
         if (defaultRole != null) {
             assignRoleToUser(user, defaultRole);
         }
@@ -93,6 +97,32 @@ public class UserService implements UserDetailsService {
         }
     }
 
+    public User updateUserAccount(Long userId, UserUpdateRequest updateRequest, String loggedInUserId) {
+        // Kiểm tra xem userId trong URL có khớp với userId của người dùng đã đăng nhập không
+        if (!userId.toString().equals(loggedInUserId)) {
+            throw new AccessDeniedException("You are not authorized to update this user's information");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + userId));
+
+        try {
+            // Chỉ cập nhật fullname và phone nếu có giá trị
+            if (updateRequest.getFullName() != null) {
+                user.setFullName(updateRequest.getFullName());
+            }
+            if (updateRequest.getPhone() != null) {
+                user.setPhone(updateRequest.getPhone());
+            }
+
+            return userRepository.save(user);
+        } catch (Exception ex) {
+            throw new RuntimeException("Error updating user with ID: " + userId, ex);
+        }
+    }
+
+
+
     //     Phương thức kiểm tra email tồn tại trong hệ thống
     public boolean checkIfEmailExists(String email) {
         User user = userRepository.findByEmail(email);
@@ -103,6 +133,10 @@ public class UserService implements UserDetailsService {
         List<User> users = userRepository.findAll();
         users.forEach(user -> System.out.println("User: " + user.getFullName() + ", Status: " + user.isStatus()));
         return users;
+    }
+
+    public User getUserById(Long id) {
+        return userRepository.findById(id).orElse(null);
     }
 
     public void delete(User user) {
@@ -203,4 +237,13 @@ public class UserService implements UserDetailsService {
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
     }
+
+    public User updateAvatar(Long userId, UpdateUserDTO imageUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + userId));
+        user.setImageUrl(imageUrl.getImageUrl());
+        userRepository.save(user);
+        return user;
+    }
+
 }

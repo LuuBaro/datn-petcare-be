@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -68,7 +69,12 @@ public class JwtService {
         claims.put("roles", user.getUserRoles()); // Nếu bạn lưu roles
         claims.put("fullName", user.getFullName());
         claims.put("phone", user.getPhone());
-        claims.put("avatar", user.getImageUrl());
+        claims.put("imageUrl", user.getImageUrl());
+        claims.put("totalSpent", user.getTotalSpent());
+        // Convert LocalDate to String
+        if (user.getRegistration_date() != null) {
+            claims.put("registration_date", user.getRegistration_date().format(DateTimeFormatter.ISO_LOCAL_DATE));
+        }
         return createToken(claims, userDetails.getUsername());
     }
 
