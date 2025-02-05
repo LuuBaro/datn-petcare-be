@@ -16,7 +16,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
 
     // Fetch product details by ID
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
-            "dp.productDetailId, p.productname, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
+            "dp.productDetailId, p.productName, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
             "JOIN dp.productColors pc " +
@@ -27,7 +27,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
 
     // Fetch all product details
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
-            "dp.productDetailId, p.productname, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
+            "dp.productDetailId, p.productName, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
             "JOIN dp.productColors pc " +
@@ -59,11 +59,11 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
 //    @Query("SELECT MAX(pd.price) FROM ProductDetails pd WHERE pd.products.productid = :productId")
 //    Float findMaxPriceByProductId(@Param("productId") Long productId);
 
-    @Query("SELECT MIN(pd.price) FROM ProductDetails pd WHERE pd.products.productid = :productId")
+    @Query("SELECT MIN(pd.price) FROM ProductDetails pd WHERE pd.products.productId = :productId")
     Float findMinPriceByProductId(@Param("productId") Long productId);
 
     // Tìm tất cả ProductDetails theo productId
-    @Query("SELECT pd FROM ProductDetails pd WHERE pd.products.productid = :productId")
+    @Query("SELECT pd FROM ProductDetails pd WHERE pd.products.productId = :productId")
     List<ProductDetails> findByProductId(@Param("productId") Long productId);
 
 
