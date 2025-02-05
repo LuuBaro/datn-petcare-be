@@ -19,6 +19,7 @@ public class Products {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "product_id")
     private Long productId;
 
     @Column(name = "product_name", columnDefinition = "nvarchar(255)")

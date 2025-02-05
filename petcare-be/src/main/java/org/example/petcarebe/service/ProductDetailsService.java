@@ -51,7 +51,7 @@ public class ProductDetailsService {
         // Chuyển đổi danh sách ProductDetails thành danh sách ProductDetailsDTO
         return productDetailsList.stream().map(productDetails -> new ProductDetailsDTO(
                 productDetails.getProductDetailId(),
-                productDetails.getProducts().getProductname(),
+                productDetails.getProducts().getProductName(),
                 productDetails.getPrice(),
                 productDetails.getProductColors().getColorValue(),
                 productDetails.getProductSizes().getSizeValue(),

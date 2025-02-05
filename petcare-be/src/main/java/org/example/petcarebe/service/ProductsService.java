@@ -66,7 +66,7 @@ public class ProductsService {
     public Products update(Long productId, Products updatedProduct) {
         return productRepository.findById(productId).map(existingProduct -> {
             // Cập nhật tên sản phẩm
-            existingProduct.setProductname(updatedProduct.getProductname());
+            existingProduct.setProductName(updatedProduct.getProductName());
 
             // Cập nhật mô tả
             existingProduct.setDescription(updatedProduct.getDescription());
@@ -129,14 +129,14 @@ public class ProductsService {
 
         // Lọc và map các sản phẩm có ít nhất một ProductDetails
         return products.stream()
-                .filter(product -> !productDetailsRepository.findByProductId(product.getProductid()).isEmpty()) // Chỉ lấy sản phẩm có ProductDetails
+                .filter(product -> !productDetailsRepository.findByProductId(product.getProductId()).isEmpty()) // Chỉ lấy sản phẩm có ProductDetails
                 .map(product -> {
                     // Lấy giá thấp nhất của sản phẩm
-                    Float minPrice = productDetailsRepository.findMinPriceByProductId(product.getProductid());
+                    Float minPrice = productDetailsRepository.findMinPriceByProductId(product.getProductId());
                     // Tạo ProductsDTO và set thông tin
                     ProductsDTO productDTO = new ProductsDTO(
-                            product.getProductid(),
-                            product.getProductname(),
+                            product.getProductId(),
+                            product.getProductName(),
                             product.getImage()
                     );
 
