@@ -1,0 +1,14 @@
+package org.example.petcarebe.repository;
+
+import org.example.petcarebe.model.Orders;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface OrderRepository extends JpaRepository<Orders, Long> {
+    List<Orders> findByUser_UserId(Long userId);
+    List<Orders> findByStatusOrder_StatusId(Long statusId);
+    List<Orders> findByPaymentStatus(int paymentStatus);
+    List<Orders> findByType(int type);
+}

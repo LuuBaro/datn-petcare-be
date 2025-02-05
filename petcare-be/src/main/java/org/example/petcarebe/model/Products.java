@@ -19,14 +19,15 @@ public class Products {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long productid;
+    @Column(name = "product_id")
+    private Long productId;
 
     @Column(name = "product_name", columnDefinition = "nvarchar(255)")
     @NotBlank(message = "Tên sản phẩm không được để trống")
     @Size(min = 3, message = "Tên sản phẩm phải có ít nhất 3 ký tự")
     @Pattern(regexp = "^[a-zA-Z0-9\\p{L}\\p{Z}.,!?;:\"()\\-]+$",
             message = "Tên sản phẩm không được chứa ký tự đặc biệt")
-    private String productname;
+    private String productName;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;

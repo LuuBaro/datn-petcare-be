@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/register",
+                                "/api/orders/**",
                                 "/css/**",
                                 "/js/**",
                                 "/").permitAll()
