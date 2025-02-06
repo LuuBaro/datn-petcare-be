@@ -20,4 +20,6 @@ public class CartDetails {
     @ManyToOne
     @JoinColumn (name = "product_detail_id")
     private ProductDetails productDetails;
+
+   
 }

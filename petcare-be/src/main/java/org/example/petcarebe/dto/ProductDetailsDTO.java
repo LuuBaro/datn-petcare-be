@@ -15,7 +15,6 @@ public class ProductDetailsDTO {
     private float weightValue;
     private int quantity;
     private String description;
-
     private List<String> imageUrls;  // Để có thể lưu trữ ảnh nếu cần
 
     // Constructor phù hợp với truy vấn JPQL của bạn
