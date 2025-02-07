@@ -34,6 +34,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
+                .cors().and() // Cho phép CORS
+                .csrf().disable() // Tắt CSRF để tránh lỗi với các request API
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/api/auth/login",
@@ -42,17 +44,9 @@ public class SecurityConfig {
                                 "/css/**",
                                 "/js/**",
                                 "/").permitAll()
-                        .requestMatchers("/api/users/create").hasRole("ADMIN")
-                        .requestMatchers("/api/users/update").hasAnyRole("STAFF","ADMIN")
-                        .requestMatchers("/api/roles/list","/api/roles/find-by-id").hasAnyRole("VIEW_ROLE","ADMINISTRATOR")
-                        .requestMatchers("/api/roles/create").hasAnyRole("STAFF","ADMIN")
-                        .requestMatchers("/api/roles/update").hasAnyRole("UPDATE_ROLE","ADMINISTRATOR")
-                        .requestMatchers("/api/departments/list","/api/departments/get-department").hasAnyRole("VIEW_DEPARTMENT","ADMINISTRATOR")
-                        .requestMatchers("/api/departments/create").hasAnyRole("CREATE_DEPARTMENT","ADMINISTRATOR")
-                        .requestMatchers("/api/departments/update").hasAnyRole("UPDATE_DEPARTMENT","ADMINISTRATOR")
-                        .requestMatchers("/api/specialties/list","/api/specialties/find-by-id").hasAnyRole("VIEW_SPECIALTY","ADMINISTRATOR")
-                        .requestMatchers("/api/specialties/create").hasAnyRole("CREATE_SPECIALTY","ADMINISTRATOR")
-                        .requestMatchers("/api/specialties/update").hasAnyRole("UPDATE_SPECIALTY","ADMINISTRATOR")
+                        .requestMatchers("/api/admin/create").hasRole("ADMIN")
+//                        .requestMatchers("/api/admin/update/**").hasAnyRole("STAFF","ADMIN")
+                        .requestMatchers("/api/users/update/**").authenticated()
                 )
                 // TODO: properly configure the security
                 .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())

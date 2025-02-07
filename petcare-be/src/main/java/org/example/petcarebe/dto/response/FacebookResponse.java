@@ -16,4 +16,7 @@ public class FacebookResponse {
 
     @JsonProperty("accessToken")
     private String accessToken; // Token từ Facebook
+
+    @JsonProperty("imageUrl")
+    private String imageUrl;
 }

@@ -154,6 +154,8 @@ public class AuthController {
                 .email(user.getEmail())
                 .imageUrl(user.getImageUrl())
                 .isStatus(user.isStatus())
+                .registration_date(user.getRegistration_date())
+                .totalSpent(user.getTotalSpent())
                 .build();
 
     }
@@ -212,6 +214,9 @@ public class AuthController {
                         .fullName(user.getFullName())
                         .roleName(userService.getUserRole(user)) // Lấy vai trò của user, nếu có
                         .email(user.getEmail())
+                        .imageUrl(user.getImageUrl())
+                        .isStatus(user.isStatus())
+                        .totalSpent(user.getTotalSpent())
                         .build();
 
                 return ResponseEntity.ok(response);
@@ -226,6 +231,7 @@ public class AuthController {
         }
     }
 
+    // Facebook login
     @PostMapping("/facebook-login")
     public ResponseEntity<?> facebookLogin(@RequestBody FacebookResponse facebookUserDTO) {
         // Lấy accessToken từ yêu cầu
@@ -244,13 +250,10 @@ public class AuthController {
             // Khởi tạo FacebookClient để xác thực token
             FacebookClient facebookClient = new DefaultFacebookClient(accessToken, Version.LATEST);
 
+
             // Không cần gọi lại, đã có thông tin trong facebookUserDTO
             String email = facebookUserDTO.getEmail();
             String fullName = facebookUserDTO.getName();
-
-            // Log thông tin người dùng
-            System.out.println("Facebook User: " + facebookUserDTO);
-
             // Kiểm tra xem người dùng đã tồn tại trong cơ sở dữ liệu chưa
             User user = userService.findByEmail(email);
 
@@ -260,6 +263,7 @@ public class AuthController {
                 user.setEmail(email); // Có thể để trống nếu không có email
                 user.setFullName(fullName);
                 user.setPassword(""); // Không cần mật khẩu cho Facebook
+                user.setStatus(true); // Mặc định tài khoản đã được kích hoạt
                 userService.saveUser(user); // Lưu thông tin người dùng mới vào database
 
             }
@@ -273,6 +277,9 @@ public class AuthController {
                     .fullName(user.getFullName())
                     .roleName(userService.getUserRole(user))
                     .email(user.getEmail())
+                    .imageUrl(user.getImageUrl())
+                    .isStatus(user.isStatus())
+                    .totalSpent(user.getTotalSpent())
                     .build();
 
             return ResponseEntity.ok(response);
@@ -286,5 +293,4 @@ public class AuthController {
                     .body(Map.of("error", "Internal server error", "details", e.getMessage()));
         }
     }
-
 }
