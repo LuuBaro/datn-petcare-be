@@ -231,6 +231,7 @@ public class AuthController {
         }
     }
 
+    // Facebook login
     @PostMapping("/facebook-login")
     public ResponseEntity<?> facebookLogin(@RequestBody FacebookResponse facebookUserDTO) {
         // Lấy accessToken từ yêu cầu
@@ -292,5 +293,4 @@ public class AuthController {
                     .body(Map.of("error", "Internal server error", "details", e.getMessage()));
         }
     }
-
 }
