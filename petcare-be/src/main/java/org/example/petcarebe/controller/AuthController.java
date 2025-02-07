@@ -231,6 +231,7 @@ public class AuthController {
         }
     }
 
+    // Facebook login
     @PostMapping("/facebook-login")
     public ResponseEntity<?> facebookLogin(@RequestBody FacebookResponse facebookUserDTO) {
         // Lấy accessToken từ yêu cầu
@@ -253,7 +254,6 @@ public class AuthController {
             // Không cần gọi lại, đã có thông tin trong facebookUserDTO
             String email = facebookUserDTO.getEmail();
             String fullName = facebookUserDTO.getName();
-            String imageUrl = facebookUserDTO.getImageUrl(); // 📌 Nhận từ FE
             // Kiểm tra xem người dùng đã tồn tại trong cơ sở dữ liệu chưa
             User user = userService.findByEmail(email);
 
@@ -264,7 +264,6 @@ public class AuthController {
                 user.setFullName(fullName);
                 user.setPassword(""); // Không cần mật khẩu cho Facebook
                 user.setStatus(true); // Mặc định tài khoản đã được kích hoạt
-                user.setImageUrl(imageUrl); // Lưu ảnh đại diện từ Facebook
                 userService.saveUser(user); // Lưu thông tin người dùng mới vào database
 
             }
@@ -294,5 +293,4 @@ public class AuthController {
                     .body(Map.of("error", "Internal server error", "details", e.getMessage()));
         }
     }
-
 }
