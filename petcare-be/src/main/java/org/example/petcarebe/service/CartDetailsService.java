@@ -1,5 +1,6 @@
 package org.example.petcarebe.service;
 
+import org.example.petcarebe.dto.CartDetailsDTO;
 import org.example.petcarebe.model.CartDetails;
 import org.example.petcarebe.model.ProductDetails;
 import org.example.petcarebe.model.User;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class CartDetailsService {
@@ -62,4 +64,25 @@ public class CartDetailsService {
     public void deleteCartDetails(long id) {
         cartDetailsRepository.deleteById(id);
     }
+
+
+    public List<CartDetailsDTO> getCartDetailsByUserId(Long userId) {
+        List<Object[]> rawData = cartDetailsRepository.findRawCartDetailsByUserId(userId);
+
+        return rawData.stream().map(obj -> new CartDetailsDTO(
+                ((Number) obj[0]).longValue(),  // productDetailId
+                (String) obj[1],                // image
+                (String) obj[2],                // productName
+                ((Number) obj[3]).floatValue(), // price
+                (String) obj[4],                // colorValue
+                (String) obj[5],                // sizeValue
+                ((Number) obj[6]).floatValue(), // weightValue
+                ((Number) obj[7]).intValue(),   // quantityItem
+                (String) obj[8]                 // description
+        )).collect(Collectors.toList());
+    }
+
+
+
+
 }

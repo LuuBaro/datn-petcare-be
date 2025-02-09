@@ -1,11 +1,13 @@
 package org.example.petcarebe.dto;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
 @Setter
 @Getter
+@NoArgsConstructor
 public class ProductDetailsDTO {
     private Long productDetailId;
     private String productName;
@@ -29,6 +31,8 @@ public class ProductDetailsDTO {
         this.quantity = quantity;
         this.description = description;
     }
+
+
 
 
 }

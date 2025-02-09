@@ -1,8 +1,10 @@
 package org.example.petcarebe.controller;
 
+import org.example.petcarebe.dto.CartDetailsDTO;
 import org.example.petcarebe.model.CartDetails;
 import org.example.petcarebe.service.CartDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/cartdetails")
+@RequestMapping("/api/cart-details")
 public class CartDetailsController {
 
     @Autowired
@@ -53,4 +55,20 @@ public class CartDetailsController {
         cartDetailsService.deleteCartDetails(id);
         return ResponseEntity.noContent().build();
     }
+
+
+    // API lấy giỏ hàng theo userId
+    @GetMapping("/findByCart/{userId}")
+    public ResponseEntity<?> getCartDetails(@PathVariable Long userId) {
+        System.out.println("Received userId: " + userId);
+
+        List<CartDetailsDTO> cartDetails = cartDetailsService.getCartDetailsByUserId(userId);
+
+        if (cartDetails.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No cart details found for userId: " + userId);
+        }
+
+        return ResponseEntity.ok(cartDetails);
+    }
+
 }

@@ -5,8 +5,6 @@ import lombok.*;
 import java.util.Date;
 
 @Data
-@Setter
-@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
@@ -31,14 +29,15 @@ public class Orders {
     private User user;
 
     @ManyToOne
-    @JoinColumn(name = "status_id", nullable = false)
+    @JoinColumn(name = "status_id", nullable = true)
     private StatusOrder statusOrder;
 
     @ManyToOne
-    @JoinColumn(name = "voucher_id", nullable = false)
+    @JoinColumn(name = "voucher_id", nullable = true)
     private Voucher voucher;
 
     @ManyToOne
-    @JoinColumn(name = "point_id", nullable = false)
+    @JoinColumn(name = "point_id", nullable = true)
     private Point point;
+
 }
