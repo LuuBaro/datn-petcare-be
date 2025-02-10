@@ -72,6 +72,7 @@ public class OtpService {
 //        emailService.sendEmail(email, subject, message);
 //    }
 
+    @Async
     public void sendOtpEmail(String email, String otp) {
         MimeMessage message = emailService.createMimeMessage();
         MimeMessageHelper helper;
