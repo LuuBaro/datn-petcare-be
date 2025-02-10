@@ -13,4 +13,5 @@ public class Role {
 
     @Column(name = "roleName", columnDefinition = "NVARCHAR(255)")
     private String roleName;
+
 }

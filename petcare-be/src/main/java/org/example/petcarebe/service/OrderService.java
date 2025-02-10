@@ -22,6 +22,7 @@ public class OrderService {
         return orderRepository.findById(id);
     }
 
+
     public List<Orders> getOrdersByUserId(Long userId) {
         return orderRepository.findByUser_UserId(userId);
     }
@@ -48,13 +49,7 @@ public class OrderService {
         return orderRepository.save(orders);
     }
 
-    @Transactional
-    public Orders updateOrder(Orders orders) {
-        if (!orderRepository.existsById(orders.getOrderId())) {
-            throw new RuntimeException("Order not found");
-        }
-        return orderRepository.save(orders);
-    }
+
 
     @Transactional
     public void deleteOrder(Long id) {
@@ -79,4 +74,5 @@ public class OrderService {
 //        int points = (int)(orders.getTotalAmount() / 100); // Example: 1 point per $100
 //        orders.setPointEarned(points);
 //    }
+
 }
