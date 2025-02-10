@@ -17,10 +17,14 @@ public class OrderDetails {
     private float price;
 
     @ManyToOne
-    @JoinColumn(name = "order_id", nullable = false)
+    @JoinColumn(name = "order_id", nullable = true)
     private Orders orders;
 
     @ManyToOne
-    @JoinColumn(name = "product_detail_id", nullable = false)
-    private Products products;
+    @JoinColumn(name = "product_detail_id", nullable = true)
+    private ProductDetails productDetails;
+
+    public void setProductDetail(ProductDetails productDetail) {
+
+    }
 }
