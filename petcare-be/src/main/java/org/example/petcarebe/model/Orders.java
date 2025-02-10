@@ -42,4 +42,8 @@ public class Orders {
     @ManyToOne
     @JoinColumn(name = "point_id", nullable = false)
     private Point point;
+
+    @ManyToOne
+    @JoinColumn(name = "address_id", nullable = false)
+    private Address address;
 }
