@@ -14,7 +14,7 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<Orders>> getAllOrders() {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
@@ -25,6 +25,7 @@ public class OrderController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Orders>> getOrdersByUserId(@PathVariable Long userId) {
@@ -52,4 +53,5 @@ public class OrderController {
 //        orderService.deleteOrder(id);
 //        return ResponseEntity.ok().build();
 //    }
+
 }

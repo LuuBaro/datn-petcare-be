@@ -52,4 +52,5 @@ public class ProductWeightController {
         boolean isDeleted = productWeightService.deleteProductWeight(weightId);
         return isDeleted ? ResponseEntity.noContent().build() : ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
+
 }

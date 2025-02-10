@@ -46,19 +46,6 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
     Optional<ProductDetails> findByColorSizeWeight(String colorValue, String sizeValue, String weightValue);
 
 
-
-//    // Truy vấn để lấy danh sách giá của sản phẩm theo productId
-//    @Query("SELECT pd.price FROM ProductDetails pd WHERE pd.products.productid = :productId")
-//    List<Float> findPricesByProductId(@Param("productId") Long productId);
-//
-//    // Truy vấn để lấy giá thấp nhất của sản phẩm theo productId
-//    @Query("SELECT MIN(pd.price) FROM ProductDetails pd WHERE pd.products.productid = :productId")
-//    Float findMinPriceByProductId(@Param("productId") Long productId);
-//
-//    // Truy vấn để lấy giá cao nhất của sản phẩm theo productId
-//    @Query("SELECT MAX(pd.price) FROM ProductDetails pd WHERE pd.products.productid = :productId")
-//    Float findMaxPriceByProductId(@Param("productId") Long productId);
-
     @Query("SELECT MIN(pd.price) FROM ProductDetails pd WHERE pd.products.productId = :productId")
     Float findMinPriceByProductId(@Param("productId") Long productId);
 
