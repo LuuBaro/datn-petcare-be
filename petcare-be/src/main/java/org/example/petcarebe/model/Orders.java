@@ -15,7 +15,7 @@ public class Orders {
 
     @Temporal(TemporalType.DATE)
     private Date orderDate;
-    private int paymentStatus;
+    private String paymentStatus;
     private String paymentMethod;
     private String shippingAddress;
     private float shippingCost;

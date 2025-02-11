@@ -1,6 +1,5 @@
 package org.example.petcarebe.repository;
 
-
 import org.example.petcarebe.dto.ProductsDTO;
 import org.example.petcarebe.model.Products;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,7 +10,8 @@ import java.util.List;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Products, Long> {
-    @Query("SELECT new org.example.petcarebe.dto.ProductsDTO(p.productId, p.productName, p.image) " +
-            "FROM Products p" )
+    @Query("SELECT new org.example.petcarebe.dto.ProductsDTO(p.productId, p.productName, p.image, c.categoryName) " +
+            "FROM Products p " +
+            "JOIN p.categories c")
     List<ProductsDTO> findAllProductsWithMinPrice();
 }
