@@ -42,6 +42,7 @@ public class SecurityConfig {
                                 "/api/**",
                                 "/api/auth/register",
                                 "/api/orders/**",
+                                "/api/addresses/**",
                                 "/css/**",
                                 "/js/**",
                                 "/").permitAll()
