@@ -15,6 +15,7 @@ public class Orders {
 
     @Temporal(TemporalType.DATE)
     private Date orderDate;
+    @Column(name = "payment_status", columnDefinition = "NVARCHAR(255)")
     private String paymentStatus;
     private String paymentMethod;
     private String shippingAddress;

@@ -63,7 +63,7 @@ public class UserService implements UserDetailsService {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setStatus(true); // Đặt trạng thái mặc định là true khi tạo// Mã hóa mật khẩu trước khi lưu
         user.setRegistration_date(LocalDate.now());
-
+        user.setFullName(user.getFullName());
         userRepository.save(user);
         // Gán vai trò mặc định "Người dùng" nếu không có vai trò nào được chỉ định
         Role defaultRole = roleRepository.findByRoleName("USER");
