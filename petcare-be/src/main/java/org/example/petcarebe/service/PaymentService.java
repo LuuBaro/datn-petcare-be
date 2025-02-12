@@ -45,7 +45,7 @@ public class PaymentService {
         Orders order = new Orders();
         order.setUser(user);
         order.setOrderDate(new Date());
-        order.setPaymentStatus(0); // 0: Chưa thanh toán, 1: Đã thanh toán
+        order.setPaymentStatus(null); // 0: Chưa thanh toán, 1: Đã thanh toán
         order.setShippingCost(50000); // Phí vận chuyển cố định
         order.setTotalAmount(calculateTotal(cartItems) + order.getShippingCost());
         order.setPaymentMethod("COD"); // Mặc định là Thanh toán khi nhận hàng
