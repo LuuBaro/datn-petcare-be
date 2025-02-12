@@ -61,4 +61,5 @@ public class ProductSizeController {
         boolean isDeleted = productSizeService.deleteProductSize(productSizeId);
         return isDeleted ? ResponseEntity.noContent().build() : ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
+
 }
