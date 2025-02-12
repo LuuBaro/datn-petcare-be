@@ -1,9 +1,12 @@
 package org.example.petcarebe.service;
 
+import org.example.petcarebe.dto.FavoriteDTO;
 import org.example.petcarebe.model.Favorites;
+import org.example.petcarebe.model.ProductDetails;
 import org.example.petcarebe.model.Products;
 import org.example.petcarebe.model.User;
 import org.example.petcarebe.repository.FavoritesRepository;
+import org.example.petcarebe.repository.ProductDetailsRepository;
 import org.example.petcarebe.repository.ProductRepository;
 import org.example.petcarebe.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -11,30 +14,30 @@ import org.springframework.stereotype.Service;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class FavoritesService {
     private final FavoritesRepository favoritesRepository;
     private final UserRepository userRepository;
     private final ProductRepository productsRepository;
-
-    public FavoritesService(FavoritesRepository favoritesRepository, UserRepository userRepository, ProductRepository productsRepository) {
+    private final ProductDetailsRepository productDetailsRepository;
+    public FavoritesService(FavoritesRepository favoritesRepository, UserRepository userRepository, ProductRepository productsRepository, ProductDetailsRepository productDetailsRepository) {
         this.favoritesRepository = favoritesRepository;
         this.userRepository = userRepository;
         this.productsRepository = productsRepository;
+        this.productDetailsRepository = productDetailsRepository;
     }
 
-    public Favorites toggleFavorite(Long userId, Long productId) {
-        Optional<User> userOpt = userRepository.findById(userId);
-        Optional<Products> productOpt = productsRepository.findById(productId);
+    // Toggle yêu thích
+    public FavoriteDTO toggleFavorite(Long userId, Long productId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+        Products product = productsRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product không tồn tại"));
 
-        if (userOpt.isEmpty() || productOpt.isEmpty()) {
-            throw new RuntimeException("User hoặc Product không tồn tại");
-        }
-
-        User user = userOpt.get();
-        Products product = productOpt.get();
         Favorites favorite = favoritesRepository.findByUserAndProducts(user, product);
+
 
         if (favorite == null) {
             // Nếu chưa có trong danh sách yêu thích, tạo mới
@@ -48,8 +51,63 @@ public class FavoritesService {
             favorite.setLiked(!favorite.isLiked());
         }
 
-        return favoritesRepository.save(favorite);
+        favoritesRepository.save(favorite);
+        // Chuyển đổi thành FavoriteDTO để trả về
+
+        // Lấy giá sản phẩm từ ProductDetails (ví dụ: lấy giá đầu tiên trong danh sách)
+        float price = product.getProductDetails() != null && !product.getProductDetails().isEmpty()
+                ? product.getProductDetails().get(0).getPrice()
+                : 0.0f; // Giá mặc định nếu không có thông tin
+        return new FavoriteDTO(
+                product.getProductId(),
+                product.getProductName(),
+                product.getImage(),
+
+                user.getUserId(),
+                favorite.getFavoritesId(),
+                favorite.getLike_date(),
+
+                favorite.isLiked(),
+                price
+        );
     }
 
+    // Kiểm tra trạng thái yêu thích
+    public boolean getFavoriteStatus(Long userId, Long productId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+        Products product = productsRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product không tồn tại"));
 
+        return favoritesRepository.existsByUserAndProductsAndIsLiked(user, product, true);
+    }
+
+    public List<FavoriteDTO> getFavoriteProducts(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        List<Favorites> favorites = favoritesRepository.findAllByUserAndIsLikedTrue(user);
+
+        return favorites.stream()
+                .map(fav -> {
+                    Products product = fav.getProducts();
+
+                    // Lấy giá từ ProductDetails (lấy giá đầu tiên nếu có)
+                    float price = product.getProductDetails() != null && !product.getProductDetails().isEmpty()
+                            ? product.getProductDetails().get(0).getPrice()
+                            : 0.0f; // Giá mặc định nếu không có thông tin
+
+                    return new FavoriteDTO(
+                            product.getProductId(),
+                            product.getProductName(),
+                            product.getImage(),
+                            user.getUserId(),
+                            fav.getFavoritesId(),
+                            fav.getLike_date(),
+                            fav.isLiked(),
+                            price
+                    );
+                })
+                .collect(Collectors.toList());
+    }
 }
