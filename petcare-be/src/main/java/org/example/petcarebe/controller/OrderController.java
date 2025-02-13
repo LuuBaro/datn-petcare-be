@@ -14,7 +14,7 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<Orders>> getAllOrders() {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
@@ -26,6 +26,7 @@ public class OrderController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Orders>> getOrdersByUserId(@PathVariable Long userId) {
         return ResponseEntity.ok(orderService.getOrdersByUserId(userId));
@@ -36,20 +37,21 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrdersByStatus(statusId));
     }
 
-    @PostMapping
-    public ResponseEntity<Orders> createOrder(@RequestBody Orders orders) {
-        return ResponseEntity.ok(orderService.createOrder(orders));
-    }
+//    @PostMapping
+//    public ResponseEntity<Orders> createOrder(@RequestBody Orders orders) {
+//        return ResponseEntity.ok(orderService.createOrder(orders));
+//    }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Orders> updateOrder(@PathVariable Long id, @RequestBody Orders orders) {
-        orders.setOrderId(id);
-        return ResponseEntity.ok(orderService.updateOrder(orders));
-    }
+//    @PutMapping("/{id}")
+//    public ResponseEntity<Orders> updateOrder(@PathVariable Long id, @RequestBody Orders orders) {
+//        orders.setOrderId(id);
+//        return ResponseEntity.ok(orderService.updateOrder(orders));
+//    }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
-        orderService.deleteOrder(id);
-        return ResponseEntity.ok().build();
-    }
+//    @DeleteMapping("/{id}")
+//    public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
+//        orderService.deleteOrder(id);
+//        return ResponseEntity.ok().build();
+//    }
+
 }

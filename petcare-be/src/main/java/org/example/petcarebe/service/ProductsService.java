@@ -137,7 +137,8 @@ public class ProductsService {
                     ProductsDTO productDTO = new ProductsDTO(
                             product.getProductId(),
                             product.getProductName(),
-                            product.getImage()
+                            product.getImage(),
+                            product.getCategories().getCategoryName()
                     );
 
                     // Set giá trị price

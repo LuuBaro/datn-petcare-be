@@ -1,11 +1,13 @@
 package org.example.petcarebe.dto;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
 @Setter
 @Getter
+@NoArgsConstructor
 public class ProductDetailsDTO {
     private Long productDetailId;
     private String productName;
@@ -15,7 +17,6 @@ public class ProductDetailsDTO {
     private float weightValue;
     private int quantity;
     private String description;
-
     private List<String> imageUrls;  // Để có thể lưu trữ ảnh nếu cần
 
     // Constructor phù hợp với truy vấn JPQL của bạn
@@ -30,6 +31,8 @@ public class ProductDetailsDTO {
         this.quantity = quantity;
         this.description = description;
     }
+
+
 
 
 }

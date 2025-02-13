@@ -22,6 +22,7 @@ public class OrderService {
         return orderRepository.findById(id);
     }
 
+
     public List<Orders> getOrdersByUserId(Long userId) {
         return orderRepository.findByUser_UserId(userId);
     }
@@ -30,31 +31,25 @@ public class OrderService {
         return orderRepository.findByStatusOrder_StatusId(statusId);
     }
 
-    public List<Orders> getOrdersByPaymentStatus(int paymentStatus) {
-        return orderRepository.findByPaymentStatus(paymentStatus);
-    }
+//    public List<Orders> getOrdersByPaymentStatus(Long paymentStatus) {
+//        return orderRepository.findByPaymentStatus(paymentStatus);
+//    }
 
     @Transactional
     public Orders createOrder(Orders orders) {
         // Calculate shipping cost based on weight or other factors
         calculateShippingCost(orders);
 
-        // Calculate total amount
-        calculateTotalAmount(orders);
-
-        // Calculate points earned (if applicable)
-        calculatePointsEarned(orders);
+//        // Calculate total amount
+//        calculateTotalAmount(orders);
+//
+//        // Calculate points earned (if applicable)
+//        calculatePointsEarned(orders);
 
         return orderRepository.save(orders);
     }
 
-    @Transactional
-    public Orders updateOrder(Orders orders) {
-        if (!orderRepository.existsById(orders.getOrderId())) {
-            throw new RuntimeException("Order not found");
-        }
-        return orderRepository.save(orders);
-    }
+
 
     @Transactional
     public void deleteOrder(Long id) {
@@ -66,17 +61,18 @@ public class OrderService {
         // This could be based on weight, distance, shipping method, etc.
     }
 
-    private void calculateTotalAmount(Orders orders) {
-        // Calculate total amount including items, shipping, discounts, etc.
-        float total = 0;
-        // Add logic to calculate total from order details
-        orders.setTotalAmount(total);
-    }
+//    private void calculateTotalAmount(Orders orders) {
+//        // Calculate total amount including items, shipping, discounts, etc.
+//        float total = 0;
+//        // Add logic to calculate total from order details
+//        orders.setTotalAmount(total);
+//    }
 
-    private void calculatePointsEarned(Orders orders) {
-        // Implement points calculation logic based on order total
-        // This could vary based on user tier, promotions, etc.
-        int points = (int)(orders.getTotalAmount() / 100); // Example: 1 point per $100
-        orders.setPointEarned(points);
-    }
+//    private void calculatePointsEarned(Orders orders) {
+//        // Implement points calculation logic based on order total
+//        // This could vary based on user tier, promotions, etc.
+//        int points = (int)(orders.getTotalAmount() / 100); // Example: 1 point per $100
+//        orders.setPointEarned(points);
+//    }
+
 }
