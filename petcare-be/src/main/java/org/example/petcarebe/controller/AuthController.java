@@ -14,6 +14,7 @@ import org.example.petcarebe.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -135,6 +136,7 @@ public class AuthController {
     }
 
     // Login
+
     @PostMapping("/login")
     public JwtResponse login(@RequestBody AuthRequest authRequest) {
         Authentication authentication = authenticationManager.authenticate(
