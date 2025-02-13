@@ -3,6 +3,8 @@ package org.example.petcarebe.model;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 
 @Data
 @NoArgsConstructor
@@ -41,8 +43,8 @@ public class Orders {
     @JoinColumn(name = "point_id", nullable = true)
     private Point point;
 
-    @ManyToOne
-    @JoinColumn(name = "address_id", nullable = false)
-    private Address address;
+    // ✅ Thêm quan hệ One-to-Many với OrderDetails
+    @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<OrderDetails> orderDetails;
 
 }
