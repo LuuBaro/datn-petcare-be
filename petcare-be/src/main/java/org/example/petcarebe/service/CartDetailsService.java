@@ -34,21 +34,41 @@ public class CartDetailsService {
         return cartDetailsRepository.findById(id).orElse(null);
     }
 
-    public CartDetails addCartDetails(Long userId, Long productDetailId, int quantityItem) {
-        Optional<User> userOpt = userRepository.findById(userId);
-        Optional<ProductDetails> productOpt = productDetailsRepository.findById(productDetailId);
 
-        if (userOpt.isEmpty() || productOpt.isEmpty()) {
-            throw new IllegalArgumentException("User or Product not found");
+    public CartDetails addCartDetails(Long userId, Long productDetailId, int quantityItem) {
+        // Kiểm tra xem User và ProductDetail có tồn tại không
+        User user = userRepository.findById(userId).orElseThrow(() ->
+                new IllegalArgumentException("User not found")
+        );
+        ProductDetails productDetails = productDetailsRepository.findById(productDetailId).orElseThrow(() ->
+                new IllegalArgumentException("Product details not found")
+        );
+
+        // Kiểm tra số lượng tồn kho
+        int availableQuantity = productDetails.getQuantity();
+        CartDetails existingCartDetail = cartDetailsRepository.findByUserAndProductDetails(user, productDetails);
+        int currentQuantityInCart = existingCartDetail != null ? existingCartDetail.getQuantityItem() : 0;
+
+        if (currentQuantityInCart + quantityItem > availableQuantity) {
+            throw new IllegalArgumentException(
+                    String.format("Không thể thêm vào giỏ hàng vì sản phẩm trong giỏ hàng của bạn vượt quá số lượng")
+            );
         }
 
-        CartDetails cartDetails = new CartDetails();
-        cartDetails.setUser(userOpt.get());
-        cartDetails.setProductDetails(productOpt.get());
-        cartDetails.setQuantityItem(quantityItem);
-
-        return cartDetailsRepository.save(cartDetails);
+        // Nếu sản phẩm đã tồn tại trong giỏ hàng
+        if (existingCartDetail != null) {
+            existingCartDetail.setQuantityItem(currentQuantityInCart + quantityItem);
+            return cartDetailsRepository.save(existingCartDetail);
+        } else {
+            // Nếu sản phẩm chưa có trong giỏ hàng
+            CartDetails newCartDetail = new CartDetails();
+            newCartDetail.setUser(user);
+            newCartDetail.setProductDetails(productDetails);
+            newCartDetail.setQuantityItem(quantityItem);
+            return cartDetailsRepository.save(newCartDetail);
+        }
     }
+
 
     public CartDetails updateCartDetails(Long id, int quantityItem) {
         Optional<CartDetails> cartOpt = cartDetailsRepository.findById(id);

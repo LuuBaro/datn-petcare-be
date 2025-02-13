@@ -33,14 +33,25 @@ public class CartDetailsController {
     }
 
     @PostMapping("/add")
-    public ResponseEntity<CartDetails> addCartDetails(@RequestBody Map<String, Object> payload) {
-        Long userId = Long.parseLong(payload.get("userId").toString());
-        Long productDetailId = Long.parseLong(payload.get("productDetailId").toString());
-        int quantityItem = (int) payload.get("quantityItem");
+    public ResponseEntity<?> addCartDetails(@RequestBody Map<String, Object> payload) {
+        try {
+            Long userId = Long.parseLong(payload.get("userId").toString());
+            Long productDetailId = Long.parseLong(payload.get("productDetailId").toString());
+            int quantityItem = (int) payload.get("quantityItem");
 
-        CartDetails savedCartDetails = cartDetailsService.addCartDetails(userId, productDetailId, quantityItem);
-        return ResponseEntity.ok(savedCartDetails);
+            // Gọi service để thêm chi tiết giỏ hàng
+            CartDetails savedCartDetails = cartDetailsService.addCartDetails(userId, productDetailId, quantityItem);
+            return ResponseEntity.ok(savedCartDetails);
+
+        } catch (IllegalArgumentException e) {
+            // Nếu có lỗi logic từ Service (ví dụ: vượt quá tồn kho), trả về lỗi 400 cùng thông báo
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            // Nếu có lỗi khác, trả về lỗi 500 cùng thông báo
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An unexpected error occurred."));
+        }
     }
+
 
     @PutMapping("/update/{id}")
     public ResponseEntity<CartDetails> updateCartDetails(@PathVariable Long id, @RequestBody Map<String, Integer> payload) {

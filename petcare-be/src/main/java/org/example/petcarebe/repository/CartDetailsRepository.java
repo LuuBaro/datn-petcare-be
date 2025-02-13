@@ -3,6 +3,7 @@ package org.example.petcarebe.repository;
 import jakarta.transaction.Transactional;
 import org.example.petcarebe.dto.CartDetailsDTO;
 import org.example.petcarebe.model.ProductDetails;
+import org.example.petcarebe.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -49,6 +50,8 @@ public interface CartDetailsRepository extends JpaRepository<CartDetails, Long> 
 
 
     void deleteAllByUser_UserId(Long userId);
+
+    CartDetails findByUserAndProductDetails(User user, ProductDetails productDetails);
 
 
 
