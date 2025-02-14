@@ -4,6 +4,7 @@ package org.example.petcarebe.repository;
 import org.example.petcarebe.dto.ProductDetailsDTO;
 import org.example.petcarebe.model.ProductDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,6 +14,10 @@ import java.util.Optional;
 
 @Repository
 public interface ProductDetailsRepository extends JpaRepository<ProductDetails, Long> {
+
+    @Modifying
+    @Query("UPDATE ProductDetails p SET p.quantity = p.quantity - :quantity WHERE p.productDetailId = :productDetailId AND p.quantity >= :quantity")
+    int updateStock(@Param("productDetailId") Long productDetailId, @Param("quantity") int quantity);
 
     // Fetch product details by ID
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
