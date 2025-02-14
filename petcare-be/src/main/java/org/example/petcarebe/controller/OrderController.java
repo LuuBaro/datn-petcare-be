@@ -5,6 +5,7 @@ import org.example.petcarebe.dto.request.CheckoutRequestDTO;
 import org.example.petcarebe.model.Orders;
 import org.example.petcarebe.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -39,4 +40,21 @@ public class OrderController {
         List<OrderDTO> orderDTOList = orderService.getAllOrders();
         return ResponseEntity.ok(orderDTOList);
     }
+
+
+
+    @PutMapping("/cancel/{orderId}")
+    public ResponseEntity<Map<String, Object>> cancelOrder(@PathVariable Long orderId) {
+        Orders order = orderService.cancelOrder(orderId);
+
+        // Tạo phản hồi theo yêu cầu
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Đơn hàng đã được hủy thành công");
+        response.put("orderId", order.getOrderId());
+        response.put("status", order.getStatusOrder().getStatusName());
+
+        return ResponseEntity.ok(response);
+    }
+
+
 }
