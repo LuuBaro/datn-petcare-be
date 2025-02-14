@@ -1,5 +1,6 @@
 package org.example.petcarebe.service;
 
+import jakarta.transaction.Transactional;
 import org.example.petcarebe.dto.CartDetailsDTO;
 import org.example.petcarebe.model.CartDetails;
 import org.example.petcarebe.model.ProductDetails;
@@ -8,6 +9,7 @@ import org.example.petcarebe.repository.CartDetailsRepository;
 import org.example.petcarebe.repository.ProductDetailsRepository;
 import org.example.petcarebe.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -90,19 +92,24 @@ public class CartDetailsService {
         List<Object[]> rawData = cartDetailsRepository.findRawCartDetailsByUserId(userId);
 
         return rawData.stream().map(obj -> new CartDetailsDTO(
-                ((Number) obj[0]).longValue(),  // productDetailId
-                (String) obj[1],                // image
-                (String) obj[2],                // productName
-                ((Number) obj[3]).floatValue(), // price
-                (String) obj[4],                // colorValue
-                (String) obj[5],                // sizeValue
-                ((Number) obj[6]).floatValue(), // weightValue
-                ((Number) obj[7]).intValue(),   // quantityItem
-                (String) obj[8]                 // description
+                ((Number) obj[0]).longValue(),  // cartDetailId
+                ((Number) obj[1]).longValue(),  // productDetailId
+                (String) obj[2],                // image
+                (String) obj[3],                // productName
+                ((Number) obj[4]).floatValue(), // price
+                (String) obj[5],                // colorValue
+                (String) obj[6],                // sizeValue
+                ((Number) obj[7]).floatValue(), // weightValue
+                ((Number) obj[8]).intValue(),   // quantityItem
+                (String) obj[9]                 // description
         )).collect(Collectors.toList());
     }
 
 
-
+    @Modifying
+    @Transactional
+    public void clearCartDetailsByUserId(Long userId) {
+        cartDetailsRepository.deleteByUserId(userId);
+    }
 
 }

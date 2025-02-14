@@ -23,7 +23,9 @@ public class Orders {
     private String shippingAddress;
     private float shippingCost;
     private float totalAmount;
-    private int type;
+
+    @Column(name = "type", columnDefinition = "NVARCHAR(255)")
+    private String type;
     private int pointEarned;
     private int pointUsed;
 

@@ -17,7 +17,7 @@ public class OrderDTO {
     private String shippingAddress;
     private float shippingCost;
     private float totalAmount;
-    private int type;
+    private String type;
     private int pointEarned;
     private int pointUsed;
 

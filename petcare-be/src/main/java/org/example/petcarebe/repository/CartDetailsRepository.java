@@ -18,6 +18,7 @@ public interface CartDetailsRepository extends JpaRepository<CartDetails, Long> 
 
     @Query(value = """
         SELECT 
+            c.cart_detail_id AS cartDetailId,
             p.product_detail_id AS productDetailId, 
             prod.image AS image,
             prod.product_name AS productName, 
@@ -52,6 +53,11 @@ public interface CartDetailsRepository extends JpaRepository<CartDetails, Long> 
     void deleteAllByUser_UserId(Long userId);
 
     CartDetails findByUserAndProductDetails(User user, ProductDetails productDetails);
+
+    @Modifying
+    @Query("DELETE FROM CartDetails c WHERE c.user.userId = :userId")
+    void deleteByUserId(@Param("userId") Long userId);
+
 
 
 

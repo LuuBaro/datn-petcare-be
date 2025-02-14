@@ -38,6 +38,15 @@ public class OrderService {
     @Autowired
     private VoucherRepository voucherRepository;
 
+    @Autowired
+    private CartDetailsService cartDetailsService;
+
+    public void clearCartDetailsByUserId(Long cartDetailId) {
+        cartDetailsService.deleteCartDetails(cartDetailId);
+    }
+
+
+    @Transactional
     public Orders checkout(CheckoutRequestDTO request) {
         // 1️⃣ Kiểm tra người dùng
         User user = userRepository.findById(request.getUserId())
@@ -52,6 +61,7 @@ public class OrderService {
         order.setShippingCost(request.getShippingCost());
         order.setPaymentStatus("PENDING");
         order.setStatusOrder(statusOrderRepository.findById(1L).orElse(null));
+        order.setType(request.getType());
         order.setPointEarned(0);
         order.setPointUsed(0);
 
@@ -66,18 +76,12 @@ public class OrderService {
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         for (OrderItemDTO item : request.getItems()) {
-            // Kiểm tra sản phẩm
             ProductDetails product = productDetailsRepository.findById(item.getProductDetailId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductDetailId()));
 
-            // Kiểm tra tồn kho
             if (product.getQuantity() < item.getQuantity()) {
                 throw new RuntimeException("Insufficient stock for product: " + item.getProductDetailId());
             }
-
-            // Giảm số lượng sản phẩm
-//            product.setQuantity(product.getQuantity() - item.getQuantity());
-//            productDetailsRepository.save(product);
 
             // Tạo OrderDetails
             OrderDetails orderDetail = new OrderDetails();
@@ -87,9 +91,9 @@ public class OrderService {
             orderDetail.setPrice(item.getPrice());
 
             orderDetailsList.add(orderDetail);
-
-            // Tính tổng tiền
-            totalAmount = totalAmount.add(BigDecimal.valueOf(item.getQuantity()).multiply(BigDecimal.valueOf(item.getPrice())));
+            totalAmount = totalAmount.add(
+                    BigDecimal.valueOf(item.getQuantity()).multiply(BigDecimal.valueOf(item.getPrice()))
+            );
         }
 
         // 5️⃣ Cập nhật tổng tiền
@@ -98,11 +102,15 @@ public class OrderService {
         // 6️⃣ Thêm chi tiết vào đơn hàng
         order.setOrderDetails(orderDetailsList);
 
-        // 7️⃣ Lưu đơn hàng (tự động lưu OrderDetails do cascade = CascadeType.ALL)
+        // 7️⃣ Lưu đơn hàng
         orderRepository.save(order);
+
+        // 8️⃣ Xóa giỏ hàng sau khi thanh toán thành công
+        cartDetailsService.clearCartDetailsByUserId(request.getUserId());
 
         return order;
     }
+
 
 
     // Lấy tất cả đơn hàng
