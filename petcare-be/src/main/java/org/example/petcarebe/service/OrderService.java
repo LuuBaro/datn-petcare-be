@@ -71,7 +71,7 @@ public class OrderService {
             order.setVoucher(voucher);
         }
 
-        // 4️⃣ Thêm chi tiết đơn hàng
+        // 4️⃣ Thêm chi tiết đơn hàng và cập nhật số lượng tồn kho
         List<OrderDetails> orderDetailsList = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
 
@@ -79,6 +79,7 @@ public class OrderService {
             ProductDetails product = productDetailsRepository.findById(item.getProductDetailId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductDetailId()));
 
+            // Kiểm tra tồn kho
             if (product.getQuantity() < item.getQuantity()) {
                 throw new RuntimeException("Insufficient stock for product: " + item.getProductDetailId());
             }
@@ -94,6 +95,12 @@ public class OrderService {
             totalAmount = totalAmount.add(
                     BigDecimal.valueOf(item.getQuantity()).multiply(BigDecimal.valueOf(item.getPrice()))
             );
+
+            int updated = productDetailsRepository.updateStock(item.getProductDetailId(), item.getQuantity());
+            if (updated == 0) {
+                throw new RuntimeException("Số lượng tồn kho không đủ cho sản phẩm: " + item.getProductDetailId());
+            }
+
         }
 
         // 5️⃣ Cập nhật tổng tiền
@@ -110,6 +117,7 @@ public class OrderService {
 
         return order;
     }
+
 
 
 
