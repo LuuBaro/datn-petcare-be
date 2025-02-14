@@ -162,4 +162,38 @@ public class OrderService {
                 .build();
     }
 
+
+    @Transactional
+    public Orders cancelOrder(Long orderId) {
+        // 1️⃣ Tìm đơn hàng
+        Orders order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+        // 2️⃣ Kiểm tra trạng thái đơn hàng (chỉ hủy nếu trạng thái là "PENDING")
+        if (!order.getStatusOrder().getStatusId().equals(1L)) {
+            throw new RuntimeException("Chỉ có thể hủy đơn hàng ở trạng thái chờ.");
+        }
+
+        // 3️⃣ Cập nhật trạng thái đơn hàng thành "CANCELLED" (statusId = 5)
+        StatusOrder cancelledStatus = statusOrderRepository.findById(5L)
+                .orElseThrow(() -> new RuntimeException("Status 'Cancelled' not found"));
+        order.setStatusOrder(cancelledStatus);
+
+        // 4️⃣ Hoàn lại số lượng tồn kho (Sử dụng Native Query để tránh lỗi khóa ngoại)
+        for (OrderDetails orderDetail : order.getOrderDetails()) {
+            int updated = productDetailsRepository.updateStockcancel(
+                    orderDetail.getProductDetails().getProductDetailId(),
+                    orderDetail.getQuantity()
+            );
+            if (updated == 0) {
+                throw new RuntimeException("Cập nhật tồn kho thất bại cho sản phẩm: " + orderDetail.getProductDetails().getProductDetailId());
+            }
+        }
+
+        // 5️⃣ Lưu đơn hàng đã hủy vào database
+        return orderRepository.save(order);
+    }
+
+
+
 }
