@@ -22,15 +22,18 @@ public class OrderController {
 
     @PostMapping("/checkout")
     public ResponseEntity<Map<String, Object>> checkout(@RequestBody CheckoutRequestDTO request) {
-        Orders order = orderService.checkout(request);
-
-        // Tạo Map để chứa thông báo và dữ liệu
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "Thanh toán thành công");
-        response.put("order", order.getOrderId());
-
-        return ResponseEntity.ok(response);
+        try {
+            Orders order = orderService.checkout(request);
+            response.put("message", "Thanh toán thành công");
+            response.put("order", order.getOrderId());
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
     }
+
 
 
 

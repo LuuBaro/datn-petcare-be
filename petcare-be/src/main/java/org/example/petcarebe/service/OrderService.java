@@ -81,7 +81,7 @@ public class OrderService {
 
             // Kiểm tra tồn kho
             if (product.getQuantity() < item.getQuantity()) {
-                throw new RuntimeException("Insufficient stock for product: " + item.getProductDetailId());
+                throw new RuntimeException("đã hết hàng hoặc không đủ số lượng!");
             }
 
             // Tạo OrderDetails
