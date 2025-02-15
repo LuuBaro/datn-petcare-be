@@ -1,11 +1,17 @@
 package org.example.petcarebe.controller;
 
+import org.example.petcarebe.dto.OrderDTO;
+import org.example.petcarebe.dto.request.CheckoutRequestDTO;
 import org.example.petcarebe.model.Orders;
 import org.example.petcarebe.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -14,44 +20,41 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
+    @PostMapping("/checkout")
+    public ResponseEntity<Map<String, Object>> checkout(@RequestBody CheckoutRequestDTO request) {
+        Orders order = orderService.checkout(request);
+
+        // Tạo Map để chứa thông báo và dữ liệu
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Thanh toán thành công");
+        response.put("order", order.getOrderId());
+
+        return ResponseEntity.ok(response);
+    }
+
+
+
+    // API Lấy tất cả đơn hàng
     @GetMapping("/all")
-    public ResponseEntity<List<Orders>> getAllOrders() {
-        return ResponseEntity.ok(orderService.getAllOrders());
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<Orders> getOrderById(@PathVariable Long id) {
-        return orderService.getOrderById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<List<OrderDTO>> getAllOrders() {
+        List<OrderDTO> orderDTOList = orderService.getAllOrders();
+        return ResponseEntity.ok(orderDTOList);
     }
 
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Orders>> getOrdersByUserId(@PathVariable Long userId) {
-        return ResponseEntity.ok(orderService.getOrdersByUserId(userId));
+
+    @PutMapping("/cancel/{orderId}")
+    public ResponseEntity<Map<String, Object>> cancelOrder(@PathVariable Long orderId) {
+        Orders order = orderService.cancelOrder(orderId);
+
+        // Tạo phản hồi theo yêu cầu
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Đơn hàng đã được hủy thành công");
+        response.put("orderId", order.getOrderId());
+        response.put("status", order.getStatusOrder().getStatusName());
+
+        return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/status/{statusId}")
-    public ResponseEntity<List<Orders>> getOrdersByStatus(@PathVariable Long statusId) {
-        return ResponseEntity.ok(orderService.getOrdersByStatus(statusId));
-    }
-
-//    @PostMapping
-//    public ResponseEntity<Orders> createOrder(@RequestBody Orders orders) {
-//        return ResponseEntity.ok(orderService.createOrder(orders));
-//    }
-
-//    @PutMapping("/{id}")
-//    public ResponseEntity<Orders> updateOrder(@PathVariable Long id, @RequestBody Orders orders) {
-//        orders.setOrderId(id);
-//        return ResponseEntity.ok(orderService.updateOrder(orders));
-//    }
-
-//    @DeleteMapping("/{id}")
-//    public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
-//        orderService.deleteOrder(id);
-//        return ResponseEntity.ok().build();
-//    }
 
 }
