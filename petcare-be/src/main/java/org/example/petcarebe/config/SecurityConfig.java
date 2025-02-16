@@ -37,21 +37,22 @@ public class SecurityConfig {
                 .cors().and() // Cho phép CORS
                 .csrf().disable() // Tắt CSRF để tránh lỗi với các request API
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(
-                                "/api/auth/login",
-                                "/api/**",
-                                "/api/auth/register",
-                                "/api/orders/**",
-                                "/api/addresses/**",
-                                "/css/**",
-                                "/js/**",
-                                "/").permitAll()
-                        .requestMatchers("/api/admin/create").hasRole("ADMIN")
+                                .requestMatchers(
+                                        "/api/auth/login",
+                                        "/api/**",
+                                        "/api/auth/register",
+                                        "/api/orders/**",
+                                        "/api/addresses/**",
+                                        "/css/**",
+                                        "/js/**",
+                                        "/").permitAll()
+                                .requestMatchers("/api/admin/create").hasRole("ADMIN")
 //                        .requestMatchers("/api/admin/update/**").hasAnyRole("STAFF","ADMIN")
-                        .requestMatchers("/api/users/update/**").authenticated()
+                                .requestMatchers("/api/users/update/**").authenticated()
+                                .anyRequest().authenticated()
                 )
                 // TODO: properly configure the security
-                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .formLogin(form -> form
                         .loginPage("/login")
@@ -66,12 +67,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider(){
-        DaoAuthenticationProvider authenticationProvider=new DaoAuthenticationProvider();
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
         authenticationProvider.setUserDetailsService(userService);
         authenticationProvider.setPasswordEncoder(passwordEncoder());
         return authenticationProvider;
     }
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
             throws Exception {

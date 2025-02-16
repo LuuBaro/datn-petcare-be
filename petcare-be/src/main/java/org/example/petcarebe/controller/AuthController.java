@@ -4,9 +4,13 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import org.example.petcarebe.dto.request.AuthRequest;
 import org.example.petcarebe.dto.request.RegisterRequest;
 import org.example.petcarebe.dto.request.OtpRequest;
+import org.example.petcarebe.dto.request.ResetPasswordRequest;
 import org.example.petcarebe.dto.response.FacebookResponse;
 import org.example.petcarebe.dto.response.JwtResponse;
 import org.example.petcarebe.model.User;
+import org.example.petcarebe.model.UserRole;
+import org.example.petcarebe.repository.RoleRepository;
+import org.example.petcarebe.repository.UserRoleRepository;
 import org.example.petcarebe.service.EmailService;
 import org.example.petcarebe.service.JwtService;
 import org.example.petcarebe.service.OtpService;
@@ -21,6 +25,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,6 +36,7 @@ import com.restfb.DefaultFacebookClient;
 import com.restfb.FacebookClient;
 import com.restfb.Version;
 import com.restfb.exception.FacebookOAuthException;
+
 import java.util.Collections;
 import java.util.Map;
 
@@ -51,7 +57,13 @@ public class AuthController {
     private OtpService otpService;
 
     @Autowired
-    private EmailService emailService;
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
+    private UserRoleRepository userRoleRepository;
 
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String GOOGLE_CLIENT_ID = "854614351620-s8cmgi8ticqj4p2jlqedf4drbis3s7oj.apps.googleusercontent.com";
@@ -69,7 +81,8 @@ public class AuthController {
             otpService.saveRegistrationRequest(registerRequest);
 
             // Tạo và gửi OTP
-            otpService.generateOtp(registerRequest.getEmail());
+            otpService.generateOtp(registerRequest.getEmail(), OtpService.OTPType.REGISTRATION);
+
 
             return ResponseEntity.ok("OTP has been sent to " + registerRequest.getEmail());
         } catch (Exception e) {
@@ -77,76 +90,41 @@ public class AuthController {
         }
     }
 
-    // Verify OTP
-    @PostMapping("/verify-otp")
-    public ResponseEntity<String> verifyOtp(@RequestBody OtpRequest otpRequest) {
-        String email = otpRequest.getEmail();
-        String otp = otpRequest.getOtp();
+    // Reser password
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        String email = request.getEmail();
+        String newPassword = request.getPassword();
 
-        if (otpService.validateOtp(email, otp)) {
-            // Xác thực OTP thành công, kiểm tra đăng ký tạm thời
-            RegisterRequest registrationRequest = otpService.getRegistrationRequest(email);
-            if (registrationRequest == null) {
-                return ResponseEntity.badRequest().body("No registration request found.");
-            }
-
-            // Tạo tài khoản người dùng
-            User newUser = new User();
-            newUser.setEmail(registrationRequest.getEmail());
-            newUser.setPassword(registrationRequest.getPassword()); // Hash password trước khi lưu
-            newUser.setFullName(registrationRequest.getFullName());
-
-            userService.saveUser(newUser);
-
-            // Xóa OTP và thông tin đăng ký tạm thời
-            otpService.clearOtp(email);
-            otpService.removeRegistrationRequest(email);
-
-            return ResponseEntity.ok("Account created successfully!");
-        } else {
-            return ResponseEntity.badRequest().body("Invalid OTP");
-        }
-    }
-
-    // Resend OTP
-    @PostMapping("/resend-otp")
-    public ResponseEntity<?> resendOtp(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-
-        if (email == null || email.isEmpty()) {
-            return ResponseEntity.badRequest().body("Email không được để trống.");
+        // Kiểm tra xem người dùng có tồn tại không
+        User user = userService.findByEmail(email);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy người dùng với email này.");
         }
 
-        // Kiểm tra xem email có trong danh sách yêu cầu đăng ký hay không
-        RegisterRequest registrationRequest = otpService.getRegistrationRequest(email);
-        if (registrationRequest == null) {
-            return ResponseEntity.badRequest().body("Không tìm thấy yêu cầu đăng ký cho email này.");
-        }
+        // Mã hóa và cập nhật mật khẩu mới
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userService.saveUser(user);
 
-        try {
-            // Tạo OTP mới
-            otpService.generateOtp(email);
-
-            return ResponseEntity.ok("Mã OTP đã được gửi lại thành công.");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Không thể gửi lại mã OTP. Vui lòng thử lại sau.");
-        }
+        return ResponseEntity.ok("Mật khẩu đã được đặt lại thành công.");
     }
 
     // Login
-
     @PostMapping("/login")
     public JwtResponse login(@RequestBody AuthRequest authRequest) {
+        // ✅ Kiểm tra mật khẩu
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(authRequest.getEmail(), authRequest.getPassword())
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
+        // ✅ Lấy thông tin user
         User user = userService.findByEmail(authRequest.getEmail());
-        String jwt = jwtService.generateToken(userService.loadUserByUsername(authRequest.getEmail()),user);
 
+        // ✅ Tạo JWT Token
+        String jwt = jwtService.generateToken(userService.loadUserByUsername(authRequest.getEmail()), user);
+
+        // ✅ Trả về JSON hợp lệ
         return JwtResponse.builder()
                 .accessToken(jwt)
                 .userId(user.getUserId()) // Chuyển đổi userId từ long sang String
@@ -159,7 +137,6 @@ public class AuthController {
                 .registration_date(user.getRegistration_date())
                 .totalSpent(user.getTotalSpent())
                 .build();
-
     }
 
     // Google login
