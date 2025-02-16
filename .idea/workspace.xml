@@ -4,17 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8de4330a-ca4f-465b-b5c8-16ac749512d8" name="Changes" comment=".">
-      <change afterPath="$PROJECT_DIR$/.idea/BE.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/OtpController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/dto/request/ResetPasswordRequest.java" afterDir="false" />
+    <list default="true" id="8de4330a-ca4f-465b-b5c8-16ac749512d8" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/AuthController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/UserRoleRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/UserRoleRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/OtpService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/OtpService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/UserService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/UserService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -32,26 +24,11 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory">{
-  &quot;lastFilter&quot;: {
-    &quot;state&quot;: &quot;OPEN&quot;,
-    &quot;assignee&quot;: &quot;DianNg25&quot;
-  }
-}</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/LuuBaro/datn-petcare-be.git&quot;,
-    &quot;accountId&quot;: &quot;07548610-75a9-46f7-b00d-e690d046a4b9&quot;
-  }
-}</component>
-  <component name="JpbToolWindowState">
-    <option name="isToolWindowVisible" value="false" />
-  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 1
 }</component>
   <component name="ProjectId" id="2rdEeQNW8oIqeeUxI9pkjacX8bm" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+  <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="2" id="Add" />
   </component>
   <component name="ProjectViewState">
@@ -66,12 +43,9 @@
     "RequestMappingsPanelWidth0": "75",
     "RequestMappingsPanelWidth1": "75",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "Spring Boot.PetcareBeApplication.executor": "Run",
-    "git-widget-placeholder": "changepass",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "D:/FPT/duantotnghiep/Password/BE",
+    "last_opened_file_path": "D:/DATN/datn-petcare-be/petcare-be/src/main/java/org/example/petcarebe/repository",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -93,8 +67,6 @@
   </component>
   <component name="RunManager">
     <configuration name="PetcareBeApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
-      <option name="ALTERNATIVE_JRE_PATH" value="corretto-17" />
-      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
       <module name="petcare-be" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="org.example.petcarebe.PetcareBeApplication" />
@@ -106,8 +78,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-125ca727e0f0-intellij.indexing.shared.core-IU-243.24978.46" />
-        <option value="bundled-js-predefined-d6986cc7102b-76f8388c3a79-JavaScript-IU-243.24978.46" />
+        <option value="bundled-jdk-9f38398b9061-39b83d9b5494-intellij.indexing.shared.core-IU-241.18034.62" />
+        <option value="bundled-js-predefined-1d06a55b98c1-0b3e54e931b4-JavaScript-IU-241.18034.62" />
       </set>
     </attachedChunks>
   </component>
@@ -140,10 +112,8 @@
       <workItem from="1739170693268" duration="3042000" />
       <workItem from="1739198468951" duration="4247000" />
       <workItem from="1739367436127" duration="6090000" />
-      <workItem from="1739421412379" duration="9311000" />
-      <workItem from="1739617829970" duration="14527000" />
-      <workItem from="1739702287967" duration="3354000" />
-      <workItem from="1739716374280" duration="3807000" />
+      <workItem from="1739421412379" duration="12597000" />
+      <workItem from="1739615669868" duration="10510000" />
     </task>
     <servers />
   </component>
@@ -161,9 +131,12 @@
       </map>
     </option>
   </component>
-  <component name="VcsManagerConfiguration">
-    <MESSAGE value="." />
-    <option name="LAST_COMMIT_MESSAGE" value="." />
+  <component name="XDebuggerManager">
+    <watches-manager>
+      <configuration name="SpringBootApplicationConfigurationType">
+        <watch expression="args" />
+      </configuration>
+    </watches-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

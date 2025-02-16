@@ -73,10 +73,10 @@ public class UserService implements UserDetailsService {
     public void saveUser(User user) {
         boolean isNewUser = (user.getUserId() == null || !userRepository.existsById(user.getUserId()));
 
-        // Mã hóa mật khẩu trước khi lưu (chỉ mã hóa nếu là mật khẩu mới)
-        if (isNewUser || user.getPassword() != null) {
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-        }
+//        // Mã hóa mật khẩu trước khi lưu (chỉ mã hóa nếu là mật khẩu mới)
+//        if (isNewUser || user.getPassword() != null) {
+//            user.setPassword(passwordEncoder.encode(user.getPassword()));
+//        }
 
         user.setStatus(true); // Đặt trạng thái mặc định là true khi tạo
         user.setRegistration_date(LocalDate.now());
