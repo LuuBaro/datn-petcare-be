@@ -45,6 +45,6 @@ public class ProductDetails {
     @JoinColumn(name = "product_color_id", nullable = false)
     private ProductColors productColors;
 
-    @OneToMany(mappedBy = "productDetails")  // This should be a one-to-many relationship
-    private List<ProductImages> productImages;
+//    @OneToMany(mappedBy = "productDetails")  // This should be a one-to-many relationship
+//    private List<ProductImages> productImages;
 }
