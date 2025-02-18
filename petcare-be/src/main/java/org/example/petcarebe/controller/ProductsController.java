@@ -1,6 +1,7 @@
 package org.example.petcarebe.controller;
 
 import jakarta.validation.Valid;
+import org.example.petcarebe.dto.ProductListDTO;
 import org.example.petcarebe.dto.ProductsDTO;
 import org.example.petcarebe.model.Brand;
 import org.example.petcarebe.model.Categories;
@@ -64,6 +65,12 @@ public class ProductsController {
     @GetMapping("/getAllProductss")
     public ResponseEntity<List<ProductsDTO>> getAllProductss() {
         List<ProductsDTO> productsDTOList = productsService.getAllProductss();
+        return ResponseEntity.ok(productsDTOList);
+    }
+
+    @GetMapping("/getAllProductsList")
+    public ResponseEntity<List<ProductListDTO>> getAllProductsList() {
+        List<ProductListDTO> productsDTOList = productsService.getAllProductsList();
         return ResponseEntity.ok(productsDTOList);
     }
 

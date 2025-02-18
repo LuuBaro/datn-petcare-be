@@ -43,6 +43,7 @@ public class Products {
     @JoinColumn(name = "brand_id", nullable = false)
     private Brand brand;
 
-
+    @OneToMany(mappedBy = "products")
+    private List<ProductDetails> productDetails;
 
 }
