@@ -12,6 +12,7 @@ public class ProductsDTO {
     private String image;
     private String categoryName;  // Thêm thuộc tính loại sản phẩm
 
+
     public ProductsDTO(Long productId, String productName, String image, String categoryName) {
         this.productId = productId;
         this.productName = productName;
