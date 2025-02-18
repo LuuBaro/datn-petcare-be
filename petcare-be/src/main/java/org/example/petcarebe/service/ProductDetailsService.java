@@ -5,9 +5,11 @@ import lombok.RequiredArgsConstructor;
 import org.example.petcarebe.dto.ProductDetailsDTO;
 import org.example.petcarebe.model.ProductDetails;
 import org.example.petcarebe.repository.ProductDetailsRepository;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,6 +62,43 @@ public class ProductDetailsService {
                 productDetails.getProducts().getDescription()
         )).collect(Collectors.toList());
     }
+
+    public ProductDetails addProductDetail(ProductDetails productDetails) {
+        // Kiểm tra dữ liệu đầu vào nếu cần
+        return productDetailsRepository.save(productDetails);
+    }
+
+
+    public ProductDetails updateProductDetail(Long id, ProductDetails newProductDetails) {
+        Optional<ProductDetails> existingProductDetail = productDetailsRepository.findById(id);
+
+        if (existingProductDetail.isPresent()) {
+            ProductDetails productDetail = existingProductDetail.get();
+            productDetail.setQuantity(newProductDetails.getQuantity());
+            productDetail.setPrice(newProductDetails.getPrice());
+            productDetail.setProducts(newProductDetails.getProducts());
+            productDetail.setWeights(newProductDetails.getWeights());
+            productDetail.setProductSizes(newProductDetails.getProductSizes());
+            productDetail.setProductColors(newProductDetails.getProductColors());
+
+            return productDetailsRepository.save(productDetail);
+        } else {
+            throw new RuntimeException("Không tìm thấy chi tiết sản phẩm với ID: " + id);
+        }
+    }
+
+    public void deleteProductDetail(Long id) {
+        try {
+            productDetailsRepository.deleteById(id);
+        } catch (EmptyResultDataAccessException e) {
+            throw new RuntimeException("Không tìm thấy chi tiết sản phẩm với ID: " + id);
+        }
+    }
+
+
+
+
+
 
 }
 

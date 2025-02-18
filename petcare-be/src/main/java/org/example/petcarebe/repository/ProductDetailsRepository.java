@@ -2,7 +2,7 @@ package org.example.petcarebe.repository;
 
 
 import org.example.petcarebe.dto.ProductDetailsDTO;
-import org.example.petcarebe.model.ProductDetails;
+import org.example.petcarebe.model.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -62,6 +62,9 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
     // Tìm tất cả ProductDetails theo productId
     @Query("SELECT pd FROM ProductDetails pd WHERE pd.products.productId = :productId")
     List<ProductDetails> findByProductId(@Param("productId") Long productId);
+
+
+
 
 
 }
