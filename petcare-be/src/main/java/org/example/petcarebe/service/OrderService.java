@@ -45,12 +45,100 @@ public class OrderService {
         cartDetailsService.deleteCartDetails(cartDetailId);
     }
 
+//
+//    @Transactional
+//    public Orders checkout(CheckoutRequestDTO request) {
+//        // 1️⃣ Kiểm tra người dùng
+//        User user = userRepository.findById(request.getUserId())
+//                .orElseThrow(() -> new RuntimeException("User not found"));
+//
+//        // 2️⃣ Tạo đơn hàng
+//        Orders order = new Orders();
+//        order.setUser(user);
+//        order.setOrderDate(new Date());
+//        order.setPaymentMethod(request.getPaymentMethod());
+//        order.setShippingAddress(request.getShippingAddress());
+//        order.setShippingCost(request.getShippingCost());
+//        order.setPaymentStatus("PENDING");
+//        order.setStatusOrder(statusOrderRepository.findById(1L).orElse(null));
+//        order.setType(request.getType());
+//        order.setPointEarned(0);
+//        order.setPointUsed(0);
+//
+//        // 3️⃣ Kiểm tra voucher
+//        if (request.getVoucherId() != null) {
+//            Voucher voucher = voucherRepository.findById(request.getVoucherId()).orElse(null);
+//            order.setVoucher(voucher);
+//        }
+//
+//        // 4️⃣ Thêm chi tiết đơn hàng và cập nhật số lượng tồn kho
+//        List<OrderDetails> orderDetailsList = new ArrayList<>();
+//        BigDecimal totalAmount = BigDecimal.ZERO;
+//
+//        for (OrderItemDTO item : request.getItems()) {
+//            ProductDetails product = productDetailsRepository.findById(item.getProductDetailId())
+//                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductDetailId()));
+//
+//            // Kiểm tra tồn kho
+//
+//            try {
+//                if (product.getQuantity() < item.getQuantity()) {
+//                    throw new RuntimeException("Sản phẩm '" + product.getProducts().getProductName() + "' đã hết hàng hoặc không đủ số lượng!");
+//                }
+//            } finally {
+//
+//                cartDetailsService.removeProductFromCart(item.getProductDetailId());
+//            }
+//
+//
+//            // Tạo OrderDetails
+//            OrderDetails orderDetail = new OrderDetails();
+//            orderDetail.setOrders(order);
+//            orderDetail.setProductDetails(product);
+//            orderDetail.setQuantity(item.getQuantity());
+//            orderDetail.setPrice(item.getPrice());
+//
+//            orderDetailsList.add(orderDetail);
+//            totalAmount = totalAmount.add(
+//                    BigDecimal.valueOf(item.getQuantity()).multiply(BigDecimal.valueOf(item.getPrice()))
+//            );
+//
+//            int updated = productDetailsRepository.updateStock(item.getProductDetailId(), item.getQuantity());
+//            if (updated == 0) {
+//                throw new RuntimeException("Số lượng tồn kho không đủ cho sản phẩm: " + item.getProductDetailId());
+//            }
+//
+//        }
+//
+//        // 5️⃣ Cập nhật tổng tiền
+//        order.setTotalAmount(totalAmount.add(BigDecimal.valueOf(order.getShippingCost())).floatValue());
+//
+//        // 6️⃣ Thêm chi tiết vào đơn hàng
+//        order.setOrderDetails(orderDetailsList);
+//
+//        // 7️⃣ Lưu đơn hàng
+//        orderRepository.save(order);
+//
+//        // 8️⃣ Xóa giỏ hàng sau khi thanh toán thành công
+//        cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+//
+//        return order;
+//    }
+
 
     @Transactional
     public Orders checkout(CheckoutRequestDTO request) {
         // 1️⃣ Kiểm tra người dùng
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại!"));
+
+        // Kiểm tra thông tin bắt buộc
+        if (request.getShippingAddress() == null || request.getShippingAddress().isEmpty()) {
+            throw new RuntimeException("Địa chỉ giao hàng không được bỏ trống!");
+        }
+        if (request.getPaymentMethod() == null || request.getPaymentMethod().isEmpty()) {
+            throw new RuntimeException("Phương thức thanh toán không được bỏ trống!");
+        }
 
         // 2️⃣ Tạo đơn hàng
         Orders order = new Orders();
@@ -60,36 +148,33 @@ public class OrderService {
         order.setShippingAddress(request.getShippingAddress());
         order.setShippingCost(request.getShippingCost());
         order.setPaymentStatus("PENDING");
-        order.setStatusOrder(statusOrderRepository.findById(1L).orElse(null));
+        order.setStatusOrder(statusOrderRepository.findById(1L)
+                .orElseThrow(() -> new RuntimeException("Trạng thái đơn hàng không hợp lệ!")));
         order.setType(request.getType());
         order.setPointEarned(0);
         order.setPointUsed(0);
 
         // 3️⃣ Kiểm tra voucher
         if (request.getVoucherId() != null) {
-            Voucher voucher = voucherRepository.findById(request.getVoucherId()).orElse(null);
+            Voucher voucher = voucherRepository.findById(request.getVoucherId())
+                    .orElseThrow(() -> new RuntimeException("Voucher không hợp lệ!"));
             order.setVoucher(voucher);
         }
 
         // 4️⃣ Thêm chi tiết đơn hàng và cập nhật số lượng tồn kho
         List<OrderDetails> orderDetailsList = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
+        List<Long> outOfStockItems = new ArrayList<>(); // Danh sách sản phẩm hết hàng
 
         for (OrderItemDTO item : request.getItems()) {
             ProductDetails product = productDetailsRepository.findById(item.getProductDetailId())
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductDetailId()));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + item.getProductDetailId()));
 
             // Kiểm tra tồn kho
-
-            try {
-                if (product.getQuantity() < item.getQuantity()) {
-                    throw new RuntimeException("Sản phẩm '" + product.getProducts().getProductName() + "' đã hết hàng hoặc không đủ số lượng!");
-                }
-            } finally {
-
-                cartDetailsService.removeProductFromCart(item.getProductDetailId());
+            if (product.getQuantity() < item.getQuantity()) {
+                outOfStockItems.add(item.getProductDetailId());
+                continue; // Bỏ qua sản phẩm hết hàng, không thêm vào đơn hàng
             }
-
 
             // Tạo OrderDetails
             OrderDetails orderDetail = new OrderDetails();
@@ -103,11 +188,21 @@ public class OrderService {
                     BigDecimal.valueOf(item.getQuantity()).multiply(BigDecimal.valueOf(item.getPrice()))
             );
 
+            // Cập nhật số lượng tồn kho
             int updated = productDetailsRepository.updateStock(item.getProductDetailId(), item.getQuantity());
             if (updated == 0) {
-                throw new RuntimeException("Số lượng tồn kho không đủ cho sản phẩm: " + item.getProductDetailId());
+                outOfStockItems.add(item.getProductDetailId());
             }
+        }
 
+        // Nếu có sản phẩm hết hàng, xóa chúng khỏi giỏ hàng trước khi báo lỗi
+        for (Long productId : outOfStockItems) {
+            cartDetailsService.removeProductFromCart(productId);
+        }
+
+        // Nếu tất cả sản phẩm đều hết hàng, hủy đơn hàng
+        if (orderDetailsList.isEmpty()) {
+            throw new RuntimeException("Tất cả sản phẩm trong giỏ hàng đều đã hết hàng!");
         }
 
         // 5️⃣ Cập nhật tổng tiền
@@ -124,6 +219,7 @@ public class OrderService {
 
         return order;
     }
+
 
 
 

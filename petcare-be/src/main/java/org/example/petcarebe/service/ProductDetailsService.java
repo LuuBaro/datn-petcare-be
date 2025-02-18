@@ -54,6 +54,7 @@ public class ProductDetailsService {
         return productDetailsList.stream().map(productDetails -> new ProductDetailsDTO(
                 productDetails.getProductDetailId(),
                 productDetails.getProducts().getProductName(),
+                productDetails.getProducts().getImage(),
                 productDetails.getPrice(),
                 productDetails.getProductColors().getColorValue(),
                 productDetails.getProductSizes().getSizeValue(),
