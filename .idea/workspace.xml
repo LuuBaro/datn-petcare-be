@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="8de4330a-ca4f-465b-b5c8-16ac749512d8" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/WebSocketConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/WebSocketController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/pom.xml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
+  <component name="ProjectId" id="2rdEeQNW8oIqeeUxI9pkjacX8bm" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "Spring Boot.PetcareBeApplication.executor": "Run",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "D:/DATN/datn-petcare-be/petcare-be/src/main/java/org/example/petcarebe/repository",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "reference.projectsettings.compiler.annotationProcessors",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\DATN\datn-petcare-be\petcare-be\src\main\java\org\example\petcarebe\repository" />
+      <recent name="D:\DATN\datn-petcare-be\petcare-be\src\main\java\org\example\petcarebe\model" />
+    </key>
+    <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="org.example.petcarebe.service" />
+      <recent name="org.example.petcarebe.config" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="PetcareBeApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="petcare-be" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="org.example.petcarebe.PetcareBeApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9f38398b9061-39b83d9b5494-intellij.indexing.shared.core-IU-241.18034.62" />
+        <option value="bundled-js-predefined-1d06a55b98c1-0b3e54e931b4-JavaScript-IU-241.18034.62" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="8de4330a-ca4f-465b-b5c8-16ac749512d8" name="Changes" comment="" />
+      <created>1736880646766</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1736880646766</updated>
+      <workItem from="1736880647808" duration="17442000" />
+      <workItem from="1737002636852" duration="2329000" />
+      <workItem from="1737038348697" duration="1071000" />
+      <workItem from="1737127558396" duration="627000" />
+      <workItem from="1737128214889" duration="34000" />
+      <workItem from="1737128276896" duration="821000" />
+      <workItem from="1737178198336" duration="4412000" />
+      <workItem from="1737187223954" duration="21482000" />
+      <workItem from="1737384114927" duration="377000" />
+      <workItem from="1737640277434" duration="3415000" />
+      <workItem from="1737696934331" duration="7137000" />
+      <workItem from="1738570351032" duration="2413000" />
+      <workItem from="1738638875722" duration="72000" />
+      <workItem from="1738726375267" duration="4481000" />
+      <workItem from="1738765803958" duration="3889000" />
+      <workItem from="1738813942776" duration="3491000" />
+      <workItem from="1739090618563" duration="5190000" />
+      <workItem from="1739160203809" duration="1472000" />
+      <workItem from="1739170693268" duration="3042000" />
+      <workItem from="1739198468951" duration="4247000" />
+      <workItem from="1739367436127" duration="6090000" />
+      <workItem from="1739421412379" duration="12597000" />
+      <workItem from="1739615669868" duration="5349000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>

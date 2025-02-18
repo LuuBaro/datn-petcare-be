@@ -23,4 +23,5 @@ public class Categories {
             message = "Tên danh mục không được chứa ký tự đặc biệt")
     private String categoryName;
     private Boolean status;
+
 }
