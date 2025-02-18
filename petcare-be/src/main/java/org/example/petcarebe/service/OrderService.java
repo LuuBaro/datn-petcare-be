@@ -80,9 +80,16 @@ public class OrderService {
                     .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductDetailId()));
 
             // Kiểm tra tồn kho
-            if (product.getQuantity() < item.getQuantity()) {
-                throw new RuntimeException("đã hết hàng hoặc không đủ số lượng!");
+
+            try {
+                if (product.getQuantity() < item.getQuantity()) {
+                    throw new RuntimeException("Sản phẩm '" + product.getProducts().getProductName() + "' đã hết hàng hoặc không đủ số lượng!");
+                }
+            } finally {
+
+                cartDetailsService.removeProductFromCart(item.getProductDetailId());
             }
+
 
             // Tạo OrderDetails
             OrderDetails orderDetail = new OrderDetails();

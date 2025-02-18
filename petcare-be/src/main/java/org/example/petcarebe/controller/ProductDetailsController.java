@@ -129,6 +129,29 @@ public ProductDetailsDTO getProductDetails(
         return ResponseEntity.ok(productDetailsDTOList); // Trả về danh sách DTO
     }
 
+    @PostMapping("/add")
+    public ResponseEntity<ProductDetails> addProductDetail(@RequestBody ProductDetails productDetails) {
+        ProductDetails savedProductDetail = productDetailsService.addProductDetail(productDetails);
+        return ResponseEntity.ok(savedProductDetail);
+    }
+
+    @PutMapping("/update/{id}")
+    public ResponseEntity<ProductDetails> updateProductDetail(@PathVariable Long id, @RequestBody ProductDetails productDetails) {
+        ProductDetails updatedProductDetail = productDetailsService.updateProductDetail(id, productDetails);
+        return ResponseEntity.ok(updatedProductDetail);
+    }
+
+    @DeleteMapping("/deleteProductDetail/{id}")
+    public ResponseEntity<?> deleteProductDetail(@PathVariable Long id) {
+        try {
+            productDetailsService.deleteProductDetail(id);
+            return ResponseEntity.ok("Xóa chi tiết sản phẩm thành công!");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+    }
+
+
 
 
 
