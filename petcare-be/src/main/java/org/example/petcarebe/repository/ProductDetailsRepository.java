@@ -26,7 +26,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
 
     // Fetch product details by ID
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
-            "dp.productDetailId, p.productName, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
+            "dp.productDetailId, p.productName,p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
             "JOIN dp.productColors pc " +
@@ -37,7 +37,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
 
     // Fetch all product details
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
-            "dp.productDetailId, p.productName, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
+            "dp.productDetailId, p.productName,p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
             "JOIN dp.productColors pc " +
