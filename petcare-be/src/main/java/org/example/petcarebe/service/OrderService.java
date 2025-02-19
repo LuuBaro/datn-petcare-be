@@ -7,14 +7,13 @@ import org.example.petcarebe.dto.request.OrderItemDTO;
 import org.example.petcarebe.model.*;
 import org.example.petcarebe.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,7 +21,7 @@ public class OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
-    
+
     @Autowired
     private OrderDetailsRepository orderDetailsRepository;
     
@@ -40,6 +39,35 @@ public class OrderService {
 
     @Autowired
     private CartDetailsService cartDetailsService;
+
+
+    public List<Map<String, Object>> getBestSellingProducts() {
+        // Lấy 5 sản phẩm bán chạy nhất
+        Pageable topFive = PageRequest.of(0, 5); // Lấy 5 sản phẩm đầu
+        List<Object[]> results = orderDetailsRepository.findBestSellingProducts(topFive);
+
+        List<Map<String, Object>> bestSellingProducts = new ArrayList<>();
+
+        for (Object[] result : results) {
+            ProductDetails product = (ProductDetails) result[0];
+            Long totalSold = (Long) result[1];
+
+            Map<String, Object> productInfo = new HashMap<>();
+            productInfo.put("productDetailId", product.getProductDetailId());
+            productInfo.put("productName", product.getProducts().getProductName());
+            productInfo.put("price", product.getPrice());
+            productInfo.put("colorValue", product.getProductColors().getColorValue());
+            productInfo.put("sizeValue", product.getProductSizes().getSizeValue());
+            productInfo.put("weightValue", product.getWeights().getWeightValue());
+            productInfo.put("image", product.getProducts().getImage());
+            productInfo.put("totalSold", totalSold);
+
+            bestSellingProducts.add(productInfo);
+        }
+
+        return bestSellingProducts;
+    }
+
 
     public void clearCartDetailsByUserId(Long cartDetailId) {
         cartDetailsService.deleteCartDetails(cartDetailId);
