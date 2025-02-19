@@ -1,5 +1,6 @@
 package org.example.petcarebe.controller;
 
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import org.example.petcarebe.dto.request.AddressRequest;
 import org.example.petcarebe.model.Address;
@@ -52,8 +53,12 @@ public class AddressController {
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<?> updateAddress(@PathVariable Long id, @RequestBody AddressRequest request) {
         try {
+            System.out.println("🔄 Cập nhật địa chỉ ID: " + id);
+            System.out.println("📩 Dữ liệu nhận được: " + request);
+
             Address address = addressRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ với ID: " + id));
 
@@ -62,9 +67,10 @@ public class AddressController {
             address.setDistrict(request.getDistrict());
             address.setProvince(request.getProvince());
 
-            Address updatedAddress = addressRepository.save(address);
-            return ResponseEntity.ok(updatedAddress);
+            addressRepository.save(address); // ✅ Lưu thay đổi vào DB
+            return ResponseEntity.ok(address);
         } catch (Exception e) {
+            System.out.println("❌ Lỗi cập nhật địa chỉ: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Lỗi: " + e.getMessage());
         }
     }
