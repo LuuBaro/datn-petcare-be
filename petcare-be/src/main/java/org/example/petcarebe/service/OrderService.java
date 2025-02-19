@@ -53,6 +53,7 @@ public class OrderService {
             Long totalSold = (Long) result[1];
 
             Map<String, Object> productInfo = new HashMap<>();
+            productInfo.put("productId", product.getProducts().getProductId());
             productInfo.put("productDetailId", product.getProductDetailId());
             productInfo.put("productName", product.getProducts().getProductName());
             productInfo.put("price", product.getPrice());
