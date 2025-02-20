@@ -60,6 +60,7 @@ public class ProductDetailsService {
                 productDetails.getWeights().getWeightValue(),
                 productDetails.getQuantity(),
                 productDetails.getProducts().getDescription()
+
         )).collect(Collectors.toList());
     }
 
