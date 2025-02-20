@@ -3,6 +3,7 @@ package org.example.petcarebe.controller;
 import org.example.petcarebe.dto.OrderDTO;
 import org.example.petcarebe.dto.request.CheckoutRequestDTO;
 import org.example.petcarebe.model.Orders;
+import org.example.petcarebe.service.CartDetailsService;
 import org.example.petcarebe.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,18 @@ public class OrderController {
 
     @Autowired
     private OrderService orderService;
+
+    @Autowired
+    private CartDetailsService cartDetailsService;
+
+
+    @DeleteMapping("/clearCart/{productDetailId}")
+    public ResponseEntity<Map<String, Object>> clearCart(@PathVariable Long productDetailId) {
+        cartDetailsService.deleteCartDetails(productDetailId);
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Xóa sản phẩm khỏi giỏ hàng thành công");
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping("/checkout")
     public ResponseEntity<Map<String, Object>> checkout(@RequestBody CheckoutRequestDTO request) {
