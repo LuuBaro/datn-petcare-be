@@ -159,8 +159,7 @@ public class OrderService {
 //        return order;
 //    }
 
-
-    @Transactional
+        @Transactional
     public Orders checkout(CheckoutRequestDTO request) {
         // 1️⃣ Kiểm tra người dùng
         User user = userRepository.findById(request.getUserId())
@@ -177,18 +176,13 @@ public class OrderService {
         // 2️⃣ Tạo đơn hàng
         Orders order = new Orders();
         order.setUser(user);
-        order.setOrderDate(new Timestamp(System.currentTimeMillis()));
+        order.setOrderDate(new Date());
         order.setPaymentMethod(request.getPaymentMethod());
         order.setShippingAddress(request.getShippingAddress());
         order.setShippingCost(request.getShippingCost());
-
-        order.setPaymentStatus("Chưa thanh toán");
-       
-
-
+        order.setPaymentStatus("Chờ thanh toán");
         order.setStatusOrder(statusOrderRepository.findById(1L)
                 .orElseThrow(() -> new RuntimeException("Trạng thái đơn hàng không hợp lệ!")));
-
         order.setType(request.getType());
         order.setPointEarned(0);
         order.setPointUsed(0);
