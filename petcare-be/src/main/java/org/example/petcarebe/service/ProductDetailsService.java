@@ -8,8 +8,7 @@ import org.example.petcarebe.repository.ProductDetailsRepository;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -94,6 +93,35 @@ public class ProductDetailsService {
         } catch (EmptyResultDataAccessException e) {
             throw new RuntimeException("Không tìm thấy chi tiết sản phẩm với ID: " + id);
         }
+    }
+
+    public List<Map<String, Object>> getProductStockInfo() {
+        List<Object[]> results = productDetailsRepository.findProductStockInfo();
+        List<Map<String, Object>> productStockList = new ArrayList<>();
+
+        for (Object[] result : results) {
+            ProductDetails product = (ProductDetails) result[0];
+            Long totalStock = (Long) result[1];
+
+            Map<String, Object> productInfo = new HashMap<>();
+            productInfo.put("productId", product.getProducts().getProductId());
+            productInfo.put("productDetailId", product.getProductDetailId());
+            productInfo.put("productName", product.getProducts().getProductName());
+            productInfo.put("price", product.getPrice());
+            productInfo.put("colorValue", product.getProductColors().getColorValue());
+            productInfo.put("sizeValue", product.getProductSizes().getSizeValue());
+            productInfo.put("weightValue", product.getWeights().getWeightValue());
+            productInfo.put("image", product.getProducts().getImage());
+            productInfo.put("totalStock", totalStock); // Tổng số lượng tồn kho
+
+            productStockList.add(productInfo);
+        }
+
+        return productStockList;
+    }
+
+    public int getTotalStock() {
+        return productDetailsRepository.getTotalStock();
     }
 
 
