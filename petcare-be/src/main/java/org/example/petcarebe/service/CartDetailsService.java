@@ -1,5 +1,7 @@
 package org.example.petcarebe.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import org.example.petcarebe.dto.CartDetailsDTO;
 import org.example.petcarebe.model.CartDetails;
@@ -111,5 +113,19 @@ public class CartDetailsService {
     public void clearCartDetailsByUserId(Long userId) {
         cartDetailsRepository.deleteByUserId(userId);
     }
+    @PersistenceContext
+    private EntityManager entityManager;
+
+
+    public void removeProductFromCart(Long productDetailId) {
+        cartDetailsRepository.deleteCartItemByProductDetailId(productDetailId);
+        entityManager.flush();
+
+    }
+
+
+
+
+
 
 }

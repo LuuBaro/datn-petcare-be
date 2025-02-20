@@ -3,6 +3,7 @@ package org.example.petcarebe.controller;
 import org.example.petcarebe.dto.OrderDTO;
 import org.example.petcarebe.dto.request.CheckoutRequestDTO;
 import org.example.petcarebe.model.Orders;
+import org.example.petcarebe.service.CartDetailsService;
 import org.example.petcarebe.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,17 +21,32 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
-    @PostMapping("/checkout")
-    public ResponseEntity<Map<String, Object>> checkout(@RequestBody CheckoutRequestDTO request) {
-        Orders order = orderService.checkout(request);
+    @Autowired
+    private CartDetailsService cartDetailsService;
 
-        // Tạo Map để chứa thông báo và dữ liệu
+
+    @DeleteMapping("/clearCart/{productDetailId}")
+    public ResponseEntity<Map<String, Object>> clearCart(@PathVariable Long productDetailId) {
+        cartDetailsService.deleteCartDetails(productDetailId);
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "Thanh toán thành công");
-        response.put("order", order.getOrderId());
-
+        response.put("message", "Xóa sản phẩm khỏi giỏ hàng thành công");
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/checkout")
+    public ResponseEntity<Map<String, Object>> checkout(@RequestBody CheckoutRequestDTO request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Orders order = orderService.checkout(request);
+            response.put("message", "Thanh toán thành công");
+            response.put("order", order.getOrderId());
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+
 
 
 
