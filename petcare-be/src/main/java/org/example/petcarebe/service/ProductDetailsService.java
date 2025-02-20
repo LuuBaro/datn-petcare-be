@@ -27,7 +27,6 @@ public class ProductDetailsService {
         return productDetailsList;
     }
 
-
     // Phương thức lấy chi tiết sản phẩm theo ID
     public ProductDetailsDTO getProductDetailsById(Long productDetailId) {
         return productDetailsRepository.findByProductDetailId(productDetailId)

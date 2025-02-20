@@ -36,6 +36,7 @@ public class ProductDetailsController {
         return productDetailsList;
     }
 
+
     @GetMapping("/getById/{productDetailId}")
     public ProductDetailsDTO getProductDetails(@PathVariable Long productDetailId) {
         ProductDetailsDTO productDetails = productDetailsService.getProductDetailsById(productDetailId);
@@ -134,6 +135,8 @@ public ProductDetailsDTO getProductDetails(
         ProductDetails savedProductDetail = productDetailsService.addProductDetail(productDetails);
         return ResponseEntity.ok(savedProductDetail);
     }
+
+
 
     @PutMapping("/update/{id}")
     public ResponseEntity<ProductDetails> updateProductDetail(@PathVariable Long id, @RequestBody ProductDetails productDetails) {

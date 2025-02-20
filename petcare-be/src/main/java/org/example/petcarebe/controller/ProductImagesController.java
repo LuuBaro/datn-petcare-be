@@ -2,8 +2,10 @@ package org.example.petcarebe.controller;
 
 
 import lombok.RequiredArgsConstructor;
+import org.example.petcarebe.dto.ProductImagesDTO;
 import org.example.petcarebe.model.ProductImages;
 import org.example.petcarebe.service.ProductImagesService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +23,23 @@ public class ProductImagesController {
     public List<ProductImages> getAllProductImages() {
         return productImagesService.getAllProductImages();
     }
+
+    // Lấy tất cả ảnh sản phẩm
+    @GetMapping("/getAllImage")
+    public List<ProductImagesDTO> getAllProductImagesDTO() {
+        return productImagesService.getAllProductImagesDTO();
+    }
+
+    @PostMapping("/addImage")
+    public ResponseEntity<?> addProductImage(@RequestBody ProductImagesDTO productImagesDTO) {
+        try {
+            ProductImages savedImage = productImagesService.addProductImage(productImagesDTO);
+            return ResponseEntity.ok(savedImage);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi thêm ảnh: " + e.getMessage());
+        }
+    }
+
 
     // Lấy ảnh sản phẩm theo ID
     @GetMapping("/{id}")
@@ -43,7 +62,7 @@ public class ProductImagesController {
     // Sửa ảnh sản phẩm theo ID
     @PutMapping("/update/{id}")
     public ResponseEntity<ProductImages> updateProductImages(
-            @PathVariable("id") Long productImagesId, 
+            @PathVariable("id") Long productImagesId,
             @RequestBody ProductImages productImages) {
         ProductImages updatedProductImages = productImagesService.updateProductImages(productImagesId, productImages);
         if (updatedProductImages != null) {
@@ -52,6 +71,8 @@ public class ProductImagesController {
             return ResponseEntity.notFound().build();
         }
     }
+
+
 
     // Xóa ảnh sản phẩm theo ID
     @DeleteMapping("/delete/{id}")
@@ -70,5 +91,20 @@ public class ProductImagesController {
         } else {
             return ResponseEntity.notFound().build(); // Nếu không có ảnh, trả về 404
         }
+    }
+
+
+    //huy update
+    @PutMapping("/updates/{id}")
+    public ResponseEntity<?> updateProductsImagesnew(
+            @PathVariable("id") Long productImagesId,
+            @RequestBody ProductImagesDTO productImagesDTO) {
+        try {
+            ProductImages updatedProductImages = productImagesService.updateProductsImagesnew(productImagesId, productImagesDTO);
+            return ResponseEntity.ok(updatedProductImages);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Lỗi: " + e.getMessage());
+        }
+
     }
 }
