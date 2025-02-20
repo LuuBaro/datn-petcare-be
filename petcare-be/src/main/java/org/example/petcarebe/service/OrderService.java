@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -55,11 +56,11 @@ public class OrderService {
         // 2️⃣ Tạo đơn hàng
         Orders order = new Orders();
         order.setUser(user);
-        order.setOrderDate(new Date());
+        order.setOrderDate(new Timestamp(System.currentTimeMillis()));
         order.setPaymentMethod(request.getPaymentMethod());
         order.setShippingAddress(request.getShippingAddress());
         order.setShippingCost(request.getShippingCost());
-        order.setPaymentStatus("PENDING");
+        order.setPaymentStatus("Chưa thanh toán");
         order.setStatusOrder(statusOrderRepository.findById(1L).orElse(null));
         order.setType(request.getType());
         order.setPointEarned(0);
@@ -119,8 +120,6 @@ public class OrderService {
     }
 
 
-
-
     // Lấy tất cả đơn hàng
     public List<OrderDTO> getAllOrders() {
         List<Orders> ordersList = orderRepository.findAll();
@@ -159,6 +158,10 @@ public class OrderService {
                 .price(orderDetails.getPrice())
                 .productDetailId(orderDetails.getProductDetails().getProductDetailId())
                 .productName(orderDetails.getProductDetails().getProducts().getProductName())
+                .imageUrl(orderDetails.getProductDetails().getProducts().getImage()) // Lấy ảnh sản phẩm
+                .colorValue(orderDetails.getProductDetails().getProductColors().getColorValue()) // Lấy màu sắc
+                .sizeValue(orderDetails.getProductDetails().getProductSizes().getSizeValue()) // Lấy kích thước
+                .weightValue(orderDetails.getProductDetails().getWeights().getWeightValue()) // Lấy trọng lượng
                 .build();
     }
 
@@ -194,6 +197,10 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
+    public List<OrderDTO> getOrdersByUserId(Long userId) {
+        List<Orders> userOrders = orderRepository.findByUserUserId(userId);
+        return userOrders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
+    }
 
 
 }

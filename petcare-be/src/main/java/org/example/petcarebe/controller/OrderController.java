@@ -33,7 +33,6 @@ public class OrderController {
     }
 
 
-
     // API Lấy tất cả đơn hàng
     @GetMapping("/all")
     public ResponseEntity<List<OrderDTO>> getAllOrders() {
@@ -56,5 +55,10 @@ public class OrderController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<OrderDTO>> getOrdersByUserId(@PathVariable Long userId) {
+        List<OrderDTO> orders = orderService.getOrdersByUserId(userId);
+        return ResponseEntity.ok(orders);
+    }
 
 }

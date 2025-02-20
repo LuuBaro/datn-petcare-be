@@ -8,13 +8,9 @@ import java.util.List;
 
 @Repository
 public interface ReviewsRepository extends JpaRepository<Reviews, Long> {
+    // Tìm đánh giá theo orderDetailsId
+    List<Reviews> findByOrderDetails_OrderDetailsId(Long orderDetailsId);
 
-    // Lấy tất cả đánh giá của sản phẩm theo productId
-    List<Reviews> findByProductDetails_ProductDetailId(Long productId);
-
-    // Lấy tất cả đánh giá của người dùng theo userId
+    // Tìm đánh giá theo userId
     List<Reviews> findByUser_UserId(Long userId);
-
-    // Lấy đánh giá theo productDetailId và userId
-    Reviews findByProductDetails_ProductDetailIdAndUser_UserId(Long productDetailId, Long userId);
 }

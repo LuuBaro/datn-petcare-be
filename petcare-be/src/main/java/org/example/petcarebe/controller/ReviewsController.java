@@ -3,6 +3,7 @@ package org.example.petcarebe.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.petcarebe.model.Reviews;
 import org.example.petcarebe.service.ReviewsService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,40 +15,47 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ReviewsController {
 
-    private final ReviewsService reviewsService;
+    @Autowired
+    private ReviewsService reviewsService;
 
-    // API để lấy tất cả đánh giá của sản phẩm theo productDetailId
-    @GetMapping("/product/{productDetailId}")
-    public ResponseEntity<List<Reviews>> getReviewsByProductDetailId(@PathVariable Long productDetailId) {
-        List<Reviews> reviews = reviewsService.getReviewsByProductDetailId(productDetailId);
-        return new ResponseEntity<>(reviews, HttpStatus.OK);
+    // Đánh giá sản phẩm (thêm đánh giá)
+    @PostMapping("/add")
+    public ResponseEntity<Reviews> addReview(@RequestBody Reviews review) {
+        try {
+            Reviews savedReview = reviewsService.addReview(review);
+            return ResponseEntity.ok(savedReview);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 
-    // API để lấy tất cả đánh giá của người dùng theo userId
+    // Lấy tất cả đánh giá của một đơn hàng (orderDetailsId)
+    @GetMapping("/order/{orderDetailsId}")
+    public ResponseEntity<List<Reviews>> getReviewsByOrderDetails(@PathVariable Long orderDetailsId) {
+        try {
+            List<Reviews> reviews = reviewsService.getReviewsByOrderDetails(orderDetailsId);
+            if (reviews.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(reviews);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // Lấy tất cả đánh giá của một người dùng (userId)
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Reviews>> getReviewsByUserId(@PathVariable Long userId) {
-        List<Reviews> reviews = reviewsService.getReviewsByUserId(userId);
-        return new ResponseEntity<>(reviews, HttpStatus.OK);
+    public ResponseEntity<List<Reviews>> getReviewsByUser(@PathVariable Long userId) {
+        try {
+            List<Reviews> reviews = reviewsService.getReviewsByUser(userId);
+            if (reviews.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(reviews);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 
-    // API để tạo mới một đánh giá
-    @PostMapping
-    public ResponseEntity<Reviews> createReview(@RequestBody Reviews reviews) {
-        Reviews createdReview = reviewsService.createReview(reviews);
-        return new ResponseEntity<>(createdReview, HttpStatus.CREATED);
-    }
 
-    // API để cập nhật một đánh giá
-    @PutMapping
-    public ResponseEntity<Reviews> updateReview(@RequestBody Reviews reviews) {
-        Reviews updatedReview = reviewsService.updateReview(reviews);
-        return new ResponseEntity<>(updatedReview, HttpStatus.OK);
-    }
-
-    // API để xóa một đánh giá
-    @DeleteMapping("/{reviewsId}")
-    public ResponseEntity<Void> deleteReview(@PathVariable Long reviewsId) {
-        reviewsService.deleteReview(reviewsId);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-    }
 }
