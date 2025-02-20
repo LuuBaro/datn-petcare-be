@@ -64,6 +64,19 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
     List<ProductDetails> findByProductId(@Param("productId") Long productId);
 
 
+    @Query("SELECT COALESCE(SUM(pd.quantity), 0) FROM ProductDetails pd")
+    int getTotalStock();
+
+
+    @Query("SELECT pd, COALESCE(SUM(pd.quantity), 0) FROM ProductDetails pd " +
+            "GROUP BY pd.productDetailId, pd.products.productId, pd.products.productName, " +
+            "pd.price, pd.productColors.colorValue, pd.productSizes.sizeValue, pd.weights.weightValue, pd.products.image")
+    List<Object[]> findProductStockInfo();
+
+
+
+
+
 
 
 
