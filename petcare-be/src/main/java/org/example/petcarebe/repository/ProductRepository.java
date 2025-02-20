@@ -10,8 +10,10 @@ import java.util.List;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Products, Long> {
-    @Query("SELECT new org.example.petcarebe.dto.ProductsDTO(p.productId, p.productName, p.image, c.categoryName) " +
-            "FROM Products p " +
-            "JOIN p.categories c")
-    List<ProductsDTO> findAllProductsWithMinPrice();
+//    @Query("SELECT new org.example.petcarebe.dto.ProductsDTO(p.productId, p.productName, p.image, c.categoryName, d.brandName) " +
+//            "FROM Products p " +
+//            "JOIN p.categories c " +
+//            "JOIN p.brand d")
+//    List<ProductsDTO> findAllProductsWithMinPrice();
 }
+

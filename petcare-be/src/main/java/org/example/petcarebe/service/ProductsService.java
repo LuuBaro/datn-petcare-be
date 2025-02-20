@@ -1,6 +1,7 @@
 package org.example.petcarebe.service;
 
 
+import org.example.petcarebe.dto.ProductListDTO;
 import org.example.petcarebe.dto.ProductsDTO;
 import org.example.petcarebe.model.Brand;
 import org.example.petcarebe.model.Categories;
@@ -120,8 +121,10 @@ public class ProductsService {
                     ProductsDTO productDTO = new ProductsDTO(
                             product.getProductId(),
                             product.getProductName(),
+                            product.getDescription(),
                             product.getImage(),
-                            product.getCategories().getCategoryName()
+                            product.getCategories().getCategoryName(),
+                            product.getBrand().getBrandName()
                     );
 
                     // Set giá trị price
@@ -131,6 +134,34 @@ public class ProductsService {
                 })
                 .collect(Collectors.toList());
     }
+
+    public List<ProductListDTO> getAllProductsList() {
+        // Lấy tất cả các sản phẩm từ ProductRepository
+        List<Products> products = productRepository.findAll();
+
+        // Lọc và map các sản phẩm có ít nhất một ProductDetails
+        return products.stream()
+                .map(product -> {
+
+                    // Tạo ProductsDTO và set thông tin
+                    ProductListDTO productlistDTO = new ProductListDTO(
+                            product.getProductId(),
+                            product.getProductName(),
+                            product.getDescription(),
+                            product.getImage(),
+                            product.getCategories().getCategoryName(),
+                            product.getBrand().getBrandName()
+                    );
+
+                    return productlistDTO;
+                })
+                .collect(Collectors.toList());
+    }
+
+
+
+
+
 
 
 
