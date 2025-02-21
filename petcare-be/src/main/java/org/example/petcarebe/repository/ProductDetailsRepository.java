@@ -74,7 +74,13 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
     List<Object[]> findProductStockInfo();
 
 
-
+    // Tìm tất cả ProductDetails theo productId
+    @Query("SELECT p, MIN(pd.price) " +
+            "FROM Products p " +
+            "JOIN p.productDetails pd " +
+            "WHERE LOWER(p.productName) LIKE LOWER(CONCAT('%', :productName, '%')) " +
+            "GROUP BY p")
+    List<Object[]> searchProductsWithPrice(@Param("productName") String productName);
 
 
 
