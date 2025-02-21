@@ -158,7 +158,9 @@ public class ProductsService {
                 .collect(Collectors.toList());
     }
 
-
+    public List<Products> searchByName(String productName) {
+        return productRepository.findByProductNameContainingIgnoreCase(productName);
+    }
 
 
 

@@ -6,6 +6,7 @@ import org.example.petcarebe.dto.ProductsDTO;
 import org.example.petcarebe.model.Brand;
 import org.example.petcarebe.model.Categories;
 import org.example.petcarebe.model.Products;
+import org.example.petcarebe.repository.ProductRepository;
 import org.example.petcarebe.service.ProductsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,9 +21,6 @@ import java.util.List;
 public class ProductsController {
     @Autowired
     private ProductsService productsService;
-
-    // Lấy danh sách tất cả Products
-
 
     // Lấy một Product theo ID
     @GetMapping("/getByIdProducts/{productsId}")
@@ -70,5 +68,7 @@ public class ProductsController {
         List<ProductListDTO> productsDTOList = productsService.getAllProductsList();
         return ResponseEntity.ok(productsDTOList);
     }
+
+
 
 }

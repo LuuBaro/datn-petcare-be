@@ -4,6 +4,7 @@ package org.example.petcarebe.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.petcarebe.dto.ProductDetailsDTO;
 import org.example.petcarebe.model.ProductDetails;
+import org.example.petcarebe.repository.ProductDetailsRepository;
 import org.example.petcarebe.service.ProductDetailsService;
 import org.example.petcarebe.service.ProductImagesService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,9 @@ public class ProductDetailsController {
 
     @Autowired
     private final ProductImagesService productImagesService;
+
+    @Autowired
+    private final ProductDetailsRepository productDetailsRepository;
 
     @GetMapping("/getAll")
     public List<ProductDetailsDTO> getAllProductDetails() {
@@ -154,7 +158,11 @@ public ProductDetailsDTO getProductDetails(
         }
     }
 
-
+    // API tìm kiếm sản phẩm theo tên
+    @GetMapping("/search")
+    public List<Object[]> searchProducts(@RequestParam String productName) {
+        return productDetailsRepository.searchProductsWithPrice(productName);
+    }
 
 
 
