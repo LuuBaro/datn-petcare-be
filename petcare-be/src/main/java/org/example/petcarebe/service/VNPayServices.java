@@ -2,13 +2,14 @@ package org.example.petcarebe.service;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.example.petcarebe.config.VNPayConfig;
+import org.springframework.stereotype.Service;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
-
+@Service
 public class VNPayServices {
 
     public String createOrder(int total, String orderInfor, String urlReturn) {
