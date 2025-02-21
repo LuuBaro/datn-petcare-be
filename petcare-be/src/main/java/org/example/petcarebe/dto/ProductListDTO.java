@@ -19,5 +19,4 @@ public class ProductListDTO {
     private String brandName;
 
 
-
 }
