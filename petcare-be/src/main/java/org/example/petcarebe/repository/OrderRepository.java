@@ -12,7 +12,7 @@ import java.util.List;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Orders, Long> {
-    List<Orders> findByUser_UserId(Long userId);
+    List<Orders> findByUserUserId(Long userId);
     List<Orders> findByStatusOrder_StatusId(Long statusId);
 //    List<Orders> findByPaymentStatus(Long paymentStatus);
     List<Orders> findByType(String type);
@@ -24,4 +24,5 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             "AND o.orderDate BETWEEN :startDate AND :endDate")
     BigDecimal getTotalRevenueByDateRange(@Param("startDate") Date startDate,
                                           @Param("endDate") Date endDate);
+
 }

@@ -22,10 +22,7 @@ public class ProductsController {
     private ProductsService productsService;
 
     // Lấy danh sách tất cả Products
-    @GetMapping("/getAllProducts")
-    public List<Products> getAllProducts() {
-        return productsService.getAllProducts();
-    }
+
 
     // Lấy một Product theo ID
     @GetMapping("/getByIdProducts/{productsId}")

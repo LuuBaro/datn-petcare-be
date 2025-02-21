@@ -21,10 +21,6 @@ public class Reviews {
     private User user;
 
     @ManyToOne
-    @JoinColumn (name = "productDetailId")
-    private ProductDetails productDetails;
-
-    @ManyToOne
     @JoinColumn(name = "orderDetailsId")
     private OrderDetails orderDetails;
 

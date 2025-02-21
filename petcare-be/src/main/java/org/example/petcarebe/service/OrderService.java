@@ -13,7 +13,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+
+import java.sql.Timestamp;
+
+
 import java.util.*;
+
 import java.util.stream.Collectors;
 
 @Service
@@ -76,8 +81,7 @@ public class OrderService {
 
 
 
-
-    @Transactional
+        @Transactional
     public Orders checkout(CheckoutRequestDTO request) {
         // 1️⃣ Kiểm tra người dùng
         User user = userRepository.findById(request.getUserId())
@@ -172,9 +176,6 @@ public class OrderService {
     }
 
 
-
-
-
     // Lấy tất cả đơn hàng
     public List<OrderDTO> getAllOrders() {
         List<Orders> ordersList = orderRepository.findAll();
@@ -213,6 +214,10 @@ public class OrderService {
                 .price(orderDetails.getPrice())
                 .productDetailId(orderDetails.getProductDetails().getProductDetailId())
                 .productName(orderDetails.getProductDetails().getProducts().getProductName())
+                .imageUrl(orderDetails.getProductDetails().getProducts().getImage()) // Lấy ảnh sản phẩm
+                .colorValue(orderDetails.getProductDetails().getProductColors().getColorValue()) // Lấy màu sắc
+                .sizeValue(orderDetails.getProductDetails().getProductSizes().getSizeValue()) // Lấy kích thước
+                .weightValue(orderDetails.getProductDetails().getWeights().getWeightValue()) // Lấy trọng lượng
                 .build();
     }
 
@@ -256,6 +261,10 @@ public class OrderService {
         return orderRepository.getTotalRevenueByDateRange(startDate, endDate);
     }
 
+    public List<OrderDTO> getOrdersByUserId(Long userId) {
+        List<Orders> userOrders = orderRepository.findByUserUserId(userId);
+        return userOrders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
+    }
 
 
 }
