@@ -30,7 +30,7 @@ public class StatisticsController {
         return ResponseEntity.ok(orderService.getBestSellingProducts());
     }
 
-
+    // Lấy tổng doanh thu trong khoảng thời gian
     @GetMapping("/revenue")
     public ResponseEntity<BigDecimal> getRevenue(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
