@@ -94,7 +94,6 @@ public class UserService implements UserDetailsService {
         }
     }
 
-
     public void save(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword())); // Mã hóa mật khẩu trước khi lưu
         userRepository.save(user);
@@ -144,7 +143,6 @@ public class UserService implements UserDetailsService {
         }
     }
 
-
     //     Phương thức kiểm tra email tồn tại trong hệ thống
     public boolean checkIfEmailExists(String email) {
         User user = userRepository.findByEmail(email);
@@ -191,28 +189,6 @@ public class UserService implements UserDetailsService {
 
     public User findById(Long id) {
         return userRepository.findById(id).orElse(null); // Tìm người dùng theo ID
-    }
-
-    public void changePassword(ChangePasswordRequest request) {
-        User user = userRepository.findById(Long.parseLong(request.getUserId()))
-                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại"));
-
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new RuntimeException("Mật khẩu hiện tại không chính xác");
-        }
-
-        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
-            throw new RuntimeException("Mật khẩu mới không được giống với mật khẩu hiện tại");
-        }
-
-        String encryptedPassword = passwordEncoder.encode(request.getNewPassword());
-        user.setPassword(encryptedPassword);
-        userRepository.save(user);
-
-        // Gửi email trong background (không cần chờ)
-        CompletableFuture.runAsync(() -> sendPasswordChangeNotification(user.getEmail(), user.getFullName()));
-
-        // Trả về ngay sau khi lưu
     }
 
     @Async

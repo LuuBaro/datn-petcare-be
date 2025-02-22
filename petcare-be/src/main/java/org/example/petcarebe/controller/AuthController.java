@@ -2,23 +2,18 @@ package org.example.petcarebe.controller;
 
 import com.google.api.client.http.javanet.NetHttpTransport;
 import org.example.petcarebe.dto.request.AuthRequest;
+import org.example.petcarebe.dto.request.ChangePasswordRequest;
 import org.example.petcarebe.dto.request.RegisterRequest;
-import org.example.petcarebe.dto.request.OtpRequest;
 import org.example.petcarebe.dto.request.ResetPasswordRequest;
 import org.example.petcarebe.dto.response.FacebookResponse;
 import org.example.petcarebe.dto.response.JwtResponse;
 import org.example.petcarebe.model.User;
-import org.example.petcarebe.model.UserRole;
 import org.example.petcarebe.repository.RoleRepository;
 import org.example.petcarebe.repository.UserRoleRepository;
-import org.example.petcarebe.service.EmailService;
-import org.example.petcarebe.service.JwtService;
-import org.example.petcarebe.service.OtpService;
-import org.example.petcarebe.service.UserService;
+import org.example.petcarebe.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -27,16 +22,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.restfb.DefaultFacebookClient;
 import com.restfb.FacebookClient;
 import com.restfb.Version;
 import com.restfb.exception.FacebookOAuthException;
 
+import java.security.Principal;
 import java.util.Collections;
 import java.util.Map;
 
@@ -60,10 +53,7 @@ public class AuthController {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private RoleRepository roleRepository;
-
-    @Autowired
-    private UserRoleRepository userRoleRepository;
+    private PasswordEmailService passwordEmailService;
 
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String GOOGLE_CLIENT_ID = "854614351620-s8cmgi8ticqj4p2jlqedf4drbis3s7oj.apps.googleusercontent.com";
@@ -82,7 +72,6 @@ public class AuthController {
 
             // Tạo và gửi OTP
             otpService.generateOtp(registerRequest.getEmail(), OtpService.OTPType.REGISTRATION);
-
 
             return ResponseEntity.ok("OTP has been sent to " + registerRequest.getEmail());
         } catch (Exception e) {
@@ -105,6 +94,9 @@ public class AuthController {
         // Mã hóa và cập nhật mật khẩu mới
         user.setPassword(passwordEncoder.encode(newPassword));
         userService.saveUser(user);
+
+        // Gửi email thông báo
+        passwordEmailService.sendPasswordChangeAlert(user.getEmail());
 
         return ResponseEntity.ok("Mật khẩu đã được đặt lại thành công.");
     }
@@ -271,5 +263,62 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Internal server error", "details", e.getMessage()));
         }
+    }
+
+    @PostMapping("/verify-password")
+    public ResponseEntity<?> verifyPassword(@RequestBody Map<String, String> request, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Bạn chưa đăng nhập.");
+        }
+
+        String currentPassword = request.get("password");
+        User user = userService.findByEmail(principal.getName());
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Người dùng không tồn tại.");
+        }
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Mật khẩu không chính xác.");
+        }
+
+        return ResponseEntity.ok("Mật khẩu hợp lệ.");
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Bạn chưa đăng nhập.");
+        }
+
+        if (request.getNewPassword() == null || request.getNewPassword().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Mật khẩu mới không được để trống.");
+        }
+
+        User user = userService.findByEmail(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Người dùng không tồn tại.");
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Mật khẩu mới không được trùng với mật khẩu cũ.");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userService.saveUser(user);
+
+        return ResponseEntity.ok("Mật khẩu đã được cập nhật.");
+    }
+
+    // ✅ 3. Gửi email reset nếu người dùng không thực hiện đổi mật khẩu
+    @PostMapping("/send-reset-link")
+    public ResponseEntity<String> sendResetLink(@RequestParam String email) {
+        User user = userService.findByEmail(email);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Email không tồn tại trong hệ thống.");
+        }
+
+        passwordEmailService.sendResetPasswordEmail(user.getEmail());
+        return ResponseEntity.ok("Email reset mật khẩu đã được gửi.");
     }
 }
