@@ -18,6 +18,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -55,20 +57,40 @@ public class UserService implements UserDetailsService {
         if (user == null) {
             throw new UsernameNotFoundException("User not found with email: " + email);
         }
-        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(), new ArrayList<>());
+
+        // ✅ Trả về UserDetails mà không cần quyền
+        return new org.springframework.security.core.userdetails.User(
+                user.getEmail(),
+                user.getPassword(),
+                user.isStatus(), // Kiểm tra trạng thái tài khoản
+                true, // accountNonExpired
+                true, // credentialsNonExpired
+                true, // accountNonLocked
+                new ArrayList<>() // Không có quyền nhưng vẫn cho phép đăng nhập
+        );
     }
 
-
     public void saveUser(User user) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setStatus(true); // Đặt trạng thái mặc định là true khi tạo// Mã hóa mật khẩu trước khi lưu
+        boolean isNewUser = (user.getUserId() == null || !userRepository.existsById(user.getUserId()));
+
+//        // Mã hóa mật khẩu trước khi lưu (chỉ mã hóa nếu là mật khẩu mới)
+//        if (isNewUser || user.getPassword() != null) {
+//            user.setPassword(passwordEncoder.encode(user.getPassword()));
+//        }
+
+        user.setStatus(true); // Đặt trạng thái mặc định là true khi tạo
         user.setRegistration_date(LocalDate.now());
         user.setFullName(user.getFullName());
+
+        // Lưu user vào database
         userRepository.save(user);
-        // Gán vai trò mặc định "Người dùng" nếu không có vai trò nào được chỉ định
-        Role defaultRole = roleRepository.findByRoleName("USER");
-        if (defaultRole != null) {
-            assignRoleToUser(user, defaultRole);
+
+        // Nếu là tài khoản mới, gán quyền mặc định "USER"
+        if (isNewUser) {
+            Role defaultRole = roleRepository.findByRoleName("USER");
+            if (defaultRole != null) {
+                assignRoleToUser(user, defaultRole);
+            }
         }
     }
 
@@ -121,8 +143,6 @@ public class UserService implements UserDetailsService {
         }
     }
 
-
-
     //     Phương thức kiểm tra email tồn tại trong hệ thống
     public boolean checkIfEmailExists(String email) {
         User user = userRepository.findByEmail(email);
@@ -169,28 +189,6 @@ public class UserService implements UserDetailsService {
 
     public User findById(Long id) {
         return userRepository.findById(id).orElse(null); // Tìm người dùng theo ID
-    }
-
-    public void changePassword(ChangePasswordRequest request) {
-        User user = userRepository.findById(Long.parseLong(request.getUserId()))
-                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại"));
-
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new RuntimeException("Mật khẩu hiện tại không chính xác");
-        }
-
-        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
-            throw new RuntimeException("Mật khẩu mới không được giống với mật khẩu hiện tại");
-        }
-
-        String encryptedPassword = passwordEncoder.encode(request.getNewPassword());
-        user.setPassword(encryptedPassword);
-        userRepository.save(user);
-
-        // Gửi email trong background (không cần chờ)
-        CompletableFuture.runAsync(() -> sendPasswordChangeNotification(user.getEmail(), user.getFullName()));
-
-        // Trả về ngay sau khi lưu
     }
 
     @Async
