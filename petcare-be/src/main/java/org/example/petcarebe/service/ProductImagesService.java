@@ -114,4 +114,23 @@ public class ProductImagesService {
             return productImagesRepository.save(existingImage);
         }).orElseThrow(() -> new RuntimeException("Không tìm thấy ProductImages với ID: " + productImagesId));
     }
+
+
+    public List<ProductImagesDTO> getAllImagesByProductDetails(Long productDetailId) {
+        List<ProductImages> images = productImagesRepository.findByProductDetails_ProductDetailId(productDetailId);
+
+        return images.stream().map(image -> {
+            ProductDetails productDetail = productDetailsRepository.findById(productDetailId).orElse(null);
+            return ProductImagesDTO.builder()
+                    .productImageId(image.getProductImageId())
+                    .imageUrl(image.getImageUrl())
+                    .productDetailId(image.getProductDetails().getProductDetailId())
+                    .productName(productDetail != null ? productDetail.getProducts().getProductName() : null)
+                    .colorValue(productDetail != null ? productDetail.getProductColors().getColorValue() : null)
+                    .sizeValue(productDetail != null ? productDetail.getProductSizes().getSizeValue() : null)
+                    .weightValue(productDetail != null ? productDetail.getWeights().getWeightValue() : 0.0f)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
 }
