@@ -8,15 +8,19 @@ import lombok.Setter;
 public class ProductsDTO {
     private Long productId;
     private String productName;
+    private String description;
     private float price;
     private String image;
     private String categoryName;  // Thêm thuộc tính loại sản phẩm
+    private String brandName;
 
-    public ProductsDTO(Long productId, String productName, String image, String categoryName) {
+    public ProductsDTO(Long productId, String productName, String description,String image, String categoryName, String brandName) {
         this.productId = productId;
         this.productName = productName;
+        this.description = description;
         this.image = image;
         this.categoryName = categoryName;
+        this.brandName = brandName;
     }
 
     public void setPrice(Float price) {

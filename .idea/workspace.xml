@@ -4,14 +4,23 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
+
     <list default="true" id="8de4330a-ca4f-465b-b5c8-16ac749512d8" name="Changes" comment=".">
       <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/PasswordEmailService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/AuthController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/dto/request/ChangePasswordRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/dto/request/ChangePasswordRequest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/EmailService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/EmailService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/UserService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/UserService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/ProductDetailsController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/ProductDetailsController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/ProductsController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/ProductsController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/model/ProductDetails.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/model/ProductDetails.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/model/Products.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/model/Products.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/ProductDetailsRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/ProductDetailsRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/ProductRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/ProductRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/ProductsService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/ProductsService.java" afterDir="false" />
+
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -141,6 +150,7 @@
       <workItem from="1740128484827" duration="15259000" />
       <workItem from="1740169605186" duration="23000" />
       <workItem from="1740209447924" duration="5284000" />
+
     </task>
     <servers />
   </component>
@@ -158,10 +168,12 @@
       </map>
     </option>
   </component>
+
   <component name="VcsManagerConfiguration">
     <MESSAGE value="." />
     <option name="LAST_COMMIT_MESSAGE" value="." />
   </component>
+
   <component name="XDebuggerManager">
     <watches-manager>
       <configuration name="SpringBootApplicationConfigurationType">

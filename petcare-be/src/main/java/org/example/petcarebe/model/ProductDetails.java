@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -20,13 +22,10 @@ public class ProductDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long productDetailId;
 
-    @NotBlank(message = "Số lượng không được để trống")
     @Min(value = 1, message = "Số lượng phải lớn hơn 0")
     private int quantity;
 
-    @NotBlank(message = "Giá không được để trống")
     @Min(value = 1, message = "Giá phải lớn hơn 0")
-    @Pattern(regexp = "^[0-9]*\\.?[0-9]+$", message = "Giá phải là số hợp lệ")
     private float price;
 
     @ManyToOne
@@ -45,6 +44,5 @@ public class ProductDetails {
     @JoinColumn(name = "product_color_id", nullable = false)
     private ProductColors productColors;
 
-    @OneToMany(mappedBy = "productDetails")  // This should be a one-to-many relationship
-    private List<ProductImages> productImages;
+
 }

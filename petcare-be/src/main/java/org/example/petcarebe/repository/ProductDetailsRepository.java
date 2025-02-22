@@ -2,7 +2,7 @@ package org.example.petcarebe.repository;
 
 
 import org.example.petcarebe.dto.ProductDetailsDTO;
-import org.example.petcarebe.model.ProductDetails;
+import org.example.petcarebe.model.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -26,7 +26,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
 
     // Fetch product details by ID
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
-            "dp.productDetailId, p.productName, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
+            "dp.productDetailId, p.productName,p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
             "JOIN dp.productColors pc " +
@@ -37,7 +37,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
 
     // Fetch all product details
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
-            "dp.productDetailId, p.productName, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
+            "dp.productDetailId, p.productName,p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
             "JOIN dp.productColors pc " +
@@ -62,6 +62,28 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
     // Tìm tất cả ProductDetails theo productId
     @Query("SELECT pd FROM ProductDetails pd WHERE pd.products.productId = :productId")
     List<ProductDetails> findByProductId(@Param("productId") Long productId);
+
+
+    @Query("SELECT COALESCE(SUM(pd.quantity), 0) FROM ProductDetails pd")
+    int getTotalStock();
+
+
+    @Query("SELECT pd, COALESCE(SUM(pd.quantity), 0) FROM ProductDetails pd " +
+            "GROUP BY pd.productDetailId, pd.products.productId, pd.products.productName, " +
+            "pd.price, pd.productColors.colorValue, pd.productSizes.sizeValue, pd.weights.weightValue, pd.products.image")
+    List<Object[]> findProductStockInfo();
+
+
+    // Tìm tất cả ProductDetails theo productId
+    @Query("SELECT p, MIN(pd.price) " +
+            "FROM Products p " +
+            "JOIN p.productDetails pd " +
+            "WHERE LOWER(p.productName) LIKE LOWER(CONCAT('%', :productName, '%')) " +
+            "GROUP BY p")
+    List<Object[]> searchProductsWithPrice(@Param("productName") String productName);
+
+
+
 
 
 }

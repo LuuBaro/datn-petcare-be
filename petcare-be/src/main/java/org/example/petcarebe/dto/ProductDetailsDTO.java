@@ -16,14 +16,16 @@ public class ProductDetailsDTO {
     private String sizeValue;
     private float weightValue;
     private int quantity;
+    private String productImage;
     private String description;
     private List<String> imageUrls;  // Để có thể lưu trữ ảnh nếu cần
 
     // Constructor phù hợp với truy vấn JPQL của bạn
-    public ProductDetailsDTO(Long productDetailId, String productName, float price,
+    public ProductDetailsDTO(Long productDetailId, String productName,String productImage, float price,
                              String colorValue, String sizeValue, float weightValue, Integer quantity, String description) {
         this.productDetailId = productDetailId;
         this.productName = productName;
+        this.productImage = productImage;
         this.price = price;
         this.colorValue = colorValue;
         this.sizeValue = sizeValue;

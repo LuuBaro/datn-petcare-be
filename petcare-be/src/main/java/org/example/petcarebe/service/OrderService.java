@@ -7,14 +7,18 @@ import org.example.petcarebe.dto.request.OrderItemDTO;
 import org.example.petcarebe.model.*;
 import org.example.petcarebe.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+
+import java.sql.Timestamp;
+
+
+import java.util.*;
+
 import java.util.stream.Collectors;
 
 @Service
@@ -22,7 +26,7 @@ public class OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
-    
+
     @Autowired
     private OrderDetailsRepository orderDetailsRepository;
     
@@ -41,16 +45,55 @@ public class OrderService {
     @Autowired
     private CartDetailsService cartDetailsService;
 
+
+    public List<Map<String, Object>> getBestSellingProducts() {
+        // Lấy 5 sản phẩm bán chạy nhất
+        Pageable topFive = PageRequest.of(0, 5); // Lấy 5 sản phẩm đầu
+        List<Object[]> results = orderDetailsRepository.findBestSellingProducts(topFive);
+
+        List<Map<String, Object>> bestSellingProducts = new ArrayList<>();
+
+        for (Object[] result : results) {
+            ProductDetails product = (ProductDetails) result[0];
+            Long totalSold = (Long) result[1];
+
+            Map<String, Object> productInfo = new HashMap<>();
+            productInfo.put("productId", product.getProducts().getProductId());
+            productInfo.put("productDetailId", product.getProductDetailId());
+            productInfo.put("productName", product.getProducts().getProductName());
+            productInfo.put("price", product.getPrice());
+            productInfo.put("colorValue", product.getProductColors().getColorValue());
+            productInfo.put("sizeValue", product.getProductSizes().getSizeValue());
+            productInfo.put("weightValue", product.getWeights().getWeightValue());
+            productInfo.put("image", product.getProducts().getImage());
+            productInfo.put("totalSold", totalSold);
+
+            bestSellingProducts.add(productInfo);
+        }
+
+        return bestSellingProducts;
+    }
+
+
     public void clearCartDetailsByUserId(Long cartDetailId) {
         cartDetailsService.deleteCartDetails(cartDetailId);
     }
 
 
-    @Transactional
+
+        @Transactional
     public Orders checkout(CheckoutRequestDTO request) {
         // 1️⃣ Kiểm tra người dùng
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại!"));
+
+        // Kiểm tra thông tin bắt buộc
+        if (request.getShippingAddress() == null || request.getShippingAddress().isEmpty()) {
+            throw new RuntimeException("Địa chỉ giao hàng không được bỏ trống!");
+        }
+        if (request.getPaymentMethod() == null || request.getPaymentMethod().isEmpty()) {
+            throw new RuntimeException("Phương thức thanh toán không được bỏ trống!");
+        }
 
         // 2️⃣ Tạo đơn hàng
         Orders order = new Orders();
@@ -59,29 +102,33 @@ public class OrderService {
         order.setPaymentMethod(request.getPaymentMethod());
         order.setShippingAddress(request.getShippingAddress());
         order.setShippingCost(request.getShippingCost());
-        order.setPaymentStatus("PENDING");
-        order.setStatusOrder(statusOrderRepository.findById(1L).orElse(null));
+        order.setPaymentStatus("Chờ thanh toán");
+        order.setStatusOrder(statusOrderRepository.findById(1L)
+                .orElseThrow(() -> new RuntimeException("Trạng thái đơn hàng không hợp lệ!")));
         order.setType(request.getType());
         order.setPointEarned(0);
         order.setPointUsed(0);
 
         // 3️⃣ Kiểm tra voucher
         if (request.getVoucherId() != null) {
-            Voucher voucher = voucherRepository.findById(request.getVoucherId()).orElse(null);
+            Voucher voucher = voucherRepository.findById(request.getVoucherId())
+                    .orElseThrow(() -> new RuntimeException("Voucher không hợp lệ!"));
             order.setVoucher(voucher);
         }
 
         // 4️⃣ Thêm chi tiết đơn hàng và cập nhật số lượng tồn kho
         List<OrderDetails> orderDetailsList = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
+        List<Long> outOfStockItems = new ArrayList<>(); // Danh sách sản phẩm hết hàng
 
         for (OrderItemDTO item : request.getItems()) {
             ProductDetails product = productDetailsRepository.findById(item.getProductDetailId())
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductDetailId()));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + item.getProductDetailId()));
 
             // Kiểm tra tồn kho
             if (product.getQuantity() < item.getQuantity()) {
-                throw new RuntimeException("Insufficient stock for product: " + item.getProductDetailId());
+                outOfStockItems.add(item.getProductDetailId());
+                continue; // Bỏ qua sản phẩm hết hàng, không thêm vào đơn hàng
             }
 
             // Tạo OrderDetails
@@ -96,15 +143,48 @@ public class OrderService {
                     BigDecimal.valueOf(item.getQuantity()).multiply(BigDecimal.valueOf(item.getPrice()))
             );
 
+            // Cập nhật số lượng tồn kho
             int updated = productDetailsRepository.updateStock(item.getProductDetailId(), item.getQuantity());
             if (updated == 0) {
-                throw new RuntimeException("Số lượng tồn kho không đủ cho sản phẩm: " + item.getProductDetailId());
+                outOfStockItems.add(item.getProductDetailId());
             }
+        }
 
+        // Nếu có sản phẩm hết hàng, xóa chúng khỏi giỏ hàng trước khi báo lỗi
+        for (Long productId : outOfStockItems) {
+            cartDetailsService.removeProductFromCart(productId);
+        }
+
+        // Nếu tất cả sản phẩm đều hết hàng, hủy đơn hàng
+        if (orderDetailsList.isEmpty()) {
+            throw new RuntimeException("Tất cả sản phẩm trong giỏ hàng đều đã hết hàng!");
         }
 
         // 5️⃣ Cập nhật tổng tiền
-        order.setTotalAmount(totalAmount.add(BigDecimal.valueOf(order.getShippingCost())).floatValue());
+            // Tính số tiền giảm giá nếu có voucher
+            BigDecimal discountAmount = BigDecimal.ZERO;
+            if (request.getVoucherId() != null) {
+                Voucher voucher = voucherRepository.findById(request.getVoucherId())
+                        .orElseThrow(() -> new RuntimeException("Voucher không hợp lệ!"));
+
+                // Chuyển phần trăm giảm giá thành số thập phân (VD: 10% -> 0.1)
+                BigDecimal percentDiscount = BigDecimal.valueOf(voucher.getPercents()).divide(BigDecimal.valueOf(100));
+
+                // Tính số tiền giảm giá: (Tổng tiền sản phẩm + phí vận chuyển) * % giảm giá
+                discountAmount = (totalAmount.add(BigDecimal.valueOf(order.getShippingCost()))).multiply(percentDiscount);
+            }
+
+            // Tính tổng tiền cuối cùng sau khi áp dụng giảm giá
+            BigDecimal finalAmount = totalAmount.add(BigDecimal.valueOf(order.getShippingCost())).subtract(discountAmount);
+
+            // Đảm bảo tổng tiền không bị âm
+            if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+                finalAmount = BigDecimal.ZERO;
+            }
+
+            // Gán tổng tiền đã tính vào đơn hàng
+            order.setTotalAmount(finalAmount.floatValue());
+
 
         // 6️⃣ Thêm chi tiết vào đơn hàng
         order.setOrderDetails(orderDetailsList);
@@ -117,8 +197,6 @@ public class OrderService {
 
         return order;
     }
-
-
 
 
     // Lấy tất cả đơn hàng
@@ -159,6 +237,10 @@ public class OrderService {
                 .price(orderDetails.getPrice())
                 .productDetailId(orderDetails.getProductDetails().getProductDetailId())
                 .productName(orderDetails.getProductDetails().getProducts().getProductName())
+                .imageUrl(orderDetails.getProductDetails().getProducts().getImage()) // Lấy ảnh sản phẩm
+                .colorValue(orderDetails.getProductDetails().getProductColors().getColorValue()) // Lấy màu sắc
+                .sizeValue(orderDetails.getProductDetails().getProductSizes().getSizeValue()) // Lấy kích thước
+                .weightValue(orderDetails.getProductDetails().getWeights().getWeightValue()) // Lấy trọng lượng
                 .build();
     }
 
@@ -192,8 +274,20 @@ public class OrderService {
 
         // 5️⃣ Lưu đơn hàng đã hủy vào database
         return orderRepository.save(order);
+
+
+
+
     }
 
+    public BigDecimal getRevenueByDateRange(Date startDate, Date endDate) {
+        return orderRepository.getTotalRevenueByDateRange(startDate, endDate);
+    }
+
+    public List<OrderDTO> getOrdersByUserId(Long userId) {
+        List<Orders> userOrders = orderRepository.findByUserUserId(userId);
+        return userOrders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
+    }
 
 
 }

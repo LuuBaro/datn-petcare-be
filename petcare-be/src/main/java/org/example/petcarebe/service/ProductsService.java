@@ -1,6 +1,7 @@
 package org.example.petcarebe.service;
 
 
+import org.example.petcarebe.dto.ProductListDTO;
 import org.example.petcarebe.dto.ProductsDTO;
 import org.example.petcarebe.model.Brand;
 import org.example.petcarebe.model.Categories;
@@ -105,23 +106,6 @@ public class ProductsService {
         this.productDetailsRepository = productDetailsRepository;
     }
 
-//    public List<ProductsDTO> getAllProductss() {
-//        // Lấy tất cả các sản phẩm từ ProductRepository
-//        List<ProductsDTO> productsDTOList = productRepository.findAllProductsWithMinPrice();
-//
-//        // Lấy danh sách giá thấp nhất của từng sản phẩm từ ProductDetailsRepository
-//        productsDTOList.forEach(dto -> {
-//            // Lấy giá thấp nhất của sản phẩm từ ProductDetailsRepository
-//            Float minPrice = productDetailsRepository.findMinPriceByProductId(dto.getProductId());
-//
-//            // Nếu có giá thấp nhất, cập nhật lại thông tin price của DTO
-//            if (minPrice != null) {
-//                dto.setPrice(minPrice);  // Cập nhật giá vào DTO
-//            }
-//        });
-//
-//        return productsDTOList;
-//    }
 
     public List<ProductsDTO> getAllProductss() {
         // Lấy tất cả các sản phẩm từ ProductRepository
@@ -137,8 +121,10 @@ public class ProductsService {
                     ProductsDTO productDTO = new ProductsDTO(
                             product.getProductId(),
                             product.getProductName(),
+                            product.getDescription(),
                             product.getImage(),
-                            product.getCategories().getCategoryName()
+                            product.getCategories().getCategoryName(),
+                            product.getBrand().getBrandName()
                     );
 
                     // Set giá trị price
@@ -148,6 +134,36 @@ public class ProductsService {
                 })
                 .collect(Collectors.toList());
     }
+
+    public List<ProductListDTO> getAllProductsList() {
+        // Lấy tất cả các sản phẩm từ ProductRepository
+        List<Products> products = productRepository.findAll();
+
+        // Lọc và map các sản phẩm có ít nhất một ProductDetails
+        return products.stream()
+                .map(product -> {
+
+                    // Tạo ProductsDTO và set thông tin
+                    ProductListDTO productlistDTO = new ProductListDTO(
+                            product.getProductId(),
+                            product.getProductName(),
+                            product.getDescription(),
+                            product.getImage(),
+                            product.getCategories().getCategoryName(),
+                            product.getBrand().getBrandName()
+                    );
+
+                    return productlistDTO;
+                })
+                .collect(Collectors.toList());
+    }
+
+    public List<Products> searchByName(String productName) {
+        return productRepository.findByProductNameContainingIgnoreCase(productName);
+    }
+
+
+
 
 
 

@@ -4,6 +4,7 @@ package org.example.petcarebe.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.petcarebe.dto.ProductDetailsDTO;
 import org.example.petcarebe.model.ProductDetails;
+import org.example.petcarebe.repository.ProductDetailsRepository;
 import org.example.petcarebe.service.ProductDetailsService;
 import org.example.petcarebe.service.ProductImagesService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ public class ProductDetailsController {
     @Autowired
     private final ProductImagesService productImagesService;
 
+    @Autowired
+    private final ProductDetailsRepository productDetailsRepository;
+
     @GetMapping("/getAll")
     public List<ProductDetailsDTO> getAllProductDetails() {
         List<ProductDetailsDTO> productDetailsList = productDetailsService.findAllProductDetails();
@@ -35,6 +39,7 @@ public class ProductDetailsController {
         }
         return productDetailsList;
     }
+
 
     @GetMapping("/getById/{productDetailId}")
     public ProductDetailsDTO getProductDetails(@PathVariable Long productDetailId) {
@@ -129,6 +134,35 @@ public ProductDetailsDTO getProductDetails(
         return ResponseEntity.ok(productDetailsDTOList); // Trả về danh sách DTO
     }
 
+    @PostMapping("/add")
+    public ResponseEntity<ProductDetails> addProductDetail(@RequestBody ProductDetails productDetails) {
+        ProductDetails savedProductDetail = productDetailsService.addProductDetail(productDetails);
+        return ResponseEntity.ok(savedProductDetail);
+    }
+
+
+
+    @PutMapping("/update/{id}")
+    public ResponseEntity<ProductDetails> updateProductDetail(@PathVariable Long id, @RequestBody ProductDetails productDetails) {
+        ProductDetails updatedProductDetail = productDetailsService.updateProductDetail(id, productDetails);
+        return ResponseEntity.ok(updatedProductDetail);
+    }
+
+    @DeleteMapping("/deleteProductDetail/{id}")
+    public ResponseEntity<?> deleteProductDetail(@PathVariable Long id) {
+        try {
+            productDetailsService.deleteProductDetail(id);
+            return ResponseEntity.ok("Xóa chi tiết sản phẩm thành công!");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+    }
+
+    // API tìm kiếm sản phẩm theo tên
+    @GetMapping("/search")
+    public List<Object[]> searchProducts(@RequestParam String productName) {
+        return productDetailsRepository.searchProductsWithPrice(productName);
+    }
 
 
 

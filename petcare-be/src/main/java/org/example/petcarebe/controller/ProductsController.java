@@ -1,13 +1,18 @@
 package org.example.petcarebe.controller;
 
 import jakarta.validation.Valid;
+import org.example.petcarebe.dto.ProductListDTO;
 import org.example.petcarebe.dto.ProductsDTO;
+import org.example.petcarebe.model.Brand;
+import org.example.petcarebe.model.Categories;
 import org.example.petcarebe.model.Products;
+import org.example.petcarebe.repository.ProductRepository;
 import org.example.petcarebe.service.ProductsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -16,12 +21,6 @@ import java.util.List;
 public class ProductsController {
     @Autowired
     private ProductsService productsService;
-
-    // Lấy danh sách tất cả Products
-    @GetMapping("/getAllProducts")
-    public List<Products> getAllProducts() {
-        return productsService.getAllProducts();
-    }
 
     // Lấy một Product theo ID
     @GetMapping("/getByIdProducts/{productsId}")
@@ -35,6 +34,7 @@ public class ProductsController {
         Products createdProduct = productsService.createProduct(products);
         return ResponseEntity.status(201).body(createdProduct);  // Trả về HTTP 201 (Created)
     }
+
 
     // Cập nhật Product theo ID
     @PutMapping("/updateProducts/{productId}")
@@ -62,5 +62,13 @@ public class ProductsController {
         List<ProductsDTO> productsDTOList = productsService.getAllProductss();
         return ResponseEntity.ok(productsDTOList);
     }
+
+    @GetMapping("/getAllProductsList")
+    public ResponseEntity<List<ProductListDTO>> getAllProductsList() {
+        List<ProductListDTO> productsDTOList = productsService.getAllProductsList();
+        return ResponseEntity.ok(productsDTOList);
+    }
+
+
 
 }
