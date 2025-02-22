@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ChangePasswordRequest {
-    private String currentPassword;
-    private String newPassword;
+public class ResetPasswordRequest {
+    private String email;
+    private String password;
 }
