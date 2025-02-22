@@ -161,7 +161,30 @@ public class OrderService {
         }
 
         // 5️⃣ Cập nhật tổng tiền
-        order.setTotalAmount(totalAmount.add(BigDecimal.valueOf(order.getShippingCost())).floatValue());
+            // Tính số tiền giảm giá nếu có voucher
+            BigDecimal discountAmount = BigDecimal.ZERO;
+            if (request.getVoucherId() != null) {
+                Voucher voucher = voucherRepository.findById(request.getVoucherId())
+                        .orElseThrow(() -> new RuntimeException("Voucher không hợp lệ!"));
+
+                // Chuyển phần trăm giảm giá thành số thập phân (VD: 10% -> 0.1)
+                BigDecimal percentDiscount = BigDecimal.valueOf(voucher.getPercents()).divide(BigDecimal.valueOf(100));
+
+                // Tính số tiền giảm giá: (Tổng tiền sản phẩm + phí vận chuyển) * % giảm giá
+                discountAmount = (totalAmount.add(BigDecimal.valueOf(order.getShippingCost()))).multiply(percentDiscount);
+            }
+
+            // Tính tổng tiền cuối cùng sau khi áp dụng giảm giá
+            BigDecimal finalAmount = totalAmount.add(BigDecimal.valueOf(order.getShippingCost())).subtract(discountAmount);
+
+            // Đảm bảo tổng tiền không bị âm
+            if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+                finalAmount = BigDecimal.ZERO;
+            }
+
+            // Gán tổng tiền đã tính vào đơn hàng
+            order.setTotalAmount(finalAmount.floatValue());
+
 
         // 6️⃣ Thêm chi tiết vào đơn hàng
         order.setOrderDetails(orderDetailsList);
