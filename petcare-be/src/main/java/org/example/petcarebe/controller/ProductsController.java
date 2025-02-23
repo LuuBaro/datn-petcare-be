@@ -2,6 +2,7 @@ package org.example.petcarebe.controller;
 
 import jakarta.validation.Valid;
 import org.example.petcarebe.dto.ProductListDTO;
+import org.example.petcarebe.dto.ProductSummaryDTO;
 import org.example.petcarebe.dto.ProductsDTO;
 import org.example.petcarebe.model.Brand;
 import org.example.petcarebe.model.Categories;
@@ -69,6 +70,26 @@ public class ProductsController {
         return ResponseEntity.ok(productsDTOList);
     }
 
+    // API lấy thông tin sản phẩm theo ID
+    @GetMapping("/products-summary/{productId}")
+    public ResponseEntity<List<ProductSummaryDTO>> getProductByProductId(@PathVariable Long productId) {
+        System.out.println("🔍 Đang tìm sản phẩm với productId: " + productId);
+        List<ProductSummaryDTO> products = productsService.getProductSummaryByProductId(productId);
 
+        if (products.isEmpty()) {
+            System.out.println("❌ Không tìm thấy sản phẩm với productId: " + productId);
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(products);
+    }
+
+
+    // API lấy danh sách tất cả sản phẩm
+    @GetMapping("/products-summary")
+    public ResponseEntity<List<ProductSummaryDTO>> getAllProducts() {
+        List<ProductSummaryDTO> products = productsService.getAllProductSummaries();
+        return ResponseEntity.ok(products);
+    }
 
 }
