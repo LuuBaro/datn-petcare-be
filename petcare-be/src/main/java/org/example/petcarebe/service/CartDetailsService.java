@@ -81,9 +81,17 @@ public class CartDetailsService {
         }
 
         CartDetails cartDetails = cartOpt.get();
+        ProductDetails productDetails = cartDetails.getProductDetails();
+
+        // Kiểm tra số lượng tồn kho
+        if (quantityItem > productDetails.getQuantity()) {
+            throw new IllegalArgumentException("Số lượng đặt hàng vượt quá số lượng tồn kho");
+        }
+
         cartDetails.setQuantityItem(quantityItem);
         return cartDetailsRepository.save(cartDetails);
     }
+
 
     public void deleteCartDetails(long id) {
         cartDetailsRepository.deleteById(id);
@@ -122,6 +130,9 @@ public class CartDetailsService {
         entityManager.flush();
 
     }
+
+
+    
 
 
 
