@@ -2,6 +2,7 @@ package org.example.petcarebe.service;
 
 
 import org.example.petcarebe.dto.ProductListDTO;
+import org.example.petcarebe.dto.ProductSummaryDTO;
 import org.example.petcarebe.dto.ProductsDTO;
 import org.example.petcarebe.model.Brand;
 import org.example.petcarebe.model.Categories;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -163,7 +165,17 @@ public class ProductsService {
     }
 
 
+    // Lấy thông tin sản phẩm theo ID
+    public List<ProductSummaryDTO> getProductSummaryByProductId(Long productId) {
+        return productRepository.findProductSummaryByProductId(productId);
+    }
 
+
+
+    // Lấy danh sách tất cả sản phẩm
+    public List<ProductSummaryDTO> getAllProductSummaries() {
+        return productRepository.findAllProductSummaries();
+    }
 
 
 

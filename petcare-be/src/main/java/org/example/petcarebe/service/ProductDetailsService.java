@@ -58,8 +58,8 @@ public class ProductDetailsService {
                 productDetails.getProductSizes().getSizeValue(),
                 productDetails.getWeights().getWeightValue(),
                 productDetails.getQuantity(),
-                productDetails.getProducts().getDescription()
-
+                productDetails.getProducts().getDescription(),
+                productDetails.getProducts().getCategories().getCategoryName()
         )).collect(Collectors.toList());
     }
 
