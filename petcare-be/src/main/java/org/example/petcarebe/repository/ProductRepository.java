@@ -15,5 +15,8 @@ public interface ProductRepository extends JpaRepository<Products, Long> {
 //            "JOIN p.categories c " +
 //            "JOIN p.brand d")
 //    List<ProductsDTO> findAllProductsWithMinPrice();
+
+    List<Products> findByProductNameContainingIgnoreCase(String productName);
+
 }
 

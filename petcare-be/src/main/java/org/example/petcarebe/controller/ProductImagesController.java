@@ -94,6 +94,19 @@ public class ProductImagesController {
     }
 
 
+
+    // Lấy tất cả ảnh theo ProductDetailId
+    @GetMapping("/getImages/{productDetailId}")
+    public ResponseEntity<List<ProductImagesDTO>> getAllImagesByProductDetailId(@PathVariable("productDetailId") Long productDetailId) {
+        List<ProductImagesDTO> images = productImagesService.getAllImagesByProductDetails(productDetailId);
+        if (!images.isEmpty()) {
+            return ResponseEntity.ok(images);
+        } else {
+            return ResponseEntity.notFound().build(); // Nếu không có ảnh, trả về 404
+        }
+    }
+
+
     //huy update
     @PutMapping("/updates/{id}")
     public ResponseEntity<?> updateProductsImagesnew(
