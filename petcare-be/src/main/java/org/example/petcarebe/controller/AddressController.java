@@ -31,24 +31,21 @@ public class AddressController {
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<?> getUserAddresses(@PathVariable Long userId) {
-        System.out.println("📩 Nhận yêu cầu lấy danh sách địa chỉ của userId: " + userId);
         try {
             List<Address> addresses = addressService.getAddressesByUserId(userId);
             return ResponseEntity.ok(addresses);
         } catch (Exception e) {
-            System.out.println("❌ Lỗi lấy danh sách địa chỉ: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi: " + e.getMessage());
         }
     }
 
     @PostMapping
     public ResponseEntity<?> addAddress(@Valid @RequestBody AddressRequest addressRequest) {
-        System.out.println("Dữ liệu nhận được: " + addressRequest);
         try {
             Address newAddress = addressService.createAddress(addressRequest.getUserId(), addressRequest);
             return ResponseEntity.status(HttpStatus.CREATED).body(newAddress);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Lỗi: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi: " + e.getMessage());
         }
     }
 
@@ -56,9 +53,6 @@ public class AddressController {
     @Transactional
     public ResponseEntity<?> updateAddress(@PathVariable Long id, @RequestBody AddressRequest request) {
         try {
-            System.out.println("🔄 Cập nhật địa chỉ ID: " + id);
-            System.out.println("📩 Dữ liệu nhận được: " + request);
-
             Address address = addressRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ với ID: " + id));
 
@@ -70,7 +64,6 @@ public class AddressController {
             addressRepository.save(address); // ✅ Lưu thay đổi vào DB
             return ResponseEntity.ok(address);
         } catch (Exception e) {
-            System.out.println("❌ Lỗi cập nhật địa chỉ: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Lỗi: " + e.getMessage());
         }
     }

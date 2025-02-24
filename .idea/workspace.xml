@@ -4,6 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
+
     <list default="true" id="8de4330a-ca4f-465b-b5c8-16ac749512d8" name="Changes" comment="">
       <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/dto/ProductSummaryDTO.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
@@ -14,6 +15,7 @@
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/ProductRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/ProductRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/ProductDetailsService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/ProductDetailsService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/ProductsService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/ProductsService.java" afterDir="false" />
+
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -41,6 +43,7 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
+
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
@@ -59,6 +62,7 @@
     "nodejs_package_manager_path": "npm",
     "settings.editor.selected.configurable": "reference.projectsettings.compiler.annotationProcessors",
     "vue.rearranger.settings.migration": "true"
+
   }
 }]]></component>
   <component name="RecentsManager">
@@ -73,6 +77,8 @@
   </component>
   <component name="RunManager">
     <configuration name="PetcareBeApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="ALTERNATIVE_JRE_PATH" value="21" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
       <module name="petcare-be" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="org.example.petcarebe.PetcareBeApplication" />
@@ -119,10 +125,12 @@
       <workItem from="1739198468951" duration="4247000" />
       <workItem from="1739367436127" duration="6090000" />
       <workItem from="1739421412379" duration="12597000" />
+
       <workItem from="1739615669868" duration="14560000" />
       <workItem from="1740019780340" duration="16247000" />
       <workItem from="1740138204604" duration="5068000" />
       <workItem from="1740232563581" duration="13487000" />
+
     </task>
     <servers />
   </component>
@@ -140,6 +148,11 @@
       </map>
     </option>
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="." />
+    <option name="LAST_COMMIT_MESSAGE" value="." />
+  </component>
+
   <component name="XDebuggerManager">
     <watches-manager>
       <configuration name="SpringBootApplicationConfigurationType">
