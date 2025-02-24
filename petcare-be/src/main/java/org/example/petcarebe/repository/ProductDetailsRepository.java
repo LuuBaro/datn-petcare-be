@@ -1,6 +1,7 @@
 package org.example.petcarebe.repository;
 
 
+import jakarta.transaction.Transactional;
 import org.example.petcarebe.dto.ProductDetailsDTO;
 import org.example.petcarebe.model.*;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,7 +20,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
     @Query("UPDATE ProductDetails p SET p.quantity = p.quantity - :quantity WHERE p.productDetailId = :productDetailId AND p.quantity >= :quantity")
     int updateStock(@Param("productDetailId") Long productDetailId, @Param("quantity") int quantity);
 
-
+    @Transactional
     @Modifying
     @Query(value = "UPDATE product_details SET quantity = quantity + :quantity WHERE product_detail_id = :productDetailId", nativeQuery = true)
     int updateStockcancel(@Param("productDetailId") Long productDetailId, @Param("quantity") int quantity);

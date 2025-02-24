@@ -1,5 +1,6 @@
 package org.example.petcarebe.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -18,6 +19,8 @@ public class OrderDetails {
 
     @ManyToOne
     @JoinColumn(name = "order_id", nullable = true)
+    @JsonIgnore
+    @ToString.Exclude
     private Orders orders;
 
     @ManyToOne
