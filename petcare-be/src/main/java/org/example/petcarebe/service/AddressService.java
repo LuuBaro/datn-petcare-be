@@ -29,7 +29,7 @@ public class AddressService {
 
     public Address createAddress(Long userId, AddressRequest addressRequest) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy User với ID: " + userId));
 
         Address address = new Address();
         address.setUser(user);
