@@ -105,6 +105,7 @@ public class ProductDetailsService {
 
             Map<String, Object> productInfo = new HashMap<>();
             productInfo.put("productId", product.getProducts().getProductId());
+            productInfo.put("categoryName", product.getProducts().getCategories().getCategoryName());
             productInfo.put("productDetailId", product.getProductDetailId());
             productInfo.put("productName", product.getProducts().getProductName());
             productInfo.put("price", product.getPrice());

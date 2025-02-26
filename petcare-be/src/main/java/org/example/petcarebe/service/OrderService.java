@@ -284,6 +284,77 @@ public class OrderService {
         return orderRepository.getTotalRevenueByDateRange(startDate, endDate);
     }
 
+    public Map<Date, BigDecimal> getDailyRevenueByDateRange(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getDailyRevenueByDateRange(startDate, endDate);
+        Map<Date, BigDecimal> revenueMap = new LinkedHashMap<>();
+
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            BigDecimal revenue = new BigDecimal(row[1].toString());
+            revenueMap.put(date, revenue);
+        }
+        return revenueMap;
+    }
+
+    public Map<Date, BigDecimal> getDailyRevenueByMonth(int year, int month) {
+        List<Object[]> results = orderRepository.getDailyRevenueByMonth(year, month);
+        Map<Date, BigDecimal> revenueMap = new LinkedHashMap<>();
+
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            BigDecimal revenue = new BigDecimal(row[1].toString());
+            revenueMap.put(date, revenue);
+        }
+        return revenueMap;
+    }
+
+    public List<Map<String, Object>> getWeeklyRevenueByDateRange(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getWeeklyRevenueByDateRange(startDate, endDate);
+        System.out.println("Query Results: " + results);
+
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+        for (Object[] row : results) {
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("week", row[0]);
+            revenueMap.put("revenue", new BigDecimal(row[1].toString()));
+            revenueList.add(revenueMap);
+        }
+        return revenueList;
+    }
+
+    public BigDecimal getRevenueThisMonth() {
+        return orderRepository.getTotalRevenueThisMonth();
+    }
+
+    public BigDecimal getRevenueThisYear() {
+        return orderRepository.getTotalRevenueThisYear();
+    }
+
+    public BigDecimal getRevenueToday() {
+        return orderRepository.getRevenueToday();
+    }
+
+    public BigDecimal getRevenueYesterday() {
+        return orderRepository.getRevenueYesterday();
+    }
+
+    // Tổng số đơn hàng trong ngày hôm nay
+    public Long getTotalOrdersToday() {
+        return orderRepository.getTotalOrdersToday();
+    }
+
+    // Tổng số đơn hàng trong tuần này
+    public Long getTotalOrdersThisWeek() {
+        return orderRepository.getTotalOrdersThisWeek();
+    }
+
+    // Tổng số đơn hàng trong tháng này
+    public Long getTotalOrdersThisMonth() {
+        return orderRepository.getTotalOrdersThisMonth();
+    }
+
+
+
     public List<OrderDTO> getOrdersByUserId(Long userId) {
         List<Orders> userOrders = orderRepository.findByUserUserId(userId);
         return userOrders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
