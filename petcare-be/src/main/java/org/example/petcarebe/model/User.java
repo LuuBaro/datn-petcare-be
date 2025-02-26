@@ -1,5 +1,6 @@
 package org.example.petcarebe.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,6 +23,7 @@ public class User {
     private String phone;
     private LocalDate registration_date;
     private double totalSpent;
+    @JsonProperty("isStatus") // Ép buộc tên trường JSON là "isStatus"
     private boolean isStatus;
     private String imageUrl;
 

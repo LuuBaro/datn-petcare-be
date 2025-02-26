@@ -94,5 +94,44 @@ public class UserController {
     }
 
 
+    @GetMapping("/staff")
+    public ResponseEntity<List<User>> getAllStaff() {
+        List<User> staffList = userService.getAllStaff();
+        return ResponseEntity.ok(staffList);
+    }
 
+    @PostMapping("/create-staff")
+    public ResponseEntity<?> createStaff(@RequestBody User staff) {
+        try {
+            if (staff.getEmail() == null || staff.getEmail().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Email không được để trống."));
+            }
+            if (staff.getPassword() == null || staff.getPassword().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Mật khẩu không được để trống."));
+            }
+
+            User savedStaff = userService.saveStaff(staff);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedStaff);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Đã xảy ra lỗi hệ thống."));
+        }
+    }
+
+    @PutMapping("/update-staff/{userId}")
+    public ResponseEntity<?> updateStaff(@PathVariable Long userId, @RequestBody User staff) {
+        try {
+            if (staff.getEmail() == null || staff.getEmail().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Email không được để trống."));
+            }
+
+            User updatedStaff = userService.updateStaff(userId, staff);
+            return ResponseEntity.ok(updatedStaff);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Đã xảy ra lỗi hệ thống."));
+        }
+    }
 }
