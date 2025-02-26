@@ -16,8 +16,13 @@ public class Address {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long addressId;
+    @Column(name = "province", nullable = false)  // 🔹 Đảm bảo có @Column
     private String province;
+
+    @Column(name = "district", nullable = false)
     private String district;
+
+    @Column(name = "ward", nullable = false)
     private String ward;
     private String street;
 
