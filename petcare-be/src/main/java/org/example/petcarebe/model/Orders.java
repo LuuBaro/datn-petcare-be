@@ -1,5 +1,6 @@
 package org.example.petcarebe.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.Date;
@@ -47,6 +48,8 @@ public class Orders {
 
     // ✅ Thêm quan hệ One-to-Many với OrderDetails
     @OneToMany(mappedBy = "orders", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @JsonIgnore
     private List<OrderDetails> orderDetails;
 
 }
