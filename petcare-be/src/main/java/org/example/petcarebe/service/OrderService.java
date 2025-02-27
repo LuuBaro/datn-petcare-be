@@ -281,6 +281,113 @@ public class OrderService {
         return orderRepository.getTotalRevenueByDateRange(startDate, endDate);
     }
 
+    public Map<Date, Map<String, Object>> getDailyRevenueByDateRange(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getDailyRevenueByDateRange(startDate, endDate);
+        Map<Date, Map<String, Object>> dailyStats = new LinkedHashMap<>();
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            BigDecimal revenue = new BigDecimal(row[1].toString());
+            Long orderCount = (Long) row[2];
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("revenue", revenue);
+            stats.put("orderCount", orderCount);
+            dailyStats.put(date, stats);
+        }
+        return dailyStats;
+    }
+
+    public Map<Date, Map<String, Object>> getDailyRevenueByMonth(int year, int month) {
+        List<Object[]> results = orderRepository.getDailyRevenueByMonth(year, month);
+        Map<Date, Map<String, Object>> dailyStats = new LinkedHashMap<>();
+
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            BigDecimal revenue = new BigDecimal(row[1].toString());
+            Long orderCount = (Long) row[2];
+
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("revenue", revenue);
+            stats.put("orderCount", orderCount);
+
+            dailyStats.put(date, stats);
+        }
+        return dailyStats;
+    }
+
+    public List<Map<String, Object>> getWeeklyRevenueByDateRange(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getWeeklyRevenueByDateRange(startDate, endDate);
+        System.out.println("Query Results: " + results);
+
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+        for (Object[] row : results) {
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("week", row[0]);
+            revenueMap.put("revenue", new BigDecimal(row[1].toString()));
+            revenueList.add(revenueMap);
+        }
+        return revenueList;
+    }
+
+    public BigDecimal getRevenueThisMonth() {
+        return orderRepository.getTotalRevenueThisMonth();
+    }
+
+    public BigDecimal getRevenueThisYear() {
+        return orderRepository.getTotalRevenueThisYear();
+    }
+
+    public BigDecimal getRevenueToday() {
+        return orderRepository.getRevenueToday();
+    }
+
+    public BigDecimal getRevenueYesterday() {
+        return orderRepository.getRevenueYesterday();
+    }
+
+    // Tổng số đơn hàng trong ngày hôm nay
+    public Long getTotalOrdersToday() {
+        return orderRepository.getTotalOrdersToday();
+    }
+
+    // Tổng số đơn hàng trong tuần này
+    public Long getTotalOrdersThisWeek() {
+        return orderRepository.getTotalOrdersThisWeek();
+    }
+
+    // Tổng số đơn hàng trong tháng này
+    public Long getTotalOrdersThisMonth() {
+        return orderRepository.getTotalOrdersThisMonth();
+    }
+
+    // Tổng số đơn hàng hôm qua
+    public Long getTotalOrdersYesterday() {
+        return orderRepository.getTotalOrdersYesterday();
+    }
+
+    //  Tổng số khách hàng
+    public Long getTotalCustomers() {
+        return orderRepository.getTotalCustomers();
+    }
+
+    public List<Map<String, Object>> getTopFiveCustomersByOrderCount() {
+        List<Object[]> results = orderRepository.getTopFiveCustomersByOrderCount();
+        List<Map<String, Object>> topCustomers = new ArrayList<>();
+
+        for (Object[] row : results) {
+            Map<String, Object> customerInfo = new HashMap<>();
+            customerInfo.put("userId", row[0]); // Long
+            customerInfo.put("fullName", row[1]); // String
+            customerInfo.put("phone", row[2]); // Ép kiểu thành String để tránh lỗi
+            customerInfo.put("orderCount", row[3]); // Long
+            topCustomers.add(customerInfo);
+        }
+
+        return topCustomers;
+    }
+
+
+
+
     public List<OrderDTO> getOrdersByUserId(Long userId) {
         List<Orders> userOrders = orderRepository.findByUserUserId(userId);
         return userOrders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
