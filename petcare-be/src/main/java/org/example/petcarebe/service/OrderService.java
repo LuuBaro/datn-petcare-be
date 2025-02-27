@@ -1,5 +1,6 @@
 package org.example.petcarebe.service;
 
+import org.example.petcarebe.controller.WebSocketController;
 import org.example.petcarebe.dto.OrderDTO;
 import org.example.petcarebe.dto.OrderDetailDTO;
 import org.example.petcarebe.dto.request.CheckoutRequestDTO;
@@ -46,6 +47,8 @@ public class OrderService {
     @Autowired
     private CartDetailsService cartDetailsService;
 
+    @Autowired
+    private WebSocketService webSocketService;
 
     public List<Map<String, Object>> getBestSellingProducts() {
         // Lấy 5 sản phẩm bán chạy nhất
@@ -75,12 +78,9 @@ public class OrderService {
         return bestSellingProducts;
     }
 
-
     public void clearCartDetailsByUserId(Long cartDetailId) {
         cartDetailsService.deleteCartDetails(cartDetailId);
     }
-
-
 
         @Transactional
     public Orders checkout(CheckoutRequestDTO request) {
@@ -199,7 +199,6 @@ public class OrderService {
         return order;
     }
 
-
     // Lấy tất cả đơn hàng
     public List<OrderDTO> getAllOrders() {
         List<Orders> ordersList = orderRepository.findAll();
@@ -244,7 +243,6 @@ public class OrderService {
                 .weightValue(orderDetails.getProductDetails().getWeights().getWeightValue()) // Lấy trọng lượng
                 .build();
     }
-
 
     @Transactional
     public Orders cancelOrder(Long orderId) {
@@ -444,6 +442,12 @@ public class OrderService {
         if (!savedOrder.getStatusOrder().getStatusId().equals(statusId)) {
             throw new RuntimeException("Lỗi cập nhật trạng thái đơn hàng!");
         }
+
+        // 9️⃣ Gửi thông báo qua WebSocket đến người dùng
+        // Gửi thông báo đến user
+        Long userId = order.getUser().getUserId();
+        String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " + newStatus.getStatusName();
+        webSocketService.sendToUser(userId, "/queue/notifications", message);
 
         return savedOrder;
     }
