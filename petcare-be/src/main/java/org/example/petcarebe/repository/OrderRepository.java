@@ -27,7 +27,9 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
                                           @Param("endDate") Date endDate);
 
 
-    @Query("SELECT FUNCTION('DATE', o.orderDate) AS date, COALESCE(SUM(o.totalAmount), 0) AS revenue " +
+    @Query("SELECT FUNCTION('DATE', o.orderDate) AS date, " +
+            "COALESCE(SUM(o.totalAmount), 0) AS revenue, " +
+            "COUNT(o) AS order_count " +
             "FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND o.orderDate BETWEEN :startDate AND :endDate " +
@@ -73,7 +75,10 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             "AND FUNCTION('YEAR', o.orderDate) = FUNCTION('YEAR', CURRENT_DATE)")
     BigDecimal getTotalRevenueThisYear();
 
-    @Query("SELECT FUNCTION('DATE', o.orderDate) AS date, COALESCE(SUM(o.totalAmount), 0) AS revenue " +
+    // tổng số doanh thu và đơn hàng từng ngày trong tháng
+    @Query("SELECT FUNCTION('DATE', o.orderDate) AS date, " +
+            "COALESCE(SUM(o.totalAmount), 0) AS revenue, " +
+            "COUNT(o) AS order_count " +
             "FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND FUNCTION('YEAR', o.orderDate) = :year " +
@@ -102,6 +107,31 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             "AND FUNCTION('YEAR', o.orderDate) = FUNCTION('YEAR', CURRENT_DATE) " +
             "AND FUNCTION('MONTH', o.orderDate) = FUNCTION('MONTH', CURRENT_DATE)")
     Long getTotalOrdersThisMonth();
+
+    // Tổng số đơn hàng hôm qua (paymentStatus = "Đã thanh toán")
+    @Query(value = "SELECT COUNT(*) " +
+            "FROM orders " +
+            "WHERE payment_status = 'Đã thanh toán' " +
+            "AND DATE(order_date) = DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY)",
+            nativeQuery = true)
+    Long getTotalOrdersYesterday();
+
+    // Tổng số khách hàng (distinct users with paid orders)
+    @Query("SELECT COUNT(DISTINCT o.user) " +
+            "FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán'")
+    Long getTotalCustomers();
+
+    @Query(value = "SELECT o.user_id, u.full_name, u.phone, COUNT(*) as order_count " +
+            "FROM orders o " +
+            "JOIN users u ON o.user_id = u.user_id " +
+            "WHERE o.payment_status = 'Đã thanh toán' " +
+            "GROUP BY o.user_id, u.full_name, u.phone " +
+            "ORDER BY order_count DESC " +
+            "LIMIT 5",
+            nativeQuery = true)
+    List<Object[]> getTopFiveCustomersByOrderCount();
+
 }
 
 

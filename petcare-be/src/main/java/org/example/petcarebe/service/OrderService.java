@@ -283,28 +283,37 @@ public class OrderService {
         return orderRepository.getTotalRevenueByDateRange(startDate, endDate);
     }
 
-    public Map<Date, BigDecimal> getDailyRevenueByDateRange(Date startDate, Date endDate) {
+    public Map<Date, Map<String, Object>> getDailyRevenueByDateRange(Date startDate, Date endDate) {
         List<Object[]> results = orderRepository.getDailyRevenueByDateRange(startDate, endDate);
-        Map<Date, BigDecimal> revenueMap = new LinkedHashMap<>();
-
+        Map<Date, Map<String, Object>> dailyStats = new LinkedHashMap<>();
         for (Object[] row : results) {
             Date date = (Date) row[0];
             BigDecimal revenue = new BigDecimal(row[1].toString());
-            revenueMap.put(date, revenue);
+            Long orderCount = (Long) row[2];
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("revenue", revenue);
+            stats.put("orderCount", orderCount);
+            dailyStats.put(date, stats);
         }
-        return revenueMap;
+        return dailyStats;
     }
 
-    public Map<Date, BigDecimal> getDailyRevenueByMonth(int year, int month) {
+    public Map<Date, Map<String, Object>> getDailyRevenueByMonth(int year, int month) {
         List<Object[]> results = orderRepository.getDailyRevenueByMonth(year, month);
-        Map<Date, BigDecimal> revenueMap = new LinkedHashMap<>();
+        Map<Date, Map<String, Object>> dailyStats = new LinkedHashMap<>();
 
         for (Object[] row : results) {
             Date date = (Date) row[0];
             BigDecimal revenue = new BigDecimal(row[1].toString());
-            revenueMap.put(date, revenue);
+            Long orderCount = (Long) row[2];
+
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("revenue", revenue);
+            stats.put("orderCount", orderCount);
+
+            dailyStats.put(date, stats);
         }
-        return revenueMap;
+        return dailyStats;
     }
 
     public List<Map<String, Object>> getWeeklyRevenueByDateRange(Date startDate, Date endDate) {
@@ -351,6 +360,33 @@ public class OrderService {
     public Long getTotalOrdersThisMonth() {
         return orderRepository.getTotalOrdersThisMonth();
     }
+
+    // Tổng số đơn hàng hôm qua
+    public Long getTotalOrdersYesterday() {
+        return orderRepository.getTotalOrdersYesterday();
+    }
+
+    //  Tổng số khách hàng
+    public Long getTotalCustomers() {
+        return orderRepository.getTotalCustomers();
+    }
+
+    public List<Map<String, Object>> getTopFiveCustomersByOrderCount() {
+        List<Object[]> results = orderRepository.getTopFiveCustomersByOrderCount();
+        List<Map<String, Object>> topCustomers = new ArrayList<>();
+
+        for (Object[] row : results) {
+            Map<String, Object> customerInfo = new HashMap<>();
+            customerInfo.put("userId", row[0]); // Long
+            customerInfo.put("fullName", row[1]); // String
+            customerInfo.put("phone", row[2]); // Ép kiểu thành String để tránh lỗi
+            customerInfo.put("orderCount", row[3]); // Long
+            topCustomers.add(customerInfo);
+        }
+
+        return topCustomers;
+    }
+
 
 
 

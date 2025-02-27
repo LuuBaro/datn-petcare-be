@@ -42,7 +42,7 @@ public class StatisticsController {
     }
     // Lấy tổng doanh thu trong ngày
     @GetMapping("/revenue/daily")
-    public ResponseEntity<Map<Date, BigDecimal>> getDailyRevenue(
+    public ResponseEntity<Map<Date, Map<String, Object>>> getDailyRevenue(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
         return ResponseEntity.ok(orderService.getDailyRevenueByDateRange(startDate, endDate));
@@ -50,13 +50,13 @@ public class StatisticsController {
 
     // tổng doanh thu từng ngày trong tháng
     @GetMapping("/revenue/daily-current-month")
-    public ResponseEntity<Map<Date, BigDecimal>> getDailyRevenueCurrentMonth() {
+    public ResponseEntity<Map<Date, Map<String, Object>>> getDailyRevenueCurrentMonth() {
         LocalDate now = LocalDate.now();
-        Map<Date, BigDecimal> dailyRevenue = orderService.getDailyRevenueByMonth(
+        Map<Date, Map<String, Object>> dailyStats = orderService.getDailyRevenueByMonth(
                 now.getYear(),
                 now.getMonthValue()
         );
-        return ResponseEntity.ok(dailyRevenue);
+        return ResponseEntity.ok(dailyStats);
     }
 
     // Lấy tổng doanh thu hôm nay
@@ -129,5 +129,25 @@ public class StatisticsController {
         return ResponseEntity.ok(totalOrders);
     }
 
+    // Tổng số đơn hàng hôm qua (đã thanh toán)
+    @GetMapping("/orders/yesterday")
+    public ResponseEntity<Long> getTotalOrdersYesterday() {
+        Long totalOrders = orderService.getTotalOrdersYesterday();
+        return ResponseEntity.ok(totalOrders);
+    }
+
+    //  Tổng số khách hàng
+    @GetMapping("/total-customers")
+    public ResponseEntity<Long> getTotalCustomers() {
+        Long totalCustomers = orderService.getTotalCustomers();
+        return ResponseEntity.ok(totalCustomers);
+    }
+
+    // Top 5 khách hàng mua nhiều nhất
+    @GetMapping("/top-customers")
+    public ResponseEntity<List<Map<String, Object>>> getTopFiveCustomersByOrderCount() {
+        List<Map<String, Object>> topCustomers = orderService.getTopFiveCustomersByOrderCount();
+        return ResponseEntity.ok(topCustomers);
+    }
 
 }
