@@ -54,12 +54,16 @@ public class CartDetailsController {
 
 
     @PutMapping("/update/{id}")
-    public ResponseEntity<CartDetails> updateCartDetails(@PathVariable Long id, @RequestBody Map<String, Integer> payload) {
-        int quantityItem = payload.get("quantityItem");
-
-        CartDetails updatedCart = cartDetailsService.updateCartDetails(id, quantityItem);
-        return ResponseEntity.ok(updatedCart);
+    public ResponseEntity<?> updateCartDetails(@PathVariable Long id, @RequestBody Map<String, Integer> payload) {
+        try {
+            int quantityItem = payload.get("quantityItem");
+            CartDetails updatedCart = cartDetailsService.updateCartDetails(id, quantityItem);
+            return ResponseEntity.ok(updatedCart);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
+
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<Void> deleteCartDetails(@PathVariable long id) {
@@ -81,5 +85,10 @@ public class CartDetailsController {
 
         return ResponseEntity.ok(cartDetails);
     }
+
+
+
+
+
 
 }

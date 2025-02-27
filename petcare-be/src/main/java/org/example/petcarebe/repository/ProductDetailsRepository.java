@@ -27,9 +27,11 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
 
     // Fetch product details by ID
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
-            "dp.productDetailId, p.productName,p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
+            "dp.productDetailId, p.productName, p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, " +
+            "dp.quantity, p.description, c.categoryName) " +  // ✅ Thêm categoryName
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
+            "JOIN p.categories c " +  // ✅ JOIN lấy danh mục sản phẩm
             "JOIN dp.productColors pc " +
             "JOIN dp.productSizes ps " +
             "JOIN dp.weights w " +
@@ -38,13 +40,16 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
 
     // Fetch all product details
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
-            "dp.productDetailId, p.productName,p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, dp.quantity, p.description) " +
+            "dp.productDetailId, p.productName, p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, " +
+            "dp.quantity, p.description, c.categoryName) " +  // ✅ Thêm categoryName
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
+            "JOIN p.categories c " +  // ✅ JOIN lấy danh mục sản phẩm
             "JOIN dp.productColors pc " +
             "JOIN dp.productSizes ps " +
             "JOIN dp.weights w")
     List<ProductDetailsDTO> findAllProductDetails();
+
 
     // Fetch product detail by color, size, and weight
     @Query("SELECT pd FROM ProductDetails pd " +
