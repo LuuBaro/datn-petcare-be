@@ -38,27 +38,49 @@ public class VNPayController {
     @PostMapping("/pay")
     public ResponseEntity<Map<String, String>> pay(@RequestBody Map<String, Object> paymentRequest, HttpServletRequest request) {
         try {
-            // Extract data from the request
-            int amount = (int) paymentRequest.get("amount");
-            String returnUrl = (String) paymentRequest.get("returnUrl");
+            // Kiểm tra xem "amount" có tồn tại và không null không
+            Object amountObj = paymentRequest.get("amount");
+            if (amountObj == null) {
+                throw new IllegalArgumentException("Amount cannot be null");
+            }
 
-            // Get the base URL
+            // Ép kiểu và kiểm tra kiểu dữ liệu
+            int amount;
+            if (amountObj instanceof Integer) {
+                amount = (Integer) amountObj;
+            } else if (amountObj instanceof Number) {
+                amount = ((Number) amountObj).intValue();
+            } else {
+                throw new IllegalArgumentException("Amount must be a number");
+            }
+
+            // Kiểm tra returnUrl
+            String returnUrl = (String) paymentRequest.get("returnUrl");
+            if (returnUrl == null || returnUrl.trim().isEmpty()) {
+                throw new IllegalArgumentException("Return URL cannot be null or empty");
+            }
+
+            // Lấy baseUrl
             String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
 
-            // Call VNPayServices to create an order and get the payment URL
-            String vnpayUrl = vnPayServices.createOrder(amount, "Thanh toán " + new Date(), baseUrl);
+            // Gọi VNPayServices
+            String vnpayUrl = vnPayServices.createOrder(amount, "Thanh toán đơn hàng " + new Date(), returnUrl);
 
-            // Return the payment URL as a JSON response
+            // Trả về response
             Map<String, String> response = new HashMap<>();
             response.put("paymentUrl", vnpayUrl);
-            response.put("returnUrl", returnUrl);
             return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Invalid request parameters");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         } catch (Exception e) {
-            // Handle any errors
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("error", "Payment creation failed");
             errorResponse.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 

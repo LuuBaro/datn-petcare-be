@@ -31,7 +31,7 @@ public class OrderService {
 
     @Autowired
     private OrderDetailsRepository orderDetailsRepository;
-    
+
     @Autowired
     private UserRepository userRepository;
 
@@ -82,7 +82,22 @@ public class OrderService {
         cartDetailsService.deleteCartDetails(cartDetailId);
     }
 
-        @Transactional
+    public Orders updatePaymentStatus(Long orderId, String paymentStatus) {
+        Orders order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+        order.setPaymentStatus(paymentStatus);
+        Orders updatedOrder = orderRepository.save(order);
+
+        // Clear cart if payment is confirmed
+        if ("Chờ xác nhận".equals(paymentStatus) || "Đã thanh toán".equals(paymentStatus)) {
+            cartDetailsService.clearCartDetailsByUserId(order.getUser().getUserId());
+        }
+
+        return updatedOrder;
+    }
+
+    @Transactional
     public Orders checkout(CheckoutRequestDTO request) {
         // 1️⃣ Kiểm tra người dùng
         User user = userRepository.findById(request.getUserId())
@@ -103,7 +118,7 @@ public class OrderService {
         order.setPaymentMethod(request.getPaymentMethod());
         order.setShippingAddress(request.getShippingAddress());
         order.setShippingCost(request.getShippingCost());
-        order.setPaymentStatus("Chờ thanh toán");
+        order.setPaymentStatus(request.getPaymentStatus() != null ? request.getPaymentStatus() : "Chờ thanh toán");
         order.setStatusOrder(statusOrderRepository.findById(1L)
                 .orElseThrow(() -> new RuntimeException("Trạng thái đơn hàng không hợp lệ!")));
         order.setType(request.getType());
@@ -120,19 +135,17 @@ public class OrderService {
         // 4️⃣ Thêm chi tiết đơn hàng và cập nhật số lượng tồn kho
         List<OrderDetails> orderDetailsList = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
-        List<Long> outOfStockItems = new ArrayList<>(); // Danh sách sản phẩm hết hàng
+        List<Long> outOfStockItems = new ArrayList<>();
 
         for (OrderItemDTO item : request.getItems()) {
             ProductDetails product = productDetailsRepository.findById(item.getProductDetailId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + item.getProductDetailId()));
 
-            // Kiểm tra tồn kho
             if (product.getQuantity() < item.getQuantity()) {
                 outOfStockItems.add(item.getProductDetailId());
-                continue; // Bỏ qua sản phẩm hết hàng, không thêm vào đơn hàng
+                continue;
             }
 
-            // Tạo OrderDetails
             OrderDetails orderDetail = new OrderDetails();
             orderDetail.setOrders(order);
             orderDetail.setProductDetails(product);
@@ -144,59 +157,54 @@ public class OrderService {
                     BigDecimal.valueOf(item.getQuantity()).multiply(BigDecimal.valueOf(item.getPrice()))
             );
 
-            // Cập nhật số lượng tồn kho
-            int updated = productDetailsRepository.updateStock(item.getProductDetailId(), item.getQuantity());
-            if (updated == 0) {
-                outOfStockItems.add(item.getProductDetailId());
+            // Chỉ cập nhật tồn kho khi đã thanh toán
+            if ("Đã thanh toán".equals(request.getPaymentStatus())) {
+                int updated = productDetailsRepository.updateStock(item.getProductDetailId(), item.getQuantity());
+                if (updated == 0) {
+                    outOfStockItems.add(item.getProductDetailId());
+                }
+            }
+
+            if ("Đã thanh toán".equals(request.getPaymentStatus())) {
+                cartDetailsService.clearCartDetailsByUserId(request.getUserId());
             }
         }
 
-        // Nếu có sản phẩm hết hàng, xóa chúng khỏi giỏ hàng trước khi báo lỗi
+        // Xóa sản phẩm hết hàng khỏi giỏ hàng
         for (Long productId : outOfStockItems) {
             cartDetailsService.removeProductFromCart(productId);
         }
 
-        // Nếu tất cả sản phẩm đều hết hàng, hủy đơn hàng
         if (orderDetailsList.isEmpty()) {
             throw new RuntimeException("Tất cả sản phẩm trong giỏ hàng đều đã hết hàng!");
         }
 
         // 5️⃣ Cập nhật tổng tiền
-            // Tính số tiền giảm giá nếu có voucher
-            BigDecimal discountAmount = BigDecimal.ZERO;
-            if (request.getVoucherId() != null) {
-                Voucher voucher = voucherRepository.findById(request.getVoucherId())
-                        .orElseThrow(() -> new RuntimeException("Voucher không hợp lệ!"));
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        if (request.getVoucherId() != null) {
+            Voucher voucher = voucherRepository.findById(request.getVoucherId())
+                    .orElseThrow(() -> new RuntimeException("Voucher không hợp lệ!"));
+            BigDecimal percentDiscount = BigDecimal.valueOf(voucher.getPercents()).divide(BigDecimal.valueOf(100));
+            discountAmount = (totalAmount.add(BigDecimal.valueOf(order.getShippingCost()))).multiply(percentDiscount);
+        }
 
-                // Chuyển phần trăm giảm giá thành số thập phân (VD: 10% -> 0.1)
-                BigDecimal percentDiscount = BigDecimal.valueOf(voucher.getPercents()).divide(BigDecimal.valueOf(100));
+        BigDecimal finalAmount = totalAmount.add(BigDecimal.valueOf(order.getShippingCost())).subtract(discountAmount);
+        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+            finalAmount = BigDecimal.ZERO;
+        }
+        order.setTotalAmount(finalAmount.floatValue());
 
-                // Tính số tiền giảm giá: (Tổng tiền sản phẩm + phí vận chuyển) * % giảm giá
-                discountAmount = (totalAmount.add(BigDecimal.valueOf(order.getShippingCost()))).multiply(percentDiscount);
-            }
-
-            // Tính tổng tiền cuối cùng sau khi áp dụng giảm giá
-            BigDecimal finalAmount = totalAmount.add(BigDecimal.valueOf(order.getShippingCost())).subtract(discountAmount);
-
-           // Đảm bảo tổng tiền không bị âm
-            if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
-                finalAmount = BigDecimal.ZERO;
-            }
-
-            // Gán tổng tiền đã tính vào đơn hàng
-            order.setTotalAmount(finalAmount.floatValue());
-
-
-         // 6️⃣ Thêm chi tiết vào đơn hàng
         order.setOrderDetails(orderDetailsList);
 
-        // 7️⃣ Lưu đơn hàng
-        orderRepository.save(order);
+        // 6️⃣ Lưu đơn hàng
+        Orders savedOrder = orderRepository.save(order);
 
-        // 8️⃣ Xóa giỏ hàng sau khi thanh toán thành công
-        cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+        // 7️⃣ Xóa giỏ hàng chỉ khi đã thanh toán
+        if ("Chờ xác nhận".equals(request.getPaymentStatus()) || "Đã thanh toán".equals(request.getPaymentStatus())) {
+            cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+        }
 
-        return order;
+        return savedOrder;
     }
 
     // Lấy tất cả đơn hàng
@@ -385,9 +393,6 @@ public class OrderService {
         return topCustomers;
     }
 
-
-
-
     public List<OrderDTO> getOrdersByUserId(Long userId) {
         List<Orders> userOrders = orderRepository.findByUserUserId(userId);
         return userOrders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
@@ -456,6 +461,4 @@ public class OrderService {
 
         return savedOrder;
     }
-
-
 }

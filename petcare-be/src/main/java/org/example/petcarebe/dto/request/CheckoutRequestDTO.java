@@ -7,6 +7,7 @@ import java.util.List;
 public class CheckoutRequestDTO {
     private Long userId;
     private String paymentMethod;
+    private String paymentStatus;
     private String shippingAddress;
     private float shippingCost;
     private Long voucherId; // Nếu có thể sử dụng voucher
