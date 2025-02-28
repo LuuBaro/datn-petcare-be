@@ -3,29 +3,28 @@ package org.example.petcarebe.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-
 @Service
 public class WebSocketService {
-
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    // Gửi thông báo đến một user cụ thể
     public void sendToUser(Long userId, String destination, String message) {
-        messagingTemplate.convertAndSendToUser(
-                userId.toString(),
-                destination, // Ví dụ: /queue/notifications
-                message
-        );
+        String userDestination = "/user/" + userId + destination;
+        System.out.println("🔔 Attempting to send WebSocket message to: " + userDestination);
+        System.out.println("📨 Message: " + message);
+        try {
+            messagingTemplate.convertAndSendToUser(userId.toString(), destination, message);
+            System.out.println("✅ Message sent successfully to: " + userDestination);
+        } catch (Exception e) {
+            System.err.println("❌ Error sending WebSocket message: " + e.getMessage());
+        }
     }
 
-    // Gửi thông báo broadcast đến một topic
     public void sendToTopic(String topic, String message) {
-        messagingTemplate.convertAndSend(topic, message); // Ví dụ: /topic/public
+        messagingTemplate.convertAndSend(topic, message);
     }
 
-    // Gửi thông báo đến một vai trò (role)
     public void sendToRole(String role, String destination, String message) {
-        messagingTemplate.convertAndSend("/role/" + role + destination, message); // Ví dụ: /role/ADMIN/queue/updates
+        messagingTemplate.convertAndSend("/role/" + role + destination, message);
     }
 }

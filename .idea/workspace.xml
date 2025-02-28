@@ -5,11 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f30310c1-7733-4c0e-bce6-0da4e7e1c370" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/WebSocketService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/SecurityConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/WebSocketConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/WebSocketConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/WebSocketController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/WebSocketController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/OrderService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/OrderService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/WebSocketService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/WebSocketService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,6 +34,23 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "Spring Boot.PetcareBeApplication.executor": "Run",
+    "kotlin-language-version-configured": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
   <component name="RunManager">
     <configuration name="PetcareBeApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
@@ -71,7 +88,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1740582451545</updated>
-      <workItem from="1740582455077" duration="9998000" />
+      <workItem from="1740582455077" duration="16279000" />
     </task>
     <servers />
   </component>
