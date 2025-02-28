@@ -410,46 +410,51 @@ public class OrderService {
         }
         Long currentStatusId = order.getStatusOrder().getStatusId();
 
-        // 3️⃣ Kiểm tra statusId có hợp lệ không
+        // 3️⃣ Chặn cập nhật nếu trạng thái hiện tại là Hoàn thành, Đã hủy, hoặc Trả hàng
+        List<Long> finalStatuses = Arrays.asList(4L, 5L, 6L);
+        if (finalStatuses.contains(currentStatusId)) {
+            throw new RuntimeException("Không thể cập nhật trạng thái từ 'Hoàn thành', 'Đã hủy' hoặc 'Trả hàng'.");
+        }
+
+        // 4️⃣ Kiểm tra statusId có hợp lệ không
         List<Long> validStatusIds = Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L);
         if (!validStatusIds.contains(statusId)) {
             throw new RuntimeException("Trạng thái đơn hàng không hợp lệ!");
         }
 
-        // ✅ Cho phép cập nhật trạng thái, kể cả khi đơn hàng đã bị hủy/trả hàng
-        // => Xóa điều kiện chặn cập nhật khi trạng thái là 5 hoặc 6
-
-        // 4️⃣ Tìm trạng thái mới theo statusId
+        // 5️⃣ Tìm trạng thái mới theo statusId
         StatusOrder newStatus = statusOrderRepository.findById(statusId)
                 .orElseThrow(() -> new RuntimeException("Trạng thái đơn hàng không hợp lệ!"));
 
-        // 5️⃣ Nếu cập nhật trạng thái sang hủy/trả hàng, hoàn lại số lượng tồn kho
+        // 6️⃣ Nếu trạng thái mới là "Hoàn thành" (statusId = 4), cập nhật paymentStatus
+        if (statusId.equals(4L)) {
+            order.setPaymentStatus("Đã thanh toán");
+        }
+
+        // 7️⃣ Nếu cập nhật trạng thái sang hủy/trả hàng, hoàn lại số lượng tồn kho
         if (statusId.equals(5L) || statusId.equals(6L)) {
             for (OrderDetails orderDetail : order.getOrderDetails()) {
                 if (orderDetail.getProductDetails() != null) {
                     productDetailsRepository.updateStockcancel(
                             orderDetail.getProductDetails().getProductDetailId(),
                             orderDetail.getQuantity()
-
                     );
-                    System.out.println("Updating order " + orderId + " to status " + statusId);
                 }
             }
         }
 
-        // 6️⃣ Cập nhật trạng thái mới
+        // 8️⃣ Cập nhật trạng thái mới
         order.setStatusOrder(newStatus);
 
-        // 7️⃣ Lưu đơn hàng đã cập nhật
+        // 9️⃣ Lưu đơn hàng đã cập nhật
         Orders savedOrder = orderRepository.save(order);
 
-        // 8️⃣ Kiểm tra lại trạng thái đã được cập nhật chưa
+        // 10️⃣ Kiểm tra lại trạng thái đã được cập nhật chưa
         if (!savedOrder.getStatusOrder().getStatusId().equals(statusId)) {
             throw new RuntimeException("Lỗi cập nhật trạng thái đơn hàng!");
         }
 
-        // 9️⃣ Gửi thông báo qua WebSocket đến người dùng
-        // Gửi thông báo đến user
+        // 11️⃣ Gửi thông báo qua WebSocket đến người dùng
         Long userId = order.getUser().getUserId();
         String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " + newStatus.getStatusName();
         webSocketService.sendToUser(userId, "/queue/notifications", message);
