@@ -216,16 +216,13 @@ public class OrderService {
         }
 
         // Lưu trạng thái đơn hàng trước
-        Orders updatedOrder = orderRepository.save(order);
+        Orders savedOrder = orderRepository.save(order);
         logger.info("Updated paymentStatus for orderId: {} to {}", orderId, paymentStatus);
 
         // ✅ Chỉ trừ kho khi VNPay chuyển từ "Chờ thanh toán" sang "Chờ xác nhận"
-        if ("VNPay".equals(order.getPaymentMethod()) &&
-                "Chờ xác nhận".equals(paymentStatus) &&
-                "Chờ thanh toán".equals(oldPaymentStatus)) {
+        if ("VNPay".equals(order.getPaymentMethod()) && "Chờ xác nhận".equals(paymentStatus) && "Chờ thanh toán".equals(oldPaymentStatus)) {
             logger.info("Deducting stock for VNPay orderId: {}", orderId);
-            for (OrderDetails orderDetail : order.getOrderDetails()) {
-                try {
+            for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
                     int updated = productDetailsRepository.updateStock(
                             orderDetail.getProductDetails().getProductDetailId(),
                             orderDetail.getQuantity()
@@ -238,11 +235,6 @@ public class OrderService {
                         throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " +
                                 orderDetail.getProductDetails().getProductDetailId());
                     }
-                } catch (Exception e) {
-                    logger.error("Exception occurred while deducting stock for orderId: {}, productId: {}, error: {}",
-                            orderId, orderDetail.getProductDetails().getProductDetailId(), e.getMessage());
-                    throw e;
-                }
             }
             logger.info("Clearing cart for VNPay order, userId: {}", order.getUser().getUserId());
             cartDetailsService.clearCartDetailsByUserId(order.getUser().getUserId());
@@ -251,7 +243,7 @@ public class OrderService {
                     orderId, order.getPaymentMethod(), oldPaymentStatus, paymentStatus);
         }
 
-        return updatedOrder;
+        return savedOrder;
     }
 
     // Lấy tất cả đơn hàng
