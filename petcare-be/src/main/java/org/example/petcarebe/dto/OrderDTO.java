@@ -23,6 +23,7 @@ public class OrderDTO {
 
     private Long userId;
     private String userName;
+    private String phone;
 
     private Long statusId;
     private String statusName;
