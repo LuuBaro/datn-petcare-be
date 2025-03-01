@@ -217,6 +217,8 @@ public class OrderService {
     private OrderDTO convertToOrderDTO(Orders order) {
         List<OrderDetailDTO> orderDetailDTOList = order.getOrderDetails().stream().map(this::convertToOrderDetailDTO).collect(Collectors.toList());
 
+
+
         return OrderDTO.builder()
                 .orderId(order.getOrderId())
                 .orderDate(order.getOrderDate())
@@ -230,6 +232,7 @@ public class OrderService {
                 .pointUsed(order.getPointUsed())
                 .userId(order.getUser().getUserId())
                 .userName(order.getUser().getFullName())
+                .phone(order.getUser().getPhone()) // Thêm số điện thoại từ User
                 .statusId(order.getStatusOrder() != null ? order.getStatusOrder().getStatusId() : null)
                 .statusName(order.getStatusOrder() != null ? order.getStatusOrder().getStatusName() : null)
                 .voucherId(order.getVoucher() != null ? order.getVoucher().getVoucherId() : null)
