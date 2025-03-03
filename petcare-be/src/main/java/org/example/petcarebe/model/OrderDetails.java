@@ -25,6 +25,8 @@ public class OrderDetails {
 
     @ManyToOne
     @JoinColumn(name = "product_detail_id", nullable = true)
+    @JsonIgnore
+    @ToString.Exclude
     private ProductDetails productDetails;
 
     public void setProductDetail(ProductDetails productDetail) {
