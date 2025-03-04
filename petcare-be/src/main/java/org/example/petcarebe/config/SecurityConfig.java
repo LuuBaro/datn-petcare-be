@@ -45,6 +45,7 @@ public class SecurityConfig {
                                         "/api/addresses/**",
                                         "/css/**",
                                         "/js/**",
+                                        "/ws/**",
                                         "/").permitAll()
                                 .requestMatchers("/api/admin/create").hasRole("ADMIN")
                         .requestMatchers("/api/admin/update/**").hasAnyRole("STAFF","ADMIN")

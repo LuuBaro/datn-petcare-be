@@ -16,7 +16,7 @@ public class Orders {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long orderId;
 
-    @Temporal(TemporalType.DATE)
+    @Temporal(TemporalType.TIMESTAMP)
     private Date orderDate;
     @Column(name = "payment_status", columnDefinition = "NVARCHAR(255)")
     private String paymentStatus;
