@@ -51,6 +51,10 @@ public class OrderService {
 
     @Autowired
     private WebSocketService webSocketService;
+
+    @Autowired
+    private NotificationService notificationService;
+
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
     public List<Map<String, Object>> getBestSellingProducts() {
@@ -495,11 +499,18 @@ public class OrderService {
             throw new RuntimeException("Lỗi cập nhật trạng thái đơn hàng!");
         }
 
-        // 11️⃣ Gửi thông báo qua WebSocket đến người dùng
+        // 11️⃣ Lưu và gửi thông báo qua WebSocket
         Long userId = order.getUser().getUserId();
         String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " + newStatus.getStatusName();
-        webSocketService.sendToUser(userId, "/queue/notifications", message);
+        notificationService.saveNotification(userId, message); // Lưu thông báo vào database
 
+        try {
+            webSocketService.sendToTopic("/topic/status", message); // Gửi broadcast
+            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + message);
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send WebSocket notification to /topic/status: " + e.getMessage());
+            // Có thể ghi log, nhưng không làm gián đoạn luồng chính
+        }
         return savedOrder;
     }
 }

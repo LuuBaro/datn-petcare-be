@@ -5,9 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f30310c1-7733-4c0e-bce6-0da4e7e1c370" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/NotificationController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/model/Notification.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/NotificationRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/NotificationService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/model/OrderDetails.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/model/OrderDetails.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/PetcareBeApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/PetcareBeApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/WebSocketConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/WebSocketConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/WebSocketController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/WebSocketController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/OrderService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/OrderService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/WebSocketService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/WebSocketService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/resources/application.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -29,26 +37,29 @@
   &quot;associatedIndex&quot;: 1
 }</component>
   <component name="ProjectId" id="2tiqVSZ5Aj1uM5vuQLP35vj69ye" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RequestMappingsPanelOrder0": "0",
-    "RequestMappingsPanelOrder1": "1",
-    "RequestMappingsPanelWidth0": "75",
-    "RequestMappingsPanelWidth1": "75",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "Spring Boot.PetcareBeApplication.executor": "Run",
-    "kotlin-language-version-configured": "true",
-    "node.js.detected.package.eslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;Spring Boot.PetcareBeApplication.executor&quot;: &quot;Run&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager">
     <configuration name="PetcareBeApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
@@ -88,21 +99,13 @@
       <updated>1740582451545</updated>
       <workItem from="1740582455077" duration="9998000" />
       <workItem from="1740845271878" duration="3774000" />
+      <workItem from="1740851359477" duration="4532000" />
+      <workItem from="1740967825312" duration="18670000" />
+      <workItem from="1741054120368" duration="10416000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/OrderService.java</url>
-          <line>200</line>
-          <option name="timeStamp" value="2" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
   </component>
 </project>
