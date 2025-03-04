@@ -1,8 +1,15 @@
 package org.example.petcarebe.service;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.Date;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 @Service
 public class WebSocketService {
     @Autowired
@@ -10,13 +17,10 @@ public class WebSocketService {
 
     public void sendToUser(Long userId, String destination, String message) {
         String userDestination = "/user/" + userId + destination;
-        System.out.println("🔔 Attempting to send WebSocket message to: " + userDestination);
-        System.out.println("📨 Message: " + message);
         try {
             messagingTemplate.convertAndSendToUser(userId.toString(), destination, message);
-            System.out.println("✅ Message sent successfully to: " + userDestination);
         } catch (Exception e) {
-            System.err.println("❌ Error sending WebSocket message: " + e.getMessage());
+            throw new RuntimeException("Failed to send WebSocket message to user " + userId + ": " + e.getMessage(), e);
         }
     }
 
