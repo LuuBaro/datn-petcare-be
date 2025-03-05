@@ -502,14 +502,18 @@ public class OrderService {
         // 11️⃣ Lưu và gửi thông báo qua WebSocket
         Long userId = order.getUser().getUserId();
         String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " + newStatus.getStatusName();
-        notificationService.saveNotification(userId, message); // Lưu thông báo vào database
 
+        // Lưu thông báo vào database trước
+        Notification notification = notificationService.saveNotification(userId, message);
+
+        // Gửi thông báo qua WebSocket với ID thực tế
+        String webSocketMessage = "{\"id\": " + notification.getId() + ", \"message\": \"" + message + "\", \"orderId\": " + orderId + "}";
         try {
-            webSocketService.sendToTopic("/topic/status", message); // Gửi broadcast
-            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + message);
+            webSocketService.sendToTopic("/topic/status", webSocketMessage); // Gửi broadcast với JSON
+            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + webSocketMessage);
         } catch (Exception e) {
             System.err.println("❌ Failed to send WebSocket notification to /topic/status: " + e.getMessage());
-            // Có thể ghi log, nhưng không làm gián đoạn luồng chính
+            logger.error("Failed to send WebSocket notification for orderId: " + orderId, e); // Ghi log chi tiết
         }
         return savedOrder;
     }
