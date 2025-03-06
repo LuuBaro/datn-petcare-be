@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,10 +37,10 @@ public class StatisticsController {
     public ResponseEntity<BigDecimal> getRevenue(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
-
         BigDecimal revenue = orderService.getRevenueByDateRange(startDate, endDate);
         return ResponseEntity.ok(revenue);
     }
+
     // Lấy tổng doanh thu trong ngày
     @GetMapping("/revenue/daily")
     public ResponseEntity<Map<Date, Map<String, Object>>> getDailyRevenue(
@@ -48,7 +49,7 @@ public class StatisticsController {
         return ResponseEntity.ok(orderService.getDailyRevenueByDateRange(startDate, endDate));
     }
 
-    // tổng doanh thu từng ngày trong tháng
+    // Tổng doanh thu từng ngày trong tháng hiện tại
     @GetMapping("/revenue/daily-current-month")
     public ResponseEntity<Map<Date, Map<String, Object>>> getDailyRevenueCurrentMonth() {
         LocalDate now = LocalDate.now();
@@ -73,13 +74,42 @@ public class StatisticsController {
         return ResponseEntity.ok(revenueYesterday);
     }
 
+    @GetMapping("/orders/daily-by-type")
+    public ResponseEntity<Map<Date, Map<String, Long>>> getDailyOrderCountByType(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        Map<Date, Map<String, Long>> dailyOrderStats = orderService.getDailyOrderCountByType(startDate, endDate);
+        return ResponseEntity.ok(dailyOrderStats);
+    }
+    
+    @GetMapping("/orders/weekly-by-type")
+    public ResponseEntity<List<Map<String, Object>>> getWeeklyOrderCountByType(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        return ResponseEntity.ok(orderService.getWeeklyOrderCountByType(startDate, endDate));
+    }
+
+    @GetMapping("/orders/monthly-by-type")
+    public ResponseEntity<List<Map<String, Object>>> getMonthlyOrderCountByType(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        return ResponseEntity.ok(orderService.getMonthlyOrderCountByType(startDate, endDate));
+    }
+    // Endpoint lấy số liệu đơn hàng hôm qua
+    @GetMapping("/yesterday-stats")
+    public ResponseEntity<Map<String, Long>> getYesterdayOrderStats() {
+        Map<String, Long> stats = new HashMap<>();
+        stats.put("offlineOrdersYesterday", orderService.getTotalOfflineOrdersYesterday());
+        stats.put("onlineOrdersYesterday", orderService.getTotalOnlineOrdersYesterday());
+        return ResponseEntity.ok(stats);
+    }
+
     @GetMapping("/revenue/weekly")
     public ResponseEntity<List<Map<String, Object>>> getWeeklyRevenue(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
         return ResponseEntity.ok(orderService.getWeeklyRevenueByDateRange(startDate, endDate));
     }
-
 
     // Lấy tổng doanh thu trong tháng
     @GetMapping("/revenue/month")
@@ -100,7 +130,6 @@ public class StatisticsController {
         return ResponseEntity.ok(totalStock);
     }
 
-
     // Lấy thông tin số lượng sản phẩm còn trong kho
     @GetMapping("/stock-info")
     public ResponseEntity<List<Map<String, Object>>> getProductStockInfo() {
@@ -108,11 +137,14 @@ public class StatisticsController {
         return ResponseEntity.ok(stockInfo);
     }
 
-    // Tổng số đơn hàng trong ngày hôm nay (đã thanh toán hoặc hoàn thành)
+    // Tổng số đơn hàng trong ngày hôm nay (bao gồm OFFLINE và ORDER ONLINE)
     @GetMapping("/orders/today")
-    public ResponseEntity<Long> getTotalOrdersToday() {
-        Long totalOrders = orderService.getTotalOrdersToday();
-        return ResponseEntity.ok(totalOrders);
+    public ResponseEntity<Map<String, Long>> getTotalOrdersToday() {
+        Map<String, Long> response = new HashMap<>();
+        response.put("totalOrders", orderService.getTotalOrdersToday());
+        response.put("offlineOrders", orderService.getTotalOfflineOrdersToday());
+        response.put("onlineOrders", orderService.getTotalOnlineOrdersToday());
+        return ResponseEntity.ok(response);
     }
 
     // Tổng số đơn hàng trong tuần này (đã thanh toán hoặc hoàn thành)
@@ -122,11 +154,14 @@ public class StatisticsController {
         return ResponseEntity.ok(totalOrders);
     }
 
-    // Tổng số đơn hàng trong tháng này (đã thanh toán hoặc hoàn thành)
+    // Tổng số đơn hàng trong tháng này (bao gồm OFFLINE và ORDER ONLINE)
     @GetMapping("/orders/month")
-    public ResponseEntity<Long> getTotalOrdersThisMonth() {
-        Long totalOrders = orderService.getTotalOrdersThisMonth();
-        return ResponseEntity.ok(totalOrders);
+    public ResponseEntity<Map<String, Long>> getTotalOrdersThisMonth() {
+        Map<String, Long> response = new HashMap<>();
+        response.put("totalOrders", orderService.getTotalOrdersThisMonth());
+        response.put("offlineOrders", orderService.getTotalOfflineOrdersThisMonth());
+        response.put("onlineOrders", orderService.getTotalOnlineOrdersThisMonth());
+        return ResponseEntity.ok(response);
     }
 
     // Tổng số đơn hàng hôm qua (đã thanh toán)
@@ -136,7 +171,18 @@ public class StatisticsController {
         return ResponseEntity.ok(totalOrders);
     }
 
-    //  Tổng số khách hàng
+    // Tổng số đơn hàng trong khoảng thời gian (bao gồm OFFLINE và ORDER ONLINE)
+    @GetMapping("/orders/range")
+    public ResponseEntity<Map<String, Long>> getOrdersByDateRange(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        Map<String, Long> response = new HashMap<>();
+        response.put("offlineOrders", orderService.getTotalOfflineOrdersByDateRange(startDate, endDate));
+        response.put("onlineOrders", orderService.getTotalOnlineOrdersByDateRange(startDate, endDate));
+        return ResponseEntity.ok(response);
+    }
+
+    // Tổng số khách hàng
     @GetMapping("/total-customers")
     public ResponseEntity<Long> getTotalCustomers() {
         Long totalCustomers = orderService.getTotalCustomers();
@@ -149,5 +195,4 @@ public class StatisticsController {
         List<Map<String, Object>> topCustomers = orderService.getTopFiveCustomersByOrderCount();
         return ResponseEntity.ok(topCustomers);
     }
-
 }
