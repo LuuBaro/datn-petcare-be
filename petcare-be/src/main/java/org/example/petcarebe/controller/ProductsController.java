@@ -19,7 +19,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = "*") // Cho phép truy cập từ frontend
 public class ProductsController {
 
     @Autowired
