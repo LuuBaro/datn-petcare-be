@@ -1,6 +1,5 @@
 package org.example.petcarebe.service;
 
-
 import org.example.petcarebe.dto.ProductListDTO;
 import org.example.petcarebe.dto.ProductSummaryDTO;
 import org.example.petcarebe.dto.ProductsDTO;
@@ -29,7 +28,6 @@ public class ProductsService {
     private BrandRepository brandRepository;
     @Autowired
     private CategoriesRepository categoriesRepository;
-
     @Autowired
     private ProductDetailsRepository productDetailsRepository;
 
@@ -38,7 +36,9 @@ public class ProductsService {
     }
 
     public Products getProductsById(Long productsId) {
-        return productRepository.findById(productsId).orElse(null);
+        return productRepository.findById(productsId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Sản phẩm không tồn tại với ID: " + productsId));
     }
 
     public Products createProduct(Products product) {
@@ -65,33 +65,33 @@ public class ProductsService {
         return productRepository.save(product);
     }
 
-
     public Products update(Long productId, Products updatedProduct) {
-        return productRepository.findById(productId).map(existingProduct -> {
-            // Cập nhật tên sản phẩm
-            existingProduct.setProductName(updatedProduct.getProductName());
+        return productRepository.findById(productId)
+                .map(existingProduct -> {
+                    // Cập nhật tên sản phẩm
+                    existingProduct.setProductName(updatedProduct.getProductName());
 
-            // Cập nhật mô tả
-            existingProduct.setDescription(updatedProduct.getDescription());
+                    // Cập nhật mô tả
+                    existingProduct.setDescription(updatedProduct.getDescription());
 
-            // Cập nhật URL hình ảnh
-            existingProduct.setImage(updatedProduct.getImage());
+                    // Cập nhật URL hình ảnh
+                    existingProduct.setImage(updatedProduct.getImage());
 
-            // Lấy Brand mới và gán
-            Brand brand = brandRepository.findById(updatedProduct.getBrand().getBrandId())
-                    .orElseThrow(() -> new IllegalArgumentException("Thương hiệu không tồn tại với ID: " + updatedProduct.getBrand().getBrandId()));
-            existingProduct.setBrand(brand);
+                    // Lấy Brand mới và gán
+                    Brand brand = brandRepository.findById(updatedProduct.getBrand().getBrandId())
+                            .orElseThrow(() -> new IllegalArgumentException("Thương hiệu không tồn tại với ID: " + updatedProduct.getBrand().getBrandId()));
+                    existingProduct.setBrand(brand);
 
-            // Lấy Category mới và gán
-            Categories category = categoriesRepository.findById(updatedProduct.getCategories().getCategoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Danh mục không tồn tại với ID: " + updatedProduct.getCategories().getCategoryId()));
-            existingProduct.setCategories(category);
+                    // Lấy Category mới và gán
+                    Categories category = categoriesRepository.findById(updatedProduct.getCategories().getCategoryId())
+                            .orElseThrow(() -> new IllegalArgumentException("Danh mục không tồn tại với ID: " + updatedProduct.getCategories().getCategoryId()));
+                    existingProduct.setCategories(category);
 
-            // Lưu sản phẩm đã cập nhật
-            return productRepository.save(existingProduct);
-        }).orElseThrow(() -> new IllegalArgumentException("Sản phẩm không tồn tại với ID: " + productId));
+                    // Lưu sản phẩm đã cập nhật
+                    return productRepository.save(existingProduct);
+                })
+                .orElseThrow(() -> new IllegalArgumentException("Sản phẩm không tồn tại với ID: " + productId));
     }
-
 
     public void delete(Long productsId) {
         if (productRepository.existsById(productsId)) {
@@ -101,13 +101,11 @@ public class ProductsService {
         }
     }
 
-
     @Autowired
     public ProductsService(ProductRepository productRepository, ProductDetailsRepository productDetailsRepository) {
         this.productRepository = productRepository;
         this.productDetailsRepository = productDetailsRepository;
     }
-
 
     public List<ProductsDTO> getAllProductss() {
         // Lấy tất cả các sản phẩm từ ProductRepository
@@ -130,7 +128,7 @@ public class ProductsService {
                     );
 
                     // Set giá trị price
-                    productDTO.setPrice(minPrice);  // Gọi setter, sẽ ép kiểu float và xử lý null nếu cần
+                    productDTO.setPrice(minPrice != null ? minPrice : 0.0f); // Xử lý null giá trị
 
                     return productDTO;
                 })
@@ -144,9 +142,8 @@ public class ProductsService {
         // Lọc và map các sản phẩm có ít nhất một ProductDetails
         return products.stream()
                 .map(product -> {
-
-                    // Tạo ProductsDTO và set thông tin
-                    ProductListDTO productlistDTO = new ProductListDTO(
+                    // Tạo ProductListDTO và set thông tin
+                    ProductListDTO productListDTO = new ProductListDTO(
                             product.getProductId(),
                             product.getProductName(),
                             product.getDescription(),
@@ -155,31 +152,36 @@ public class ProductsService {
                             product.getBrand().getBrandName()
                     );
 
-                    return productlistDTO;
+                    return productListDTO;
                 })
                 .collect(Collectors.toList());
     }
 
     public List<Products> searchByName(String productName) {
-        return productRepository.findByProductNameContainingIgnoreCase(productName);
+        return productRepository.findByProductNameContainingIgnoreCase(productName != null ? productName : "");
     }
 
-
-    // Lấy thông tin sản phẩm theo ID
     public List<ProductSummaryDTO> getProductSummaryByProductId(Long productId) {
-        return productRepository.findProductSummaryByProductId(productId);
+        List<ProductSummaryDTO> products = productRepository.findProductSummaryByProductId(productId);
+        if (products.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Không tìm thấy sản phẩm với productId: " + productId);
+        }
+        return products;
     }
 
-
-
-    // Lấy danh sách tất cả sản phẩm
     public List<ProductSummaryDTO> getAllProductSummaries() {
-        return productRepository.findAllProductSummaries();
+        List<ProductSummaryDTO> products = productRepository.findAllProductSummaries();
+        if (products.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không có sản phẩm nào được tìm thấy");
+        }
+        return products;
     }
 
-
-
-
-
-
+    public List<Products> searchProducts(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return productRepository.findAll();
+        }
+        return productRepository.searchProducts(keyword);
+    }
 }
