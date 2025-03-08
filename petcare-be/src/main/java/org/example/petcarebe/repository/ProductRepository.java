@@ -13,12 +13,6 @@ import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Products, Long> {
-//    @Query("SELECT new org.example.petcarebe.dto.ProductsDTO(p.productId, p.productName, p.image, c.categoryName, d.brandName) " +
-//            "FROM Products p " +
-//            "JOIN p.categories c " +
-//            "JOIN p.brand d")
-//    List<ProductsDTO> findAllProductsWithMinPrice();
-
     List<Products> findByProductNameContainingIgnoreCase(String productName);
 
     @Query("SELECT new org.example.petcarebe.dto.ProductSummaryDTO(" +
@@ -38,5 +32,7 @@ public interface ProductRepository extends JpaRepository<Products, Long> {
             "JOIN p.categories c")
     List<ProductSummaryDTO> findAllProductSummaries();
 
+    // Method mới được thêm vào
+    @Query("SELECT p FROM Products p WHERE LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Products> searchProducts(@Param("keyword") String keyword);
 }
-
