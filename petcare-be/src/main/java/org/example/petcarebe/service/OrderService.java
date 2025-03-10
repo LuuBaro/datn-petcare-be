@@ -58,6 +58,10 @@ public class OrderService {
 
     @Autowired
     private WebSocketService webSocketService;
+
+    @Autowired
+    private NotificationService notificationService;
+
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
     public List<Map<String, Object>> getBestSellingProducts() {
@@ -394,6 +398,8 @@ public class OrderService {
         }
     }
 
+    // Thống kê
+
     public BigDecimal getRevenueByDateRange(Date startDate, Date endDate) {
         return orderRepository.getTotalRevenueByDateRange(startDate, endDate);
     }
@@ -433,8 +439,6 @@ public class OrderService {
 
     public List<Map<String, Object>> getWeeklyRevenueByDateRange(Date startDate, Date endDate) {
         List<Object[]> results = orderRepository.getWeeklyRevenueByDateRange(startDate, endDate);
-        System.out.println("Query Results: " + results);
-
         List<Map<String, Object>> revenueList = new ArrayList<>();
         for (Object[] row : results) {
             Map<String, Object> revenueMap = new HashMap<>();
@@ -461,9 +465,49 @@ public class OrderService {
         return orderRepository.getRevenueYesterday();
     }
 
+    // Tổng số đơn hàng OFFLINE hôm qua
+    public Long getTotalOfflineOrdersYesterday() {
+        return orderRepository.getTotalOfflineOrdersYesterday();
+    }
+
+    // Tổng số đơn hàng ONLINE hôm qua
+    public Long getTotalOnlineOrdersYesterday() {
+        return orderRepository.getTotalOnlineOrdersYesterday();
+    }
+
+    public Map<Date, Map<String, Long>> getDailyOrderCountByType(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getDailyOrderCountByType(startDate, endDate);
+        Map<Date, Map<String, Long>> dailyOrderStats = new LinkedHashMap<>();
+
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            Long onlineOrders = (Long) row[1];
+            Long offlineOrders = (Long) row[2];
+
+            Map<String, Long> stats = new HashMap<>();
+            stats.put("onlineOrders", onlineOrders);
+            stats.put("offlineOrders", offlineOrders);
+
+            dailyOrderStats.put(date, stats);
+        }
+        return dailyOrderStats;
+    }
+
+
+
     // Tổng số đơn hàng trong ngày hôm nay
     public Long getTotalOrdersToday() {
         return orderRepository.getTotalOrdersToday();
+    }
+
+    // Tổng số đơn hàng OFFLINE hôm nay
+    public Long getTotalOfflineOrdersToday() {
+        return orderRepository.getTotalOfflineOrdersToday();
+    }
+
+    // Tổng số đơn hàng ORDER ONLINE hôm nay
+    public Long getTotalOnlineOrdersToday() {
+        return orderRepository.getTotalOnlineOrdersToday();
     }
 
     // Tổng số đơn hàng trong tuần này
@@ -476,12 +520,32 @@ public class OrderService {
         return orderRepository.getTotalOrdersThisMonth();
     }
 
+    // Tổng số đơn hàng OFFLINE trong tháng này
+    public Long getTotalOfflineOrdersThisMonth() {
+        return orderRepository.getTotalOfflineOrdersThisMonth();
+    }
+
+    // Tổng số đơn hàng ORDER ONLINE trong tháng này
+    public Long getTotalOnlineOrdersThisMonth() {
+        return orderRepository.getTotalOnlineOrdersThisMonth();
+    }
+
     // Tổng số đơn hàng hôm qua
     public Long getTotalOrdersYesterday() {
         return orderRepository.getTotalOrdersYesterday();
     }
 
-    //  Tổng số khách hàng
+    // Tổng số đơn hàng OFFLINE trong khoảng thời gian
+    public Long getTotalOfflineOrdersByDateRange(Date startDate, Date endDate) {
+        return orderRepository.getTotalOfflineOrdersByDateRange(startDate, endDate);
+    }
+
+    // Tổng số đơn hàng ORDER ONLINE trong khoảng thời gian
+    public Long getTotalOnlineOrdersByDateRange(Date startDate, Date endDate) {
+        return orderRepository.getTotalOnlineOrdersByDateRange(startDate, endDate);
+    }
+
+    // Tổng số khách hàng
     public Long getTotalCustomers() {
         return orderRepository.getTotalCustomers();
     }
@@ -501,6 +565,36 @@ public class OrderService {
 
         return topCustomers;
     }
+    public List<Map<String, Object>> getWeeklyOrderCountByType(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getWeeklyOrderCountByType(startDate, endDate);
+        List<Map<String, Object>> orderList = new ArrayList<>();
+        for (Object[] row : results) {
+            Map<String, Object> orderMap = new HashMap<>();
+            orderMap.put("week", row[0]); // YEARWEEK (e.g., 202510)
+            orderMap.put("orderCount", row[1]); // Tổng đơn hàng
+            orderMap.put("onlineOrders", row[2]); // Đơn online
+            orderMap.put("offlineOrders", row[3]); // Đơn offline
+            orderList.add(orderMap);
+        }
+        return orderList;
+    }
+
+    public List<Map<String, Object>> getMonthlyOrderCountByType(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getMonthlyOrderCountByType(startDate, endDate);
+        List<Map<String, Object>> orderList = new ArrayList<>();
+        for (Object[] row : results) {
+            Map<String, Object> orderMap = new HashMap<>();
+            orderMap.put("month", row[0]); // String: yyyy-MM
+            orderMap.put("orderCount", row[1]); // Long: tổng số đơn hàng
+            orderMap.put("onlineOrders", row[2]); // Long: số đơn online
+            orderMap.put("offlineOrders", row[3]); // Long: số đơn offline
+            orderList.add(orderMap);
+        }
+        return orderList;
+    }
+
+////
+
 
     public List<OrderDTO> getOrdersByUserId(Long userId) {
         List<Orders> userOrders = orderRepository.findByUserUserId(userId);
@@ -563,11 +657,22 @@ public class OrderService {
             throw new RuntimeException("Lỗi cập nhật trạng thái đơn hàng!");
         }
 
-        // 11️⃣ Gửi thông báo qua WebSocket đến người dùng
+        // 11️⃣ Lưu và gửi thông báo qua WebSocket
         Long userId = order.getUser().getUserId();
         String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " + newStatus.getStatusName();
-        webSocketService.sendToUser(userId, "/queue/notifications", message);
 
+        // Lưu thông báo vào database trước
+        Notification notification = notificationService.saveNotification(userId, message);
+
+        // Gửi thông báo qua WebSocket với ID thực tế
+        String webSocketMessage = "{\"id\": " + notification.getId() + ", \"message\": \"" + message + "\", \"orderId\": " + orderId + "}";
+        try {
+            webSocketService.sendToTopic("/topic/status", webSocketMessage); // Gửi broadcast với JSON
+            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + webSocketMessage);
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send WebSocket notification to /topic/status: " + e.getMessage());
+            logger.error("Failed to send WebSocket notification for orderId: " + orderId, e); // Ghi log chi tiết
+        }
         return savedOrder;
     }
 }
