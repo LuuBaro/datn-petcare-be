@@ -28,6 +28,9 @@ public class CartDetailsService {
     private UserRepository userRepository;
 
     @Autowired
+    private WebSocketService webSocketService;
+
+    @Autowired
     private ProductDetailsRepository productDetailsRepository;
 
     public List<CartDetails> getAllCartDetails() {
@@ -55,22 +58,25 @@ public class CartDetailsService {
 
         if (currentQuantityInCart + quantityItem > availableQuantity) {
             throw new IllegalArgumentException(
-                    String.format("Không thể thêm vào giỏ hàng vì sản phẩm trong giỏ hàng của bạn vượt quá số lượng")
+                    "Không thể thêm vào giỏ hàng vì sản phẩm trong giỏ hàng của bạn vượt quá số lượng"
             );
         }
 
-        // Nếu sản phẩm đã tồn tại trong giỏ hàng
+        CartDetails cartDetail;
         if (existingCartDetail != null) {
             existingCartDetail.setQuantityItem(currentQuantityInCart + quantityItem);
-            return cartDetailsRepository.save(existingCartDetail);
+            cartDetail = cartDetailsRepository.save(existingCartDetail);
         } else {
-            // Nếu sản phẩm chưa có trong giỏ hàng
             CartDetails newCartDetail = new CartDetails();
             newCartDetail.setUser(user);
             newCartDetail.setProductDetails(productDetails);
             newCartDetail.setQuantityItem(quantityItem);
-            return cartDetailsRepository.save(newCartDetail);
+            cartDetail = cartDetailsRepository.save(newCartDetail);
         }
+
+        // Gửi thông báo WebSocket sau khi thêm sản phẩm
+        sendCartUpdate(userId);
+        return cartDetail;
     }
 
 
@@ -83,18 +89,28 @@ public class CartDetailsService {
         CartDetails cartDetails = cartOpt.get();
         ProductDetails productDetails = cartDetails.getProductDetails();
 
-        // Kiểm tra số lượng tồn kho
         if (quantityItem > productDetails.getQuantity()) {
             throw new IllegalArgumentException("Số lượng đặt hàng vượt quá số lượng tồn kho");
         }
 
         cartDetails.setQuantityItem(quantityItem);
-        return cartDetailsRepository.save(cartDetails);
+        CartDetails updatedCart = cartDetailsRepository.save(cartDetails);
+
+        // Gửi thông báo WebSocket sau khi cập nhật
+        sendCartUpdate(cartDetails.getUser().getUserId());
+        return updatedCart;
     }
 
 
+    @Transactional
     public void deleteCartDetails(long id) {
-        cartDetailsRepository.deleteById(id);
+        Optional<CartDetails> cartOpt = cartDetailsRepository.findById(id);
+        if (cartOpt.isPresent()) {
+            Long userId = cartOpt.get().getUser().getUserId();
+            cartDetailsRepository.deleteById(id);
+            // Gửi thông báo WebSocket sau khi xóa
+            sendCartUpdate(userId);
+        }
     }
 
 
@@ -120,19 +136,31 @@ public class CartDetailsService {
     @Transactional
     public void clearCartDetailsByUserId(Long userId) {
         cartDetailsRepository.deleteByUserId(userId);
+        // Gửi thông báo WebSocket sau khi xóa toàn bộ giỏ hàng
+        sendCartUpdate(userId);
     }
     @PersistenceContext
     private EntityManager entityManager;
 
 
+    @Transactional
     public void removeProductFromCart(Long productDetailId) {
-        cartDetailsRepository.deleteCartItemByProductDetailId(productDetailId);
-        entityManager.flush();
-
+        List<CartDetails> cartItems = cartDetailsRepository.findByProductDetails_ProductDetailId(productDetailId);
+        if (!cartItems.isEmpty()) {
+            Long userId = cartItems.get(0).getUser().getUserId(); // Lấy userId từ mục đầu tiên
+            cartDetailsRepository.deleteCartItemByProductDetailId(productDetailId);
+            entityManager.flush();
+            sendCartUpdate(userId); // Gửi thông báo WebSocket với userId chính xác
+        }
     }
 
 
-    
+    // Hàm gửi thông báo qua WebSocket sử dụng WebSocketService
+    private void sendCartUpdate(Long userId) {
+        List<CartDetails> cartItems = cartDetailsRepository.findByUserUserId(userId);
+        int cartCount = cartItems.size(); // Đếm số lượng sản phẩm trong giỏ hàng
+        webSocketService.sendToTopic("/topic/cart/" + userId, String.valueOf(cartCount)); // Gửi cartCount đến topic
+    }
 
 
 

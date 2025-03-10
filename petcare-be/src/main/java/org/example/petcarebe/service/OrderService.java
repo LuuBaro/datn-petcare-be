@@ -1,5 +1,6 @@
 package org.example.petcarebe.service;
 
+import jakarta.mail.internet.MimeMessage;
 import org.example.petcarebe.controller.WebSocketController;
 import org.example.petcarebe.dto.OrderDTO;
 import org.example.petcarebe.dto.OrderDetailDTO;
@@ -12,6 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +54,9 @@ public class OrderService {
 
     @Autowired
     private CartDetailsService cartDetailsService;
+
+    @Autowired
+    private JavaMailSender mailSender;
 
     @Autowired
     private WebSocketService webSocketService;
@@ -300,8 +307,9 @@ public class OrderService {
                 .build();
     }
 
+
     @Transactional
-    public Orders cancelOrder(Long orderId) {
+    public Orders cancelOrder(Long orderId, String reason) {
         Orders order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
@@ -313,7 +321,6 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Status 'Cancelled' not found"));
         order.setStatusOrder(cancelledStatus);
 
-        // Hoàn kho nếu kho đã được trừ (dựa trên paymentStatus)
         if ("COD".equals(order.getPaymentMethod()) ||
                 ("VNPay".equals(order.getPaymentMethod()) && !"Chờ thanh toán".equals(order.getPaymentStatus()))) {
             for (OrderDetails orderDetail : order.getOrderDetails()) {
@@ -329,7 +336,68 @@ public class OrderService {
             logger.info("Stock restored for cancelled orderId: {}", orderId);
         }
 
-        return orderRepository.save(order);
+        Orders savedOrder = orderRepository.save(order);
+        sendCancelNotificationToAdmin(savedOrder, reason);
+
+        Long userId = order.getUser().getUserId();
+        String message = "Đơn hàng #" + orderId + " của bạn đã được hủy với lý do: " + reason;
+        webSocketService.sendToUser(userId, "/queue/notifications", message);
+
+        return savedOrder;
+    }
+
+    private void sendCancelNotificationToAdmin(Orders order, String reason) {
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo("baolgpc08011@fpt.edu.vn");
+            helper.setSubject("Thông báo: Đơn hàng #" + order.getOrderId() + " đã bị hủy");
+            helper.setFrom("baolgpc08011@fpt.edu.vn");
+
+            // Nội dung email HTML với background cho h2
+            String htmlContent = "<!DOCTYPE html>" +
+                    "<html lang='vi'>" +
+                    "<head>" +
+                    "<meta charset='UTF-8'>" +
+                    "<style>" +
+                    "body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }" +
+                    ".container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #f9f9f9; }" +
+                    "h2 { color: white; text-align: center; background-color: rgb(251, 179, 33); padding: 10px; border-radius: 5px; }" +
+                    "table { width: 100%; border-collapse: collapse; margin: 20px 0; }" +
+                    "th, td { padding: 10px; border: 1px solid #ddd; }" +
+                    "th { background-color: #f5f5f5; text-align: left; width: 30%; }" +
+                    "td { background-color: #fff; }" +
+                    ".highlight { color: #e74c3c; font-weight: bold; }" +
+                    ".footer { text-align: center; font-size: 0.9em; color: #777; margin-top: 20px; }" +
+                    "</style>" +
+                    "</head>" +
+                    "<body>" +
+                    "<div class='container'>" +
+                    "<h2>Thông báo hủy đơn hàng</h2>" +
+                    "<p>Kính gửi Shop,</p>" +
+                    "<p>Một đơn hàng vừa bị hủy với thông tin chi tiết như sau:</p>" +
+                    "<table>" +
+                    "<tr><th>Mã đơn hàng</th><td>" + order.getOrderId() + "</td></tr>" +
+                    "<tr><th>Khách hàng</th><td>" + order.getUser().getFullName() + "</td></tr>" +
+                    "<tr><th>Số điện thoại</th><td>" + order.getUser().getPhone() + "</td></tr>" +
+                    "<tr><th>Ngày đặt hàng</th><td>" + order.getOrderDate() + "</td></tr>" +
+                    "<tr><th>Tổng tiền</th><td>" + order.getTotalAmount() + " VNĐ</td></tr>" +
+                    "<tr><th>Lý do hủy</th><td class='highlight'>" + reason + "</td></tr>" +
+                    "</table>" +
+                    "<p>Vui lòng kiểm tra hệ thống để biết thêm chi tiết.</p>" +
+                    "<div class='footer'>" +
+                    "<p>Trân trọng,<br>Hệ thống PetCare</p>" +
+                    "</div>" +
+                    "</div>" +
+                    "</body>" +
+                    "</html>";
+
+            helper.setText(htmlContent, true); // true = HTML content
+            mailSender.send(message);
+            logger.info("Email thông báo hủy đơn hàng #{} đã được gửi đến Admin.", order.getOrderId());
+        } catch (Exception e) {
+            logger.error("Lỗi khi gửi email thông báo hủy đơn hàng #{}: {}", order.getOrderId(), e.getMessage());
+        }
     }
 
     // Thống kê
@@ -616,14 +684,18 @@ public class OrderService {
         // 11️⃣ Lưu và gửi thông báo qua WebSocket
         Long userId = order.getUser().getUserId();
         String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " + newStatus.getStatusName();
-        notificationService.saveNotification(userId, message); // Lưu thông báo vào database
 
+        // Lưu thông báo vào database trước
+        Notification notification = notificationService.saveNotification(userId, message);
+
+        // Gửi thông báo qua WebSocket với ID thực tế
+        String webSocketMessage = "{\"id\": " + notification.getId() + ", \"message\": \"" + message + "\", \"orderId\": " + orderId + "}";
         try {
-            webSocketService.sendToTopic("/topic/status", message); // Gửi broadcast
-            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + message);
+            webSocketService.sendToTopic("/topic/status", webSocketMessage); // Gửi broadcast với JSON
+            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + webSocketMessage);
         } catch (Exception e) {
             System.err.println("❌ Failed to send WebSocket notification to /topic/status: " + e.getMessage());
-            // Có thể ghi log, nhưng không làm gián đoạn luồng chính
+            logger.error("Failed to send WebSocket notification for orderId: " + orderId, e); // Ghi log chi tiết
         }
         return savedOrder;
     }
