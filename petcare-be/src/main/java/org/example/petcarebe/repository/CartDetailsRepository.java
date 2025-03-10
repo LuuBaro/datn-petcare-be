@@ -64,7 +64,7 @@ public interface CartDetailsRepository extends JpaRepository<CartDetails, Long> 
     @Query(value = "DELETE FROM petcare.cart_detail WHERE product_detail_id = :productDetailId", nativeQuery = true)
     void deleteCartItemByProductDetailId(@Param("productDetailId") Long productDetailId);
 
-
+    List<CartDetails> findByUser(User user);
 
 
 

@@ -20,6 +20,8 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 
 import java.util.stream.Collectors;
@@ -337,12 +339,33 @@ public class OrderService {
     }
 
     public Map<Date, Map<String, Object>> getDailyRevenueByDateRange(Date startDate, Date endDate) {
-        List<Object[]> results = orderRepository.getDailyRevenueByDateRange(startDate, endDate);
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Truy vấn dữ liệu
+        List<Object[]> results = orderRepository.getDailyRevenueByDateRange(startDateInclusive, endDateInclusive);
         Map<Date, Map<String, Object>> dailyStats = new LinkedHashMap<>();
+
         for (Object[] row : results) {
-            Date date = (Date) row[0];
-            BigDecimal revenue = new BigDecimal(row[1].toString());
-            Long orderCount = (Long) row[2];
+            Date date = (Date) row[0]; // Ngày
+            BigDecimal revenue = new BigDecimal(row[1].toString()); // Tổng doanh thu
+            Long orderCount = (Long) row[2]; // Số đơn hàng
+
             Map<String, Object> stats = new HashMap<>();
             stats.put("revenue", revenue);
             stats.put("orderCount", orderCount);
@@ -526,6 +549,7 @@ public class OrderService {
     }
 
 ////
+
 
 
     public List<OrderDTO> getOrdersByUserId(Long userId) {
