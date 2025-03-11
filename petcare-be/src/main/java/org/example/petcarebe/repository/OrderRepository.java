@@ -227,4 +227,17 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             "LIMIT 5",
             nativeQuery = true)
     List<Object[]> getTopFiveCustomersByOrderCount();
+
+    // Lấy danh sách voucher đã được áp dụng trong đơn hàng
+    @Query("SELECT DISTINCT v.voucherId, v.name, v.percents, v.condition, v.startDate, v.endDate, v.quantity, v.status " +
+            "FROM Orders o " +
+            "JOIN o.voucher v " +
+            "WHERE o.voucher IS NOT NULL " +
+            "AND o.paymentStatus = 'Đã thanh toán'")
+    List<Object[]> getAppliedVouchers();
+
+
+    @Query("SELECT o FROM Orders o WHERE o.voucher.voucherId = :voucherId")
+    List<Orders> findOrdersByVoucherId(@Param("voucherId") Long voucherId);
+
 }

@@ -675,4 +675,9 @@ public class OrderService {
         }
         return savedOrder;
     }
+
+    public List<OrderDTO> getOrdersByVoucherId(Long voucherId) {
+        List<Orders> orders = orderRepository.findOrdersByVoucherId(voucherId);
+        return orders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
+    }
 }
