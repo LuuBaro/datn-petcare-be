@@ -47,4 +47,6 @@ public class Voucher {
         }
         return startDate.before(endDate);
     }
+
+    private Boolean status;
 }

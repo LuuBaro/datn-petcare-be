@@ -127,4 +127,14 @@ public class OrderController {
         }
     }
 
+    @GetMapping("/by-voucher/{voucherId}")
+    public ResponseEntity<List<OrderDTO>> getOrdersByVoucherId(@PathVariable Long voucherId) {
+        try {
+            List<OrderDTO> orders = orderService.getOrdersByVoucherId(voucherId);
+            return ResponseEntity.ok(orders);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Collections.emptyList()); // Trả về danh sách rỗng nếu có lỗi
+        }
+    }
 }
