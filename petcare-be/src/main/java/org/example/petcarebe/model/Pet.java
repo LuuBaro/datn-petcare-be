@@ -30,9 +30,6 @@ public class Pet {
     @JoinColumn(name = "employee_id", nullable = true)
     private Employee employee; // FK đến bảng nhân viên (nếu có)
 
-    @ManyToOne
-    @JoinColumn(name = "slot_id", nullable = false)
-    private Slot slot; // FK đến bảng slot thời gian
 
     @Enumerated(EnumType.STRING)
     @Column(name = "pet_type", nullable = false)
