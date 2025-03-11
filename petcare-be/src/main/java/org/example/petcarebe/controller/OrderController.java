@@ -65,14 +65,24 @@ public class OrderController {
         return ResponseEntity.ok(orderDTOList);
     }
 
-    @PutMapping("/cancel/{orderId}")
-    public ResponseEntity<Map<String, Object>> cancelOrder(@PathVariable Long orderId) {
-        Orders order = orderService.cancelOrder(orderId);
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<Map<String, Object>> cancelOrder(@PathVariable Long orderId, @RequestBody Map<String, String> request) {
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "Đơn hàng đã được hủy thành công");
-        response.put("orderId", order.getOrderId());
-        response.put("status", order.getStatusOrder().getStatusName());
-        return ResponseEntity.ok(response);
+        try {
+            String reason = request.get("reason");
+            if (reason == null || reason.trim().isEmpty()) {
+                response.put("message", "Lý do hủy không được để trống");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+            Orders order = orderService.cancelOrder(orderId, reason);
+            response.put("message", "Đơn hàng đã được hủy thành công");
+            response.put("orderId", order.getOrderId());
+            response.put("status", order.getStatusOrder().getStatusName());
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
     }
 
     @GetMapping("/user/{userId}")
@@ -116,4 +126,5 @@ public class OrderController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+
 }
