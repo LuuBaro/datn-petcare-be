@@ -92,9 +92,13 @@ public class OrderController {
     }
 
     @PutMapping("/{orderId}/{statusId}")
-    public ResponseEntity<?> updateOrderStatus(@PathVariable Long orderId, @PathVariable Long statusId) {
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable Long orderId,
+            @PathVariable Long statusId,
+            @RequestBody(required = false) Map<String, String> requestBody) { // Thêm requestBody để nhận reason
         try {
-            Orders updatedOrder = orderService.updateOrderStatus(orderId, statusId);
+            String reason = (requestBody != null) ? requestBody.get("reason") : null;
+            Orders updatedOrder = orderService.updateOrderStatus(orderId, statusId, reason); // Truyền reason
             return ResponseEntity.ok().body(Collections.singletonMap("updatedOrder", updatedOrder));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));

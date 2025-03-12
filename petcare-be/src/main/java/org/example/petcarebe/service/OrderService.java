@@ -616,8 +616,6 @@ public class OrderService {
         return orderList;
     }
 
-////
-
 
 
     public List<OrderDTO> getOrdersByUserId(Long userId) {
@@ -626,7 +624,7 @@ public class OrderService {
     }
 
     @Transactional
-    public Orders updateOrderStatus(Long orderId, Long statusId) {
+    public Orders updateOrderStatus(Long orderId, Long statusId, String reason) {
         // 1️⃣ Tìm đơn hàng theo orderId
         Orders order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
@@ -697,7 +695,100 @@ public class OrderService {
             System.err.println("❌ Failed to send WebSocket notification to /topic/status: " + e.getMessage());
             logger.error("Failed to send WebSocket notification for orderId: " + orderId, e); // Ghi log chi tiết
         }
+        // 12️⃣ Nếu trạng thái mới là "Đã hủy" (statusId = 5), gửi email thông báo cho người dùng
+        if (statusId.equals(5L)) {
+            if (reason == null || reason.trim().isEmpty()) {
+                reason = "Không có lý do cụ thể";
+            }
+            sendCancelNotificationToUser(savedOrder, reason);
+        }
+
         return savedOrder;
+    }
+
+    private void sendCancelNotificationToUser(Orders order, String reason) {
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            String userEmail = order.getUser().getEmail(); // Giả định User có trường email
+            if (userEmail == null || userEmail.isEmpty()) {
+                logger.warn("Không tìm thấy email của người dùng cho đơn hàng #{}", order.getOrderId());
+                return;
+            }
+            helper.setTo(userEmail);
+            helper.setSubject("Thông báo: Đơn hàng #" + order.getOrderId() + " của bạn đã bị hủy");
+            helper.setFrom("baolgpc08011@fpt.edu.vn");
+
+            // Định dạng ngày giờ theo giờ Việt Nam
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+                    .withZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+            String formattedOrderDate = formatter.format(order.getOrderDate().toInstant());
+
+            // Tạo nội dung HTML cho danh sách sản phẩm
+            StringBuilder productTable = new StringBuilder();
+            productTable.append("<h3>Danh sách sản phẩm:</h3>")
+                    .append("<table>")
+                    .append("<tr><th>Hình ảnh</th><th>Tên sản phẩm</th><th>Màu sắc</th><th>Kích cỡ</th><th>Số lượng</th><th>Giá</th></tr>");
+
+            for (OrderDetails item : order.getOrderDetails()) {
+                String imageUrl = item.getProductDetails().getProducts().getImage() != null
+                        ? item.getProductDetails().getProducts().getImage()
+                        : "https://via.placeholder.com/50"; // URL mặc định nếu không có hình ảnh
+                productTable.append("<tr>")
+                        .append("<td><img src='").append(imageUrl).append("' alt='Product Image' style='width: 50px; height: 50px; object-fit: cover;'/></td>")
+                        .append("<td>").append(item.getProductDetails().getProducts().getProductName()).append("</td>")
+                        .append("<td>").append(item.getProductDetails().getProductColors().getColorValue()).append("</td>")
+                        .append("<td>").append(item.getProductDetails().getProductSizes().getSizeValue()).append("</td>")
+                        .append("<td>").append(item.getQuantity()).append("</td>")
+                        .append("<td>").append(item.getPrice()).append(" đ</td>")
+                        .append("</tr>");
+            }
+            productTable.append("</table>");
+
+            // Nội dung email HTML
+            String htmlContent = "<!DOCTYPE html>" +
+                    "<html lang='vi'>" +
+                    "<head>" +
+                    "<meta charset='UTF-8'>" +
+                    "<style>" +
+                    "body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }" +
+                    ".container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #f9f9f9; }" +
+                    "h2 { color: white; text-align: center; background-color: #e74c3c; padding: 10px; border-radius: 5px; }" +
+                    "h3 { color: #333; margin-top: 20px; }" +
+                    "table { width: 100%; border-collapse: collapse; margin: 20px 0; }" +
+                    "th, td { padding: 10px; border: 1px solid #ddd; vertical-align: middle; }" +
+                    "th { background-color: #f5f5f5; text-align: left; }" +
+                    "td { background-color: #fff; }" +
+                    ".highlight { color: #e74c3c; font-weight: bold; }" +
+                    ".footer { text-align: center; font-size: 0.9em; color: #777; margin-top: 20px; }" +
+                    "img { display: block; margin: 0 auto; }" +
+                    "</style>" +
+                    "</head>" +
+                    "<body>" +
+                    "<div class='container'>" +
+                    "<h2>Thông báo hủy đơn hàng</h2>" +
+                    "<p>Kính gửi " + order.getUser().getFullName() + ",</p>" +
+                    "<p>Chúng tôi rất tiếc phải thông báo rằng đơn hàng của bạn đã bị hủy với thông tin chi tiết như sau:</p>" +
+                    "<table>" +
+                    "<tr><th>Ngày đặt hàng</th><td>" + formattedOrderDate + "</td></tr>" +
+                    "<tr><th>Tổng tiền</th><td>" + order.getTotalAmount() + " đ</td></tr>" +
+                    "<tr><th>Lý do hủy</th><td class='highlight'>" + reason + "</td></tr>" +
+                    "</table>" +
+                    productTable.toString() + // Chèn bảng sản phẩm
+                    "<p>Nếu bạn có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi qua email hoặc số điện thoại hỗ trợ.</p>" +
+                    "<div class='footer'>" +
+                    "<p>Trân trọng,<br>Hệ thống PetCare</p>" +
+                    "</div>" +
+                    "</div>" +
+                    "</body>" +
+                    "</html>";
+
+            helper.setText(htmlContent, true); // true = HTML content
+            mailSender.send(message);
+            logger.info("Email thông báo hủy đơn hàng #{} đã được gửi đến người dùng: {}", order.getOrderId(), userEmail);
+        } catch (Exception e) {
+            logger.error("Lỗi khi gửi email thông báo hủy đơn hàng #{} đến người dùng: {}", order.getOrderId(), e.getMessage());
+        }
     }
 
     public List<OrderDTO> getOrdersByVoucherId(Long voucherId) {
