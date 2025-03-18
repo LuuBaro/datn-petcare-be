@@ -4,12 +4,12 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.example.petcarebe.enums.PetType;
 
+@Entity
+@Table(name = "pets")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "pets")
 public class Pet {
 
     @Id
@@ -18,6 +18,7 @@ public class Pet {
 
     @ManyToOne
     @JoinColumn(name = "weight_id", nullable = false)
+
     private PetWeight petWeight;
 
     @ManyToOne
@@ -52,4 +53,5 @@ public class Pet {
 
     @Column(name = "name_boss", columnDefinition = "NVARCHAR(255)")
     private String nameBoss;
+
 }

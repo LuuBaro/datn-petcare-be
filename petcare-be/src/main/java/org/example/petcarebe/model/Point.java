@@ -14,6 +14,9 @@ public class Point {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long pointId;
     private int totalPoint;
+    private String name;
+    private String phone;
+
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

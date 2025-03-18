@@ -65,14 +65,24 @@ public class OrderController {
         return ResponseEntity.ok(orderDTOList);
     }
 
-    @PutMapping("/cancel/{orderId}")
-    public ResponseEntity<Map<String, Object>> cancelOrder(@PathVariable Long orderId) {
-        Orders order = orderService.cancelOrder(orderId);
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<Map<String, Object>> cancelOrder(@PathVariable Long orderId, @RequestBody Map<String, String> request) {
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "Đơn hàng đã được hủy thành công");
-        response.put("orderId", order.getOrderId());
-        response.put("status", order.getStatusOrder().getStatusName());
-        return ResponseEntity.ok(response);
+        try {
+            String reason = request.get("reason");
+            if (reason == null || reason.trim().isEmpty()) {
+                response.put("message", "Lý do hủy không được để trống");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+            Orders order = orderService.cancelOrder(orderId, reason);
+            response.put("message", "Đơn hàng đã được hủy thành công");
+            response.put("orderId", order.getOrderId());
+            response.put("status", order.getStatusOrder().getStatusName());
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
     }
 
     @GetMapping("/user/{userId}")
@@ -82,9 +92,13 @@ public class OrderController {
     }
 
     @PutMapping("/{orderId}/{statusId}")
-    public ResponseEntity<?> updateOrderStatus(@PathVariable Long orderId, @PathVariable Long statusId) {
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable Long orderId,
+            @PathVariable Long statusId,
+            @RequestBody(required = false) Map<String, String> requestBody) { // Thêm requestBody để nhận reason
         try {
-            Orders updatedOrder = orderService.updateOrderStatus(orderId, statusId);
+            String reason = (requestBody != null) ? requestBody.get("reason") : null;
+            Orders updatedOrder = orderService.updateOrderStatus(orderId, statusId, reason); // Truyền reason
             return ResponseEntity.ok().body(Collections.singletonMap("updatedOrder", updatedOrder));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));
@@ -114,6 +128,17 @@ public class OrderController {
         } catch (Exception e) {
             response.put("message", "Lỗi server: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @GetMapping("/by-voucher/{voucherId}")
+    public ResponseEntity<List<OrderDTO>> getOrdersByVoucherId(@PathVariable Long voucherId) {
+        try {
+            List<OrderDTO> orders = orderService.getOrdersByVoucherId(voucherId);
+            return ResponseEntity.ok(orders);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Collections.emptyList()); // Trả về danh sách rỗng nếu có lỗi
         }
     }
 }

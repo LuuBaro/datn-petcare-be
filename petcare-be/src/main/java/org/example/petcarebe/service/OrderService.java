@@ -1,5 +1,6 @@
 package org.example.petcarebe.service;
 
+import jakarta.mail.internet.MimeMessage;
 import org.example.petcarebe.controller.WebSocketController;
 import org.example.petcarebe.dto.OrderDTO;
 import org.example.petcarebe.dto.OrderDetailDTO;
@@ -12,6 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +24,8 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 
 import java.util.stream.Collectors;
@@ -48,6 +54,9 @@ public class OrderService {
 
     @Autowired
     private CartDetailsService cartDetailsService;
+
+    @Autowired
+    private JavaMailSender mailSender;
 
     @Autowired
     private WebSocketService webSocketService;
@@ -298,8 +307,9 @@ public class OrderService {
                 .build();
     }
 
+
     @Transactional
-    public Orders cancelOrder(Long orderId) {
+    public Orders cancelOrder(Long orderId, String reason) {
         Orders order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
@@ -311,7 +321,6 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Status 'Cancelled' not found"));
         order.setStatusOrder(cancelledStatus);
 
-        // Hoàn kho nếu kho đã được trừ (dựa trên paymentStatus)
         if ("COD".equals(order.getPaymentMethod()) ||
                 ("VNPay".equals(order.getPaymentMethod()) && !"Chờ thanh toán".equals(order.getPaymentStatus()))) {
             for (OrderDetails orderDetail : order.getOrderDetails()) {
@@ -327,20 +336,104 @@ public class OrderService {
             logger.info("Stock restored for cancelled orderId: {}", orderId);
         }
 
-        return orderRepository.save(order);
+        Orders savedOrder = orderRepository.save(order);
+        sendCancelNotificationToAdmin(savedOrder, reason);
+
+        Long userId = order.getUser().getUserId();
+        String message = "Đơn hàng #" + orderId + " của bạn đã được hủy với lý do: " + reason;
+        webSocketService.sendToUser(userId, "/queue/notifications", message);
+
+        return savedOrder;
     }
+
+    private void sendCancelNotificationToAdmin(Orders order, String reason) {
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo("baolgpc08011@fpt.edu.vn");
+            helper.setSubject("Thông báo: Đơn hàng #" + order.getOrderId() + " đã bị hủy");
+            helper.setFrom("baolgpc08011@fpt.edu.vn");
+
+            // Nội dung email HTML với background cho h2
+            String htmlContent = "<!DOCTYPE html>" +
+                    "<html lang='vi'>" +
+                    "<head>" +
+                    "<meta charset='UTF-8'>" +
+                    "<style>" +
+                    "body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }" +
+                    ".container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #f9f9f9; }" +
+                    "h2 { color: white; text-align: center; background-color: rgb(251, 179, 33); padding: 10px; border-radius: 5px; }" +
+                    "table { width: 100%; border-collapse: collapse; margin: 20px 0; }" +
+                    "th, td { padding: 10px; border: 1px solid #ddd; }" +
+                    "th { background-color: #f5f5f5; text-align: left; width: 30%; }" +
+                    "td { background-color: #fff; }" +
+                    ".highlight { color: #e74c3c; font-weight: bold; }" +
+                    ".footer { text-align: center; font-size: 0.9em; color: #777; margin-top: 20px; }" +
+                    "</style>" +
+                    "</head>" +
+                    "<body>" +
+                    "<div class='container'>" +
+                    "<h2>Thông báo hủy đơn hàng</h2>" +
+                    "<p>Kính gửi Shop,</p>" +
+                    "<p>Một đơn hàng vừa bị hủy với thông tin chi tiết như sau:</p>" +
+                    "<table>" +
+                    "<tr><th>Mã đơn hàng</th><td>" + order.getOrderId() + "</td></tr>" +
+                    "<tr><th>Khách hàng</th><td>" + order.getUser().getFullName() + "</td></tr>" +
+                    "<tr><th>Số điện thoại</th><td>" + order.getUser().getPhone() + "</td></tr>" +
+                    "<tr><th>Ngày đặt hàng</th><td>" + order.getOrderDate() + "</td></tr>" +
+                    "<tr><th>Tổng tiền</th><td>" + order.getTotalAmount() + " VNĐ</td></tr>" +
+                    "<tr><th>Lý do hủy</th><td class='highlight'>" + reason + "</td></tr>" +
+                    "</table>" +
+                    "<p>Vui lòng kiểm tra hệ thống để biết thêm chi tiết.</p>" +
+                    "<div class='footer'>" +
+                    "<p>Trân trọng,<br>Hệ thống PetCare</p>" +
+                    "</div>" +
+                    "</div>" +
+                    "</body>" +
+                    "</html>";
+
+            helper.setText(htmlContent, true); // true = HTML content
+            mailSender.send(message);
+            logger.info("Email thông báo hủy đơn hàng #{} đã được gửi đến Admin.", order.getOrderId());
+        } catch (Exception e) {
+            logger.error("Lỗi khi gửi email thông báo hủy đơn hàng #{}: {}", order.getOrderId(), e.getMessage());
+        }
+    }
+
+    // Thống kê
 
     public BigDecimal getRevenueByDateRange(Date startDate, Date endDate) {
         return orderRepository.getTotalRevenueByDateRange(startDate, endDate);
     }
 
     public Map<Date, Map<String, Object>> getDailyRevenueByDateRange(Date startDate, Date endDate) {
-        List<Object[]> results = orderRepository.getDailyRevenueByDateRange(startDate, endDate);
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Truy vấn dữ liệu
+        List<Object[]> results = orderRepository.getDailyRevenueByDateRange(startDateInclusive, endDateInclusive);
         Map<Date, Map<String, Object>> dailyStats = new LinkedHashMap<>();
+
         for (Object[] row : results) {
-            Date date = (Date) row[0];
-            BigDecimal revenue = new BigDecimal(row[1].toString());
-            Long orderCount = (Long) row[2];
+            Date date = (Date) row[0]; // Ngày
+            BigDecimal revenue = new BigDecimal(row[1].toString()); // Tổng doanh thu
+            Long orderCount = (Long) row[2]; // Số đơn hàng
+
             Map<String, Object> stats = new HashMap<>();
             stats.put("revenue", revenue);
             stats.put("orderCount", orderCount);
@@ -369,8 +462,6 @@ public class OrderService {
 
     public List<Map<String, Object>> getWeeklyRevenueByDateRange(Date startDate, Date endDate) {
         List<Object[]> results = orderRepository.getWeeklyRevenueByDateRange(startDate, endDate);
-        System.out.println("Query Results: " + results);
-
         List<Map<String, Object>> revenueList = new ArrayList<>();
         for (Object[] row : results) {
             Map<String, Object> revenueMap = new HashMap<>();
@@ -397,9 +488,49 @@ public class OrderService {
         return orderRepository.getRevenueYesterday();
     }
 
+    // Tổng số đơn hàng OFFLINE hôm qua
+    public Long getTotalOfflineOrdersYesterday() {
+        return orderRepository.getTotalOfflineOrdersYesterday();
+    }
+
+    // Tổng số đơn hàng ONLINE hôm qua
+    public Long getTotalOnlineOrdersYesterday() {
+        return orderRepository.getTotalOnlineOrdersYesterday();
+    }
+
+    public Map<Date, Map<String, Long>> getDailyOrderCountByType(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getDailyOrderCountByType(startDate, endDate);
+        Map<Date, Map<String, Long>> dailyOrderStats = new LinkedHashMap<>();
+
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            Long onlineOrders = (Long) row[1];
+            Long offlineOrders = (Long) row[2];
+
+            Map<String, Long> stats = new HashMap<>();
+            stats.put("onlineOrders", onlineOrders);
+            stats.put("offlineOrders", offlineOrders);
+
+            dailyOrderStats.put(date, stats);
+        }
+        return dailyOrderStats;
+    }
+
+
+
     // Tổng số đơn hàng trong ngày hôm nay
     public Long getTotalOrdersToday() {
         return orderRepository.getTotalOrdersToday();
+    }
+
+    // Tổng số đơn hàng OFFLINE hôm nay
+    public Long getTotalOfflineOrdersToday() {
+        return orderRepository.getTotalOfflineOrdersToday();
+    }
+
+    // Tổng số đơn hàng ORDER ONLINE hôm nay
+    public Long getTotalOnlineOrdersToday() {
+        return orderRepository.getTotalOnlineOrdersToday();
     }
 
     // Tổng số đơn hàng trong tuần này
@@ -412,12 +543,32 @@ public class OrderService {
         return orderRepository.getTotalOrdersThisMonth();
     }
 
+    // Tổng số đơn hàng OFFLINE trong tháng này
+    public Long getTotalOfflineOrdersThisMonth() {
+        return orderRepository.getTotalOfflineOrdersThisMonth();
+    }
+
+    // Tổng số đơn hàng ORDER ONLINE trong tháng này
+    public Long getTotalOnlineOrdersThisMonth() {
+        return orderRepository.getTotalOnlineOrdersThisMonth();
+    }
+
     // Tổng số đơn hàng hôm qua
     public Long getTotalOrdersYesterday() {
         return orderRepository.getTotalOrdersYesterday();
     }
 
-    //  Tổng số khách hàng
+    // Tổng số đơn hàng OFFLINE trong khoảng thời gian
+    public Long getTotalOfflineOrdersByDateRange(Date startDate, Date endDate) {
+        return orderRepository.getTotalOfflineOrdersByDateRange(startDate, endDate);
+    }
+
+    // Tổng số đơn hàng ORDER ONLINE trong khoảng thời gian
+    public Long getTotalOnlineOrdersByDateRange(Date startDate, Date endDate) {
+        return orderRepository.getTotalOnlineOrdersByDateRange(startDate, endDate);
+    }
+
+    // Tổng số khách hàng
     public Long getTotalCustomers() {
         return orderRepository.getTotalCustomers();
     }
@@ -437,6 +588,35 @@ public class OrderService {
 
         return topCustomers;
     }
+    public List<Map<String, Object>> getWeeklyOrderCountByType(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getWeeklyOrderCountByType(startDate, endDate);
+        List<Map<String, Object>> orderList = new ArrayList<>();
+        for (Object[] row : results) {
+            Map<String, Object> orderMap = new HashMap<>();
+            orderMap.put("week", row[0]); // YEARWEEK (e.g., 202510)
+            orderMap.put("orderCount", row[1]); // Tổng đơn hàng
+            orderMap.put("onlineOrders", row[2]); // Đơn online
+            orderMap.put("offlineOrders", row[3]); // Đơn offline
+            orderList.add(orderMap);
+        }
+        return orderList;
+    }
+
+    public List<Map<String, Object>> getMonthlyOrderCountByType(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getMonthlyOrderCountByType(startDate, endDate);
+        List<Map<String, Object>> orderList = new ArrayList<>();
+        for (Object[] row : results) {
+            Map<String, Object> orderMap = new HashMap<>();
+            orderMap.put("month", row[0]); // String: yyyy-MM
+            orderMap.put("orderCount", row[1]); // Long: tổng số đơn hàng
+            orderMap.put("onlineOrders", row[2]); // Long: số đơn online
+            orderMap.put("offlineOrders", row[3]); // Long: số đơn offline
+            orderList.add(orderMap);
+        }
+        return orderList;
+    }
+
+
 
     public List<OrderDTO> getOrdersByUserId(Long userId) {
         List<Orders> userOrders = orderRepository.findByUserUserId(userId);
@@ -444,7 +624,7 @@ public class OrderService {
     }
 
     @Transactional
-    public Orders updateOrderStatus(Long orderId, Long statusId) {
+    public Orders updateOrderStatus(Long orderId, Long statusId, String reason) {
         // 1️⃣ Tìm đơn hàng theo orderId
         Orders order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
@@ -502,15 +682,117 @@ public class OrderService {
         // 11️⃣ Lưu và gửi thông báo qua WebSocket
         Long userId = order.getUser().getUserId();
         String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " + newStatus.getStatusName();
-        notificationService.saveNotification(userId, message); // Lưu thông báo vào database
 
+        // Lưu thông báo vào database trước
+        Notification notification = notificationService.saveNotification(userId, message);
+
+        // Gửi thông báo qua WebSocket với ID thực tế
+        String webSocketMessage = "{\"id\": " + notification.getId() + ", \"message\": \"" + message + "\", \"orderId\": " + orderId + "}";
         try {
-            webSocketService.sendToTopic("/topic/status", message); // Gửi broadcast
-            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + message);
+            webSocketService.sendToTopic("/topic/status", webSocketMessage); // Gửi broadcast với JSON
+            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + webSocketMessage);
         } catch (Exception e) {
             System.err.println("❌ Failed to send WebSocket notification to /topic/status: " + e.getMessage());
-            // Có thể ghi log, nhưng không làm gián đoạn luồng chính
+            logger.error("Failed to send WebSocket notification for orderId: " + orderId, e); // Ghi log chi tiết
         }
+        // 12️⃣ Nếu trạng thái mới là "Đã hủy" (statusId = 5), gửi email thông báo cho người dùng
+        if (statusId.equals(5L)) {
+            if (reason == null || reason.trim().isEmpty()) {
+                reason = "Không có lý do cụ thể";
+            }
+            sendCancelNotificationToUser(savedOrder, reason);
+        }
+
         return savedOrder;
+    }
+
+    private void sendCancelNotificationToUser(Orders order, String reason) {
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            String userEmail = order.getUser().getEmail(); // Giả định User có trường email
+            if (userEmail == null || userEmail.isEmpty()) {
+                logger.warn("Không tìm thấy email của người dùng cho đơn hàng #{}", order.getOrderId());
+                return;
+            }
+            helper.setTo(userEmail);
+            helper.setSubject("Thông báo: Đơn hàng #" + order.getOrderId() + " của bạn đã bị hủy");
+            helper.setFrom("baolgpc08011@fpt.edu.vn");
+
+            // Định dạng ngày giờ theo giờ Việt Nam
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+                    .withZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+            String formattedOrderDate = formatter.format(order.getOrderDate().toInstant());
+
+            // Tạo nội dung HTML cho danh sách sản phẩm
+            StringBuilder productTable = new StringBuilder();
+            productTable.append("<h3>Danh sách sản phẩm:</h3>")
+                    .append("<table>")
+                    .append("<tr><th>Hình ảnh</th><th>Tên sản phẩm</th><th>Màu sắc</th><th>Kích cỡ</th><th>Số lượng</th><th>Giá</th></tr>");
+
+            for (OrderDetails item : order.getOrderDetails()) {
+                String imageUrl = item.getProductDetails().getProducts().getImage() != null
+                        ? item.getProductDetails().getProducts().getImage()
+                        : "https://via.placeholder.com/50"; // URL mặc định nếu không có hình ảnh
+                productTable.append("<tr>")
+                        .append("<td><img src='").append(imageUrl).append("' alt='Product Image' style='width: 50px; height: 50px; object-fit: cover;'/></td>")
+                        .append("<td>").append(item.getProductDetails().getProducts().getProductName()).append("</td>")
+                        .append("<td>").append(item.getProductDetails().getProductColors().getColorValue()).append("</td>")
+                        .append("<td>").append(item.getProductDetails().getProductSizes().getSizeValue()).append("</td>")
+                        .append("<td>").append(item.getQuantity()).append("</td>")
+                        .append("<td>").append(item.getPrice()).append(" đ</td>")
+                        .append("</tr>");
+            }
+            productTable.append("</table>");
+
+            // Nội dung email HTML
+            String htmlContent = "<!DOCTYPE html>" +
+                    "<html lang='vi'>" +
+                    "<head>" +
+                    "<meta charset='UTF-8'>" +
+                    "<style>" +
+                    "body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }" +
+                    ".container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #f9f9f9; }" +
+                    "h2 { color: white; text-align: center; background-color: #e74c3c; padding: 10px; border-radius: 5px; }" +
+                    "h3 { color: #333; margin-top: 20px; }" +
+                    "table { width: 100%; border-collapse: collapse; margin: 20px 0; }" +
+                    "th, td { padding: 10px; border: 1px solid #ddd; vertical-align: middle; }" +
+                    "th { background-color: #f5f5f5; text-align: left; }" +
+                    "td { background-color: #fff; }" +
+                    ".highlight { color: #e74c3c; font-weight: bold; }" +
+                    ".footer { text-align: center; font-size: 0.9em; color: #777; margin-top: 20px; }" +
+                    "img { display: block; margin: 0 auto; }" +
+                    "</style>" +
+                    "</head>" +
+                    "<body>" +
+                    "<div class='container'>" +
+                    "<h2>Thông báo hủy đơn hàng</h2>" +
+                    "<p>Kính gửi " + order.getUser().getFullName() + ",</p>" +
+                    "<p>Chúng tôi rất tiếc phải thông báo rằng đơn hàng của bạn đã bị hủy với thông tin chi tiết như sau:</p>" +
+                    "<table>" +
+                    "<tr><th>Ngày đặt hàng</th><td>" + formattedOrderDate + "</td></tr>" +
+                    "<tr><th>Tổng tiền</th><td>" + order.getTotalAmount() + " đ</td></tr>" +
+                    "<tr><th>Lý do hủy</th><td class='highlight'>" + reason + "</td></tr>" +
+                    "</table>" +
+                    productTable.toString() + // Chèn bảng sản phẩm
+                    "<p>Nếu bạn có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi qua email hoặc số điện thoại hỗ trợ.</p>" +
+                    "<div class='footer'>" +
+                    "<p>Trân trọng,<br>Hệ thống PetCare</p>" +
+                    "</div>" +
+                    "</div>" +
+                    "</body>" +
+                    "</html>";
+
+            helper.setText(htmlContent, true); // true = HTML content
+            mailSender.send(message);
+            logger.info("Email thông báo hủy đơn hàng #{} đã được gửi đến người dùng: {}", order.getOrderId(), userEmail);
+        } catch (Exception e) {
+            logger.error("Lỗi khi gửi email thông báo hủy đơn hàng #{} đến người dùng: {}", order.getOrderId(), e.getMessage());
+        }
+    }
+
+    public List<OrderDTO> getOrdersByVoucherId(Long voucherId) {
+        List<Orders> orders = orderRepository.findOrdersByVoucherId(voucherId);
+        return orders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
     }
 }
