@@ -13,18 +13,18 @@ import java.time.LocalDateTime;
 public class BookingEnabled {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Khóa chính
+    private Long id;
 
     @Column(name = "setting_name", nullable = false, length = 255)
-    private String settingName; // Tên cài đặt (ví dụ: "ENABLE_BOOKING")
+    private String settingName;
 
     @Column(name = "setting_value", nullable = false)
-    private boolean settingValue; // true: bật, false: tắt
+    private boolean settingValue;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt; // Thời gian cập nhật
+    private LocalDateTime updatedAt;
 
     @ManyToOne
-    @JoinColumn(name = "updated_by", nullable = false)
+    @JoinColumn(name = "updated_by", nullable = true)
     private User user;
 }

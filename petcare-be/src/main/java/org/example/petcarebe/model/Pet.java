@@ -1,9 +1,8 @@
 package org.example.petcarebe.model;
+
 import jakarta.persistence.*;
 import lombok.*;
 import org.example.petcarebe.enums.PetType;
-import org.example.petcarebe.model.*;
-
 
 @Getter
 @Setter
@@ -15,28 +14,42 @@ public class Pet {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Khóa chính
-
+    private Long id;
 
     @ManyToOne
     @JoinColumn(name = "weight_id", nullable = false)
-    private PetWeight petWeight; // FK đến bảng cân nặng
+    private PetWeight petWeight;
 
     @ManyToOne
     @JoinColumn(name = "service_id", nullable = false)
-    private Service service; // FK đến bảng dịch vụ
+    private PetService petService;
 
     @ManyToOne
     @JoinColumn(name = "employee_id", nullable = true)
-    private Employee employee; // FK đến bảng nhân viên (nếu có)
+    private Employee employee;
 
+    @ManyToOne
+    @JoinColumn(name = "appointment_id", nullable = false)
+    private Appointment appointment;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "pet_type", nullable = false)
-    private PetType petType; // Enum Chó/Mèo
+    private PetType petType;
 
     @Column(columnDefinition = "TEXT")
-    private String note; // Ghi chú thêm
+    private String note;
 
-    private float price; // Giá dịch vụ sau khi tính theo cân nặng
+    private float price;
+
+
+    @Column(name = "name_pet", columnDefinition = "NVARCHAR(255)")
+    private String namePet;
+
+    private float age;
+
+    @Column(name = "phone_boss", columnDefinition = "NVARCHAR(255)")
+    private String phoneBoss;
+
+    @Column(name = "name_boss", columnDefinition = "NVARCHAR(255)")
+    private String nameBoss;
 }
