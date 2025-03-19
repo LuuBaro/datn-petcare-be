@@ -24,9 +24,16 @@ public class EmployeeService {
         return employeeRepository.findById(id);
     }
 
+    private void checkPhoneDuplicate(String phone, Long excludeId) {
+        Optional<Employee> existingEmployee = employeeRepository.findByPhone(phone);
+        if (existingEmployee.isPresent() && (excludeId == null || !existingEmployee.get().getEmployeeId().equals(excludeId))) {
+            throw new RuntimeException("Số điện thoại " + phone + " đã được sử dụng.");
+        }
+    }
+
     // Thêm mới employee
     public Employee createEmployee(Employee employee) {
-        // Không kiểm tra employeeId, để JPA tự sinh
+        checkPhoneDuplicate(employee.getPhone(), null);
         return employeeRepository.save(employee);
     }
 
@@ -34,6 +41,8 @@ public class EmployeeService {
     public Employee updateEmployee(Long id, Employee employeeDetails) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy employee với ID: " + id));
+
+        checkPhoneDuplicate(employeeDetails.getPhone(), id); // Loại trừ chính employee đang cập nhật
 
         employee.setFullName(employeeDetails.getFullName());
         employee.setPhone(employeeDetails.getPhone());

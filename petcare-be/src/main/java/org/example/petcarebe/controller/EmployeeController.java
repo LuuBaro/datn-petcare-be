@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/employees")
@@ -34,16 +35,23 @@ public class EmployeeController {
 
     // Thêm mới employee
     @PostMapping
-    public ResponseEntity<Employee> createEmployee(@RequestBody Employee employee) {
-        Employee createdEmployee = employeeService.createEmployee(employee);
-        return new ResponseEntity<>(createdEmployee, HttpStatus.CREATED);
+    public ResponseEntity<?> createEmployee(@RequestBody Employee employee) {
+        try {
+            Employee createdEmployee = employeeService.createEmployee(employee);
+            return new ResponseEntity<>(createdEmployee, HttpStatus.CREATED);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
     }
 
-    // Cập nhật employee
     @PutMapping("/{id}")
-    public ResponseEntity<Employee> updateEmployee(@PathVariable Long id, @RequestBody Employee employeeDetails) {
-        Employee updatedEmployee = employeeService.updateEmployee(id, employeeDetails);
-        return new ResponseEntity<>(updatedEmployee, HttpStatus.OK);
+    public ResponseEntity<?> updateEmployee(@PathVariable Long id, @RequestBody Employee employeeDetails) {
+        try {
+            Employee updatedEmployee = employeeService.updateEmployee(id, employeeDetails);
+            return new ResponseEntity<>(updatedEmployee, HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
     }
 
     // Xóa employee (chuyển status thành "inactive")
