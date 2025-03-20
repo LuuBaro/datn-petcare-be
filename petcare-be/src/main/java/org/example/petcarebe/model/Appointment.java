@@ -3,7 +3,9 @@ package org.example.petcarebe.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Data
 @Setter
@@ -34,6 +36,12 @@ public class Appointment {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
+
+    @Column(name = "date", nullable = false, updatable = false)
+    private LocalDate date;
+
+    @Column(name = "time", nullable = false, updatable = false)
+    private LocalTime time;
 
     @ManyToOne
     @JoinColumn(name = "order_id", nullable = false)

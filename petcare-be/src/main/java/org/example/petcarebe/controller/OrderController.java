@@ -90,9 +90,13 @@ public class OrderController {
     }
 
     @PutMapping("/{orderId}/{statusId}")
-    public ResponseEntity<?> updateOrderStatus(@PathVariable Long orderId, @PathVariable Long statusId) {
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable Long orderId,
+            @PathVariable Long statusId,
+            @RequestBody(required = false) Map<String, String> requestBody) { // Thêm requestBody để nhận reason
         try {
-            Orders updatedOrder = orderService.updateOrderStatus(orderId, statusId);
+            String reason = (requestBody != null) ? requestBody.get("reason") : null;
+            Orders updatedOrder = orderService.updateOrderStatus(orderId, statusId, reason); // Truyền reason
             return ResponseEntity.ok().body(Collections.singletonMap("updatedOrder", updatedOrder));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));
@@ -148,6 +152,18 @@ public class OrderController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("message", "Định dạng ngày không hợp lệ hoặc lỗi xử lý: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
+
+
+    @GetMapping("/by-voucher/{voucherId}")
+    public ResponseEntity<List<OrderDTO>> getOrdersByVoucherId(@PathVariable Long voucherId) {
+        try {
+            List<OrderDTO> orders = orderService.getOrdersByVoucherId(voucherId);
+            return ResponseEntity.ok(orders);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Collections.emptyList()); // Trả về danh sách rỗng nếu có lỗi
         }
     }
 
