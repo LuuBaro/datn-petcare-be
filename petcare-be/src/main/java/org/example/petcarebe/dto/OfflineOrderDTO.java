@@ -15,6 +15,7 @@ public class OfflineOrderDTO {
         private String customerName;
         private boolean accumulatePoints;
         private int pointsToUse;
+        private Integer tabId;
     }
 
     @Data
