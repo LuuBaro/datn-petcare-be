@@ -400,6 +400,45 @@ public class OrderService {
         }
     }
 
+    // đơn hàng online
+    // Lấy các đơn hàng có type "ORDER ONLINE" và statusId = 4 (Hoàn thành)
+    public List<OrderDTO> getCompletedOnlineOrders() {
+        List<Orders> completedOnlineOrders = orderRepository.findByTypeAndStatusOrderStatusId("ORDER ONLINE", 4L);
+        return completedOnlineOrders.stream()
+                .map(this::convertToOrderDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Lấy các đơn hàng online trong khoảng thời gian từ ngày bắt đầu đến ngày kết thúc
+    public List<OrderDTO> getOnlineOrdersByDateRange(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Chỉ lấy các đơn hàng có type = "ORDER ONLINE" và statusId = 4
+        List<Orders> onlineOrders = orderRepository.findByTypeAndStatusOrderStatusIdAndOrderDateBetween(
+                "ORDER ONLINE", 4L, startDateInclusive, endDateInclusive);
+        return onlineOrders.stream()
+                .map(this::convertToOrderDTO)
+                .collect(Collectors.toList());
+    }
+    //
+
+
     // Thống kê
 
     public BigDecimal getRevenueByDateRange(Date startDate, Date endDate) {

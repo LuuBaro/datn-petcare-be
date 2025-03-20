@@ -16,6 +16,12 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Orders> findByUserUserId(Long userId);
     List<Orders> findByStatusOrder_StatusId(Long statusId);
     List<Orders> findAllByType(String type);
+    // Tìm đơn hàng theo type và statusId
+    List<Orders> findByTypeAndStatusOrderStatusId(String type, Long statusId);
+    // Tìm đơn hàng theo type, statusId và khoảng thời gian
+    List<Orders> findByTypeAndStatusOrderStatusIdAndOrderDateBetween(
+            String type, Long statusId, Date startDate, Date endDate);
+
 
     // Tổng số đơn hàng hôm nay
     @Query("SELECT COUNT(o) FROM Orders o " +
