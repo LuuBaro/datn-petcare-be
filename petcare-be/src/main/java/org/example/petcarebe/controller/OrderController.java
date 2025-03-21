@@ -167,4 +167,20 @@ public class OrderController {
         }
     }
 
+    // Endpoint để hủy đơn hàng khi quá trình tạo thanh toán thất bại
+    @DeleteMapping("/{orderId}/payment-failed")
+    public ResponseEntity<Map<String, Object>> cancelOrderOnPaymentFailure(@PathVariable Long orderId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            // Tìm đơn hàng
+            Orders order = orderService.cancelOrder(orderId, "Quá trình tạo thanh toán thất bại");
+            response.put("message", "Đã hủy đơn hàng do quá trình tạo thanh toán thất bại");
+            response.put("orderId", order.getOrderId());
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+
 }
