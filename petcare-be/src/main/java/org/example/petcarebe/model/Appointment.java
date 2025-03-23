@@ -1,11 +1,15 @@
+// Appointment.java
 package org.example.petcarebe.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.example.petcarebe.enums.AppointmentStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Setter
@@ -13,21 +17,34 @@ import java.time.LocalTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table (name = "appointments")
+@Table(name = "appointments")
 public class Appointment {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long appointmentId;
 
     @Column(name = "customer_name", columnDefinition = "NVARCHAR(255)")
     private String customerName;
+
     private String phone;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private AppointmentStatus status;
+
+    @Column(name = "date", nullable = false)
+    private LocalDate date;
+
+    @Column(name = "time", nullable = false)
+    private LocalTime time;
+
+    @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Pet> pets = new ArrayList<>();
 
     private float depositAmount;
 
-    @Column(name = "status", columnDefinition = "NVARCHAR(255)")
-    private String status;
+    private double totalAmount;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -37,18 +54,23 @@ public class Appointment {
         this.createdAt = LocalDateTime.now();
     }
 
-    @Column(name = "date", nullable = false, updatable = false)
-    private LocalDate date;
-
-    @Column(name = "time", nullable = false, updatable = false)
-    private LocalTime time;
-
     @ManyToOne
-    @JoinColumn(name = "order_id", nullable = false)
-    private Orders order;
-
-    @ManyToOne
-    @JoinColumn(name = "staff_id", nullable = false)
+    @JoinColumn(name = "staff_id", nullable = true) // Có thể null ban đầu
     private User user;
 
+    public void addPet(Pet pet) {
+        pets.add(pet);
+        pet.setAppointment(this);
+        updateTotalAmount();
+    }
+
+    public void removePet(Pet pet) {
+        pets.remove(pet);
+        pet.setAppointment(null);
+        updateTotalAmount();
+    }
+
+    public void updateTotalAmount() {
+        this.totalAmount = pets.stream().mapToDouble(Pet::getPrice).sum();
+    }
 }

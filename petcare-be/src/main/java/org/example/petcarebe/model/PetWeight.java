@@ -3,6 +3,7 @@ package org.example.petcarebe.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.example.petcarebe.enums.PetType;
+import org.example.petcarebe.enums.StatusType;
 
 @Entity
 @Table(name = "pet_weights")
@@ -25,4 +26,8 @@ public class PetWeight {
 
     @Column(name = "price_multiplier", nullable = false)
     private float priceMultiplier;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_type", nullable = false)
+    private StatusType statusType;
 }
