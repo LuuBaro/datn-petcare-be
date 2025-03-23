@@ -203,7 +203,7 @@ public class OrderService {
             cartDetailsService.clearCartDetailsByUserId(request.getUserId());
             logger.info("Stock deducted and cart cleared for COD orderId: {}", savedOrder.getOrderId());
         }
-        // ❌ Không trừ kho cho VNPay ở đây, chỉ trừ khi thanh toán thành công
+        // ❌ Không trừ kho cho VNPay/MoMo ở đây, chỉ trừ khi thanh toán thành công
 
         return savedOrder;
     }
@@ -220,21 +220,23 @@ public class OrderService {
         // Cập nhật trạng thái thanh toán
         order.setPaymentStatus(paymentStatus);
 
-        // Hủy đơn hàng nếu VNPay bị hủy thanh toán
-        if ("VNPay".equals(order.getPaymentMethod()) && "Đã hủy thanh toán".equals(paymentStatus)) {
+        // Hủy đơn hàng nếu VNPay/MoMo bị hủy thanh toán
+        if ((("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
+                && "Đã hủy thanh toán".equals(paymentStatus))) {
             StatusOrder cancelledStatus = statusOrderRepository.findById(5L)
                     .orElseThrow(() -> new RuntimeException("Status 'Cancelled' not found"));
             order.setStatusOrder(cancelledStatus);
-            logger.info("Order {} cancelled due to VNPay payment cancellation", orderId);
+            logger.info("Order {} cancelled due to payment cancellation", orderId);
         }
 
         // Lưu trạng thái đơn hàng trước
         Orders savedOrder = orderRepository.save(order);
         logger.info("Updated paymentStatus for orderId: {} to {}", orderId, paymentStatus);
 
-        // ✅ Chỉ trừ kho khi VNPay chuyển từ "Chờ thanh toán" sang "Chờ xác nhận"
-        if ("VNPay".equals(order.getPaymentMethod()) && "Chờ xác nhận".equals(paymentStatus) && "Chờ thanh toán".equals(oldPaymentStatus)) {
-            logger.info("Deducting stock for VNPay orderId: {}", orderId);
+        // ✅ Chỉ trừ kho khi VNPay/MoMo chuyển từ "Chờ thanh toán" sang "Chờ xác nhận"
+        if ((("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
+                && "Chờ xác nhận".equals(paymentStatus) && "Chờ thanh toán".equals(oldPaymentStatus))) {
+            logger.info("Deducting stock for online payment orderId: {}", orderId);
             for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
                     int updated = productDetailsRepository.updateStock(
                             orderDetail.getProductDetails().getProductDetailId(),
@@ -249,7 +251,7 @@ public class OrderService {
                                 orderDetail.getProductDetails().getProductDetailId());
                     }
             }
-            logger.info("Clearing cart for VNPay order, userId: {}", order.getUser().getUserId());
+            logger.info("Clearing cart for online payment order, userId: {}", order.getUser().getUserId());
             cartDetailsService.clearCartDetailsByUserId(order.getUser().getUserId());
         } else {
             logger.info("No stock deduction for orderId: {} - condition not met (paymentMethod: {}, oldStatus: {}, newStatus: {})",
@@ -322,7 +324,8 @@ public class OrderService {
         order.setStatusOrder(cancelledStatus);
 
         if ("COD".equals(order.getPaymentMethod()) ||
-                ("VNPay".equals(order.getPaymentMethod()) && !"Chờ thanh toán".equals(order.getPaymentStatus()))) {
+                (("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
+                 && !"Chờ thanh toán".equals(order.getPaymentStatus()))) {
             for (OrderDetails orderDetail : order.getOrderDetails()) {
                 int updated = productDetailsRepository.updateStockcancel(
                         orderDetail.getProductDetails().getProductDetailId(),
@@ -399,6 +402,45 @@ public class OrderService {
             logger.error("Lỗi khi gửi email thông báo hủy đơn hàng #{}: {}", order.getOrderId(), e.getMessage());
         }
     }
+
+    // đơn hàng online
+    // Lấy các đơn hàng có type "ORDER ONLINE" và statusId = 4 (Hoàn thành)
+    public List<OrderDTO> getCompletedOnlineOrders() {
+        List<Orders> completedOnlineOrders = orderRepository.findByTypeAndStatusOrderStatusId("ORDER ONLINE", 4L);
+        return completedOnlineOrders.stream()
+                .map(this::convertToOrderDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Lấy các đơn hàng online trong khoảng thời gian từ ngày bắt đầu đến ngày kết thúc
+    public List<OrderDTO> getOnlineOrdersByDateRange(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Chỉ lấy các đơn hàng có type = "ORDER ONLINE" và statusId = 4
+        List<Orders> onlineOrders = orderRepository.findByTypeAndStatusOrderStatusIdAndOrderDateBetween(
+                "ORDER ONLINE", 4L, startDateInclusive, endDateInclusive);
+        return onlineOrders.stream()
+                .map(this::convertToOrderDTO)
+                .collect(Collectors.toList());
+    }
+    //
+
 
     // Thống kê
 

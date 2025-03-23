@@ -12,6 +12,8 @@ public class CartDetails {
     @GeneratedValue (strategy = GenerationType.IDENTITY)
     private Long cartDetailId;
     private int quantityItem;
+    @Column(name = "tab_id") // Thêm trường tabId
+    private Integer tabId;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
