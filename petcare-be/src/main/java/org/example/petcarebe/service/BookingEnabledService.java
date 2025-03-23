@@ -1,9 +1,12 @@
 package org.example.petcarebe.service;
 
 import org.example.petcarebe.model.BookingEnabled;
+import org.example.petcarebe.model.User;
 import org.example.petcarebe.repository.BookingEnabledRepository;
+import org.example.petcarebe.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 
 @Service
@@ -12,29 +15,24 @@ public class BookingEnabledService {
     @Autowired
     private BookingEnabledRepository bookingEnabledRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     public BookingEnabled getBookingStatus() {
-        BookingEnabled bookingEnabled = bookingEnabledRepository.findBySettingName("ENABLE_BOOKING");
-        if (bookingEnabled == null) {
-            bookingEnabled = new BookingEnabled();
-            bookingEnabled.setSettingName("ENABLE_BOOKING");
-            bookingEnabled.setSettingValue(true);
-            bookingEnabled.setUpdatedAt(LocalDateTime.now());
-            bookingEnabled.setUser(null); // Hiện tại không cần user
-            bookingEnabled = bookingEnabledRepository.save(bookingEnabled);
-        }
-        return bookingEnabled;
+        return bookingEnabledRepository.findTopByOrderByUpdatedAtDesc()
+                .orElseThrow(() -> new RuntimeException("Booking status not found"));
     }
 
-    public BookingEnabled updateBookingStatus(boolean newStatus) {
-        BookingEnabled bookingEnabled = bookingEnabledRepository.findBySettingName("ENABLE_BOOKING");
-        if (bookingEnabled == null) {
-            bookingEnabled = new BookingEnabled();
-            bookingEnabled.setSettingName("ENABLE_BOOKING");
-        }
+    public void updateBookingStatus(boolean status, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        bookingEnabled.setSettingValue(newStatus);
+        BookingEnabled bookingEnabled = new BookingEnabled();
+        bookingEnabled.setSettingName("booking_enabled");
+        bookingEnabled.setSettingValue(status);
         bookingEnabled.setUpdatedAt(LocalDateTime.now());
-        bookingEnabled.setUser(null); // Hiện tại không cần user
-        return bookingEnabledRepository.save(bookingEnabled);
+        bookingEnabled.setUser(user);
+
+        bookingEnabledRepository.save(bookingEnabled);
     }
 }

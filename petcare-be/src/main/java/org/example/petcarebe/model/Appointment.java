@@ -1,7 +1,10 @@
+// Appointment.java
 package org.example.petcarebe.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.example.petcarebe.enums.AppointmentStatus;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -26,7 +29,9 @@ public class Appointment {
 
     private String phone;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private AppointmentStatus status;
 
     @Column(name = "date", nullable = false)
     private LocalDate date;
@@ -39,6 +44,8 @@ public class Appointment {
 
     private float depositAmount;
 
+    private double totalAmount;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -48,12 +55,22 @@ public class Appointment {
     }
 
     @ManyToOne
-    @JoinColumn(name = "staff_id", nullable = false)
+    @JoinColumn(name = "staff_id", nullable = true) // Có thể null ban đầu
     private User user;
-
 
     public void addPet(Pet pet) {
         pets.add(pet);
         pet.setAppointment(this);
+        updateTotalAmount();
+    }
+
+    public void removePet(Pet pet) {
+        pets.remove(pet);
+        pet.setAppointment(null);
+        updateTotalAmount();
+    }
+
+    public void updateTotalAmount() {
+        this.totalAmount = pets.stream().mapToDouble(Pet::getPrice).sum();
     }
 }

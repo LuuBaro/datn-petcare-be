@@ -1,17 +1,14 @@
 package org.example.petcarebe.config;
 
 import jakarta.annotation.PostConstruct;
-import org.example.petcarebe.dto.TimeSlotDTO;
 import org.example.petcarebe.model.DefaultTimeSlot;
 import org.example.petcarebe.repository.DefaultTimeSlotRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 
-import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 @Configuration
 public class DataInitializer {

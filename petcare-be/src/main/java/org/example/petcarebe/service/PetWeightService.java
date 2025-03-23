@@ -1,5 +1,6 @@
 package org.example.petcarebe.service;
 
+import org.example.petcarebe.enums.PetType;
 import org.example.petcarebe.model.PetWeight;
 import org.example.petcarebe.repository.PetWeightRepository;
 import org.example.petcarebe.enums.StatusType;
@@ -55,5 +56,9 @@ public class PetWeightService {
                 .orElseThrow(() -> new RuntimeException("Khoảng cân nặng không tồn tại với ID: " + id));
         petWeight.setStatusType(StatusType.ACTIVE);
         petWeightRepository.save(petWeight);
+    }
+
+    public List<PetWeight> getWeightsByPetType(PetType petType) {
+        return petWeightRepository.findByPetType(petType);
     }
 }

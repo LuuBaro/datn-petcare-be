@@ -1,5 +1,6 @@
 package org.example.petcarebe.controller;
 
+import org.example.petcarebe.enums.PetType;
 import org.example.petcarebe.model.PetWeight;
 import org.example.petcarebe.service.PetWeightService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,5 +43,11 @@ public class PetWeightController {
     public ResponseEntity<Void> activatePetWeight(@PathVariable Long id) {
         petWeightService.activatePetWeight(id);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/by-pet-type")
+    public ResponseEntity<List<PetWeight>> getWeightsByPetType(@RequestParam("petType") PetType petType) {
+        List<PetWeight> weights = petWeightService.getWeightsByPetType(petType);
+        return ResponseEntity.ok(weights);
     }
 }

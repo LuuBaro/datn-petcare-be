@@ -1,8 +1,10 @@
+// PetServiceService.java
 package org.example.petcarebe.service;
 
+import org.example.petcarebe.enums.PetType;
+import org.example.petcarebe.enums.StatusType;
 import org.example.petcarebe.model.PetService;
 import org.example.petcarebe.repository.PetServiceRepository;
-import org.example.petcarebe.enums.StatusType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -50,5 +52,10 @@ public class PetServiceService {
                 .orElseThrow(() -> new RuntimeException("Dịch vụ không tồn tại với ID: " + id));
         petService.setStatusType(StatusType.INACTIVE);
         petServiceRepository.save(petService);
+    }
+
+    // Thêm phương thức mới để lấy dịch vụ theo petType
+    public List<PetService> getServicesByPetType(PetType petType) {
+        return petServiceRepository.findByPetType(petType);
     }
 }

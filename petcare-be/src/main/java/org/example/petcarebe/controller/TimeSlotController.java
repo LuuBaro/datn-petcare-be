@@ -1,47 +1,30 @@
+// TimeSlotController.java
 package org.example.petcarebe.controller;
 
-import org.example.petcarebe.dto.request.BookingRequestDTO;
-import org.example.petcarebe.dto.response.BookingResponseDTO;
 import org.example.petcarebe.dto.TimeSlotDTO;
-import org.example.petcarebe.service.SlotService;
+import org.example.petcarebe.service.TimeSlotService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/timeslots")
+@RequestMapping("/api/time-slots")
 public class TimeSlotController {
 
     @Autowired
-    private SlotService slotService;
+    private TimeSlotService timeSlotService;
 
     @GetMapping
-    public ResponseEntity<Map<String, List<TimeSlotDTO>>> getTimeSlots(
-            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        try {
-            Map<String, List<TimeSlotDTO>> timeSlots = slotService.getTimeSlotsByDate(date);
-            return ResponseEntity.ok(timeSlots);
-        } catch (Exception e) {
-            System.err.println("Error in getTimeSlots: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(null);
-        }
-    }
-
-    @PostMapping("/book")
-    public ResponseEntity<BookingResponseDTO> bookAppointment(@RequestBody BookingRequestDTO request) {
-        try {
-            BookingResponseDTO response = slotService.bookSlot(request);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            System.err.println("Error in bookAppointment: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(null);
-        }
+    public ResponseEntity<Map<String, List<TimeSlotDTO>>> getTimeSlots(@RequestParam("date") String date) {
+        LocalDate localDate = LocalDate.parse(date);
+        Map<String, List<TimeSlotDTO>> timeSlots = timeSlotService.getTimeSlots(localDate);
+        return ResponseEntity.ok(timeSlots);
     }
 }

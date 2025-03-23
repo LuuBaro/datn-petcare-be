@@ -24,7 +24,7 @@ public class BookingEnabled {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @ManyToOne
-    @JoinColumn(name = "updated_by", nullable = true)
+    @ManyToOne(fetch = FetchType.EAGER) // Thay đổi từ LAZY sang EAGER
+    @JoinColumn(name = "updated_by", nullable = false)
     private User user;
 }
