@@ -56,8 +56,8 @@ public class TimeSlotService {
                 totalSlots = applyAdjustment(totalSlots, adjustment);
             }
 
-            // Đếm số slot đã đặt (dựa trên số Pet)
-            long bookedSlots = appointmentRepository.countPetsByDateAndTime(date, time);
+            // Đếm số slot đã đặt (chỉ tính các Appointment ở trạng thái PAID hoặc CONFIRMED)
+            long bookedSlots = appointmentRepository.countPetsByDateAndTimeAndStatus(date, time);
 
             TimeSlotDTO timeSlotDTO = new TimeSlotDTO();
             timeSlotDTO.setHour(time.toString());

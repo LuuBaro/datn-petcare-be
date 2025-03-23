@@ -15,7 +15,6 @@ public class AppointmentController {
 
     private final AppointmentService appointmentService;
 
-    // Sử dụng constructor injection
     @Autowired
     public AppointmentController(AppointmentService appointmentService) {
         this.appointmentService = appointmentService;
@@ -43,5 +42,11 @@ public class AppointmentController {
     public ResponseEntity<Appointment> updateStatus(@PathVariable Long id, @RequestParam AppointmentStatus status) {
         Appointment appointment = appointmentService.updateStatus(id, status);
         return ResponseEntity.ok(appointment);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteAppointment(@PathVariable Long id) {
+        appointmentService.deleteAppointment(id);
+        return ResponseEntity.ok().build();
     }
 }
