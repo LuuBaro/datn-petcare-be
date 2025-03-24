@@ -16,6 +16,12 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Orders> findByUserUserId(Long userId);
     List<Orders> findByStatusOrder_StatusId(Long statusId);
     List<Orders> findAllByType(String type);
+    // Tìm đơn hàng theo type và statusId
+    List<Orders> findByTypeAndStatusOrderStatusId(String type, Long statusId);
+    // Tìm đơn hàng theo type, statusId và khoảng thời gian
+    List<Orders> findByTypeAndStatusOrderStatusIdAndOrderDateBetween(
+            String type, Long statusId, Date startDate, Date endDate);
+
 
     // Tổng số đơn hàng hôm nay
     @Query("SELECT COUNT(o) FROM Orders o " +
@@ -243,6 +249,20 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Object[]> getTopFiveCustomersByOrderCount();
 
 
+    // Lấy danh sách voucher đã được áp dụng trong đơn hàng
+    @Query("SELECT DISTINCT v.voucherId, v.name, v.percents, v.condition, v.startDate, v.endDate, v.quantity, v.status " +
+            "FROM Orders o " +
+            "JOIN o.voucher v " +
+            "WHERE o.voucher IS NOT NULL " +
+            "AND o.paymentStatus = 'Đã thanh toán'")
+    List<Object[]> getAppliedVouchers();
+
+
+    @Query("SELECT o FROM Orders o WHERE o.voucher.voucherId = :voucherId")
+    List<Orders> findOrdersByVoucherId(@Param("voucherId") Long voucherId);
+
+
+
 
     // Tìm hóa đơn từ ngày
     @Query("SELECT o FROM Orders o " +
@@ -252,4 +272,5 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Orders> findOfflineOrdersByDateRange(
             @Param("startDate") Date startDate,
             @Param("endDate") Date endDate);
+
 }

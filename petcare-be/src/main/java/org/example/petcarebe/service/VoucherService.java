@@ -29,7 +29,7 @@ public class VoucherService {
         voucher.setQuantity(voucherDetails.getQuantity());
         voucher.setPercents(voucherDetails.getPercents());
         voucher.setCondition(voucherDetails.getCondition());
-
+        voucher.setStatus(voucherDetails.getStatus());
         return voucherRepository.save(voucher);
     }
 
