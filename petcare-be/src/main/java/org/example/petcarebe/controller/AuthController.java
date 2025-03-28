@@ -307,6 +307,9 @@ public class AuthController {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userService.saveUser(user);
 
+        // Gửi email thông báo thay đổi mật khẩu
+        passwordEmailService.sendPasswordChangeAlert(user.getEmail());
+
         return ResponseEntity.ok("Mật khẩu đã được cập nhật.");
     }
 
