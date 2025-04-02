@@ -10,10 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -131,6 +129,33 @@ public class OrderController {
         }
     }
 
+    // Endpoint lấy đơn hàng "ORDER ONLINE" với statusId = 4
+    @GetMapping("/completed-online")
+    public ResponseEntity<List<OrderDTO>> getCompletedOnlineOrders() {
+        List<OrderDTO> completedOnlineOrders = orderService.getCompletedOnlineOrders();
+        return ResponseEntity.ok(completedOnlineOrders);
+    }
+
+    // Endpoint tìm đơn hàng online theo khoảng thời gian
+    @GetMapping("/online-by-date-range")
+    public ResponseEntity<?> getOnlineOrdersByDateRange(
+            @RequestParam("startDate") String startDateStr,
+            @RequestParam("endDate") String endDateStr) {
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            Date startDate = dateFormat.parse(startDateStr);
+            Date endDate = dateFormat.parse(endDateStr);
+
+            List<OrderDTO> onlineOrders = orderService.getOnlineOrdersByDateRange(startDate, endDate);
+            return ResponseEntity.ok(onlineOrders);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Định dạng ngày không hợp lệ hoặc lỗi xử lý: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
+
+
     @GetMapping("/by-voucher/{voucherId}")
     public ResponseEntity<List<OrderDTO>> getOrdersByVoucherId(@PathVariable Long voucherId) {
         try {
@@ -141,4 +166,21 @@ public class OrderController {
                     .body(Collections.emptyList()); // Trả về danh sách rỗng nếu có lỗi
         }
     }
+
+    // Endpoint để hủy đơn hàng khi quá trình tạo thanh toán thất bại
+    @DeleteMapping("/{orderId}/payment-failed")
+    public ResponseEntity<Map<String, Object>> cancelOrderOnPaymentFailure(@PathVariable Long orderId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            // Tìm đơn hàng
+            Orders order = orderService.cancelOrder(orderId, "Quá trình tạo thanh toán thất bại");
+            response.put("message", "Đã hủy đơn hàng do quá trình tạo thanh toán thất bại");
+            response.put("orderId", order.getOrderId());
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+
 }

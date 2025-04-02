@@ -82,11 +82,20 @@ public class UserService implements UserDetailsService {
         }
     }
 
+    // Kiểm tra số điện thoại đã tồn tại chưa
+    private void checkPhoneDuplicate(String phone, Long excludeId) {
+        User existingUser = userRepository.findByPhone(phone);
+        if (existingUser != null && (excludeId == null || !existingUser.getUserId().equals(excludeId))) {
+            throw new RuntimeException("Số điện thoại " + phone + " đã được sử dụng.");
+        }
+    }
+
     public User saveStaff(User staff) {
         User existingUser = userRepository.findByEmail(staff.getEmail().toLowerCase());
         if (existingUser != null) {
             throw new RuntimeException("Email đã tồn tại. Vui lòng chọn email khác.");
         }
+        checkPhoneDuplicate(staff.getPhone(), null);
         boolean isNewUser = (staff.getUserId() == null);
         if (staff.getPassword() != null && !staff.getPassword().isEmpty()) {
             staff.setPassword(passwordEncoder.encode(staff.getPassword()));
@@ -128,13 +137,11 @@ public class UserService implements UserDetailsService {
         User existingStaff = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên với ID: " + userId));
 
-        System.out.println("Received staff: " + staff);
-        System.out.println("Received isStatus: " + staff.isStatus());
-
         User existingUserWithEmail = userRepository.findByEmail(staff.getEmail().toLowerCase());
         if (existingUserWithEmail != null && !existingUserWithEmail.getUserId().equals(userId)) {
             throw new RuntimeException("Email đã được sử dụng bởi người dùng khác.");
         }
+        checkPhoneDuplicate(staff.getPhone(), userId);
 
         existingStaff.setEmail(staff.getEmail().toLowerCase());
         existingStaff.setFullName(staff.getFullName());

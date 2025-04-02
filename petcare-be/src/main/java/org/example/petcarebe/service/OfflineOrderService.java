@@ -44,7 +44,7 @@ public class OfflineOrderService {
         order.setType("OFFLINE");
         order.setUser(user);
         order.setShippingCost(0);
-        order.setPointUsed(0); // Điểm sử dụng sẽ được cập nhật trong applyDiscount nếu có
+        order.setPointUsed(0);
 
         List<OrderDetails> orderDetails = request.getItems().stream().map(item -> {
             ProductDetails productDetail = productDetailsRepository.findById(item.getProductDetailId())
@@ -75,11 +75,7 @@ public class OfflineOrderService {
         int pointsEarned = 0;
         int totalPoints = 0;
         Point customerPoint = null;
-        if (request.isAccumulatePoints()) {
-            if (request.getCustomerPhone() == null || request.getCustomerPhone().isEmpty()) {
-                throw new RuntimeException("Vui lòng cung cấp số điện thoại để tích điểm.");
-            }
-
+        if (request.isAccumulatePoints() && request.getCustomerPhone() != null && !request.getCustomerPhone().isEmpty()) {
             customerPoint = pointRepository.findByPhone(request.getCustomerPhone())
                     .orElseGet(() -> {
                         Point newPoint = new Point();
@@ -104,6 +100,12 @@ public class OfflineOrderService {
 
         Orders savedOrder = ordersRepository.save(order);
 
+        // Xóa giỏ hàng của tab sau khi thanh toán
+        Integer tabId = request.getTabId();
+        if (tabId != null) {
+            cartDetailsRepository.deleteByUserIdAndTabId(request.getUserId(), tabId);
+        }
+
         OfflineOrderDTO.OfflineOrderResponse response = new OfflineOrderDTO.OfflineOrderResponse();
         response.setOrderId(savedOrder.getOrderId());
         response.setPaymentMethod(savedOrder.getPaymentMethod());
@@ -113,6 +115,7 @@ public class OfflineOrderService {
         response.setUserId(user.getUserId());
         response.setStaffName(user.getFullName());
         response.setTotalPoints(totalPoints);
+        response.setOrderDate(savedOrder.getOrderDate());
 
         return response;
     }
@@ -126,7 +129,7 @@ public class OfflineOrderService {
         Point customerPoint = pointRepository.findByPhone(request.getCustomerPhone())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin điểm với số điện thoại: " + request.getCustomerPhone()));
 
-        int pointsToUse = request.getPointsToUse(); // Lấy số điểm muốn sử dụng từ request
+        int pointsToUse = request.getPointsToUse();
         if (pointsToUse < 10 || pointsToUse % 10 != 0) {
             throw new RuntimeException("Số điểm sử dụng phải là bội số của 10 và tối thiểu 10 điểm.");
         }
@@ -134,113 +137,39 @@ public class OfflineOrderService {
             throw new RuntimeException("Không đủ điểm để áp dụng giảm giá (cần tối thiểu " + pointsToUse + " điểm).");
         }
 
-        // Tạo đơn hàng bằng hàm createOfflineOrder
         OfflineOrderDTO.OfflineOrderResponse response = createOfflineOrder(request);
 
-        // Lấy đơn hàng vừa tạo để áp dụng giảm giá
         Orders order = ordersRepository.findById(response.getOrderId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng vừa tạo."));
 
         float originalTotalAmount = order.getTotalAmount();
-        float discountAmount = (pointsToUse / 10) * 30000; // Mỗi 10 điểm giảm 30,000 VNĐ
-        float newTotalAmount = originalTotalAmount - discountAmount;
-
-        if (newTotalAmount < 0) {
-            newTotalAmount = 0; // Không âm
-        }
+        float discountAmount = (pointsToUse / 10) * 30000;
+        float newTotalAmount = Math.max(0, originalTotalAmount - discountAmount);
 
         order.setTotalAmount(newTotalAmount);
-        order.setPointUsed(pointsToUse); // Ghi nhận số điểm đã sử dụng
+        order.setPointUsed(pointsToUse);
         ordersRepository.save(order);
 
-        // Cập nhật điểm của khách hàng
         customerPoint.setTotalPoint(customerPoint.getTotalPoint() - pointsToUse);
         pointRepository.save(customerPoint);
 
-        // Cập nhật response
         response.setTotalAmount(newTotalAmount);
         response.setTotalPoints(customerPoint.getTotalPoint());
 
         return response;
     }
 
-    public PointInfoDTO getPointsByPhone(String phone) {
-        Point point = pointRepository.findByPhone(phone)
-                .orElse(null);
-        if (point == null) {
-            return new PointInfoDTO("Khách vãng lai", 0);
-        }
-        return new PointInfoDTO(point.getName(), point.getTotalPoint());
-    }
-
-    //  hàm getAllOrders
     public List<OfflineOrderDTO.OfflineOrderResponse> getAllOrders() {
         List<Orders> orders = ordersRepository.findAllByType("OFFLINE");
-        return orders.stream().map(order -> {
-            OfflineOrderDTO.OfflineOrderResponse response = new OfflineOrderDTO.OfflineOrderResponse();
-            response.setOrderId(order.getOrderId());
-            response.setPaymentMethod(order.getPaymentMethod());
-            response.setTotalAmount(order.getTotalAmount());
-            response.setStatus(order.getPaymentStatus());
-            response.setPointsEarned(order.getPointEarned());
-            response.setUserId(order.getUser() != null ? order.getUser().getUserId() : null);
-            response.setStaffName(order.getUser() != null ? order.getUser().getFullName() : "Không xác định");
-            response.setOrderDate(order.getOrderDate());
-
-            Point point = order.getPoint();
-            if (point != null) {
-                response.setCustomerName(point.getName());
-                response.setCustomerPhone(point.getPhone());
-                response.setTotalPoints(point.getTotalPoint());
-            } else {
-                response.setCustomerName(null);
-                response.setCustomerPhone(null);
-                response.setTotalPoints(0);
-            }
-
-            List<OrderDetails> orderDetails = order.getOrderDetails();
-            List<OfflineOrderDTO.OrderItemResponse> items;
-            if (orderDetails == null || orderDetails.isEmpty()) {
-                items = Collections.emptyList();
-                System.out.println("Cảnh báo: Không có chi tiết đơn hàng cho Order ID: " + order.getOrderId());
-            } else {
-                items = orderDetails.stream().map(detail -> {
-                    OfflineOrderDTO.OrderItemResponse item = new OfflineOrderDTO.OrderItemResponse();
-                    ProductDetails productDetails = detail.getProductDetails();
-                    if (productDetails == null) {
-                        System.err.println("Lỗi: ProductDetails là null cho OrderDetails ID: " + detail.getOrderDetailsId());
-                        item.setProductName("Sản phẩm không xác định");
-                        item.setProductDetailId(null);
-                        item.setColorValue("Không xác định");
-                        item.setSizeValue("Không xác định");
-                        item.setWeightValue(0.0f); // Giá trị mặc định cho float
-                    } else {
-                        item.setProductDetailId(productDetails.getProductDetailId());
-                        Products product = productDetails.getProducts();
-                        item.setProductName(product != null ? product.getProductName() : "Sản phẩm không xác định");
-
-                        // Lấy màu sắc, kích thước, cân nặng
-                        ProductColors color = productDetails.getProductColors();
-                        item.setColorValue(color != null ? color.getColorValue() : "Không xác định");
-
-                        ProductSizes size = productDetails.getProductSizes();
-                        item.setSizeValue(size != null ? size.getSizeValue() : "Không xác định");
-
-                        Weights weight = productDetails.getWeights();
-                        item.setWeightValue(weight != null ? weight.getWeightValue() : 0.0f); // float
-                    }
-                    item.setPrice(detail.getPrice());
-                    item.setQuantity(detail.getQuantity());
-                    return item;
-                }).collect(Collectors.toList());
-            }
-            response.setItems(items);
-            return response;
-        }).collect(Collectors.toList());
+        return mapOrdersToResponse(orders);
     }
 
     public List<OfflineOrderDTO.OfflineOrderResponse> getOrdersByDateRange(Date startDate, Date endDate) {
         List<Orders> orders = ordersRepository.findOfflineOrdersByDateRange(startDate, endDate);
+        return mapOrdersToResponse(orders);
+    }
+
+    private List<OfflineOrderDTO.OfflineOrderResponse> mapOrdersToResponse(List<Orders> orders) {
         return orders.stream().map(order -> {
             OfflineOrderDTO.OfflineOrderResponse response = new OfflineOrderDTO.OfflineOrderResponse();
             response.setOrderId(order.getOrderId());
@@ -257,56 +186,40 @@ public class OfflineOrderService {
                 response.setCustomerName(point.getName());
                 response.setCustomerPhone(point.getPhone());
                 response.setTotalPoints(point.getTotalPoint());
-            } else {
-                response.setCustomerName(null);
-                response.setCustomerPhone(null);
-                response.setTotalPoints(0);
             }
 
             List<OrderDetails> orderDetails = order.getOrderDetails();
-            List<OfflineOrderDTO.OrderItemResponse> items;
-            if (orderDetails == null || orderDetails.isEmpty()) {
-                items = Collections.emptyList();
-                System.out.println("Cảnh báo: Không có chi tiết đơn hàng cho Order ID: " + order.getOrderId());
-            } else {
-                items = orderDetails.stream().map(detail -> {
-                    OfflineOrderDTO.OrderItemResponse item = new OfflineOrderDTO.OrderItemResponse();
-                    ProductDetails productDetails = detail.getProductDetails();
-                    if (productDetails == null) {
-                        System.err.println("Lỗi: ProductDetails là null cho OrderDetails ID: " + detail.getOrderDetailsId());
-                        item.setProductName("Sản phẩm không xác định");
-                        item.setProductDetailId(null);
-                        item.setColorValue("Không xác định");
-                        item.setSizeValue("Không xác định");
-                        item.setWeightValue(0.0f);
-                    } else {
-                        item.setProductDetailId(productDetails.getProductDetailId());
-                        Products product = productDetails.getProducts();
-                        item.setProductName(product != null ? product.getProductName() : "Sản phẩm không xác định");
-                        ProductColors color = productDetails.getProductColors();
-                        item.setColorValue(color != null ? color.getColorValue() : "Không xác định");
-                        ProductSizes size = productDetails.getProductSizes();
-                        item.setSizeValue(size != null ? size.getSizeValue() : "Không xác định");
-                        Weights weight = productDetails.getWeights();
-                        item.setWeightValue(weight != null ? weight.getWeightValue() : 0.0f);
-                    }
-                    item.setPrice(detail.getPrice());
-                    item.setQuantity(detail.getQuantity());
-                    return item;
-                }).collect(Collectors.toList());
-            }
+            List<OfflineOrderDTO.OrderItemResponse> items = (orderDetails == null || orderDetails.isEmpty())
+                    ? Collections.emptyList()
+                    : orderDetails.stream().map(detail -> {
+                OfflineOrderDTO.OrderItemResponse item = new OfflineOrderDTO.OrderItemResponse();
+                ProductDetails productDetails = detail.getProductDetails();
+                if (productDetails != null) {
+                    item.setProductDetailId(productDetails.getProductDetailId());
+                    Products product = productDetails.getProducts();
+                    item.setProductName(product != null ? product.getProductName() : "Sản phẩm không xác định");
+                    item.setColorValue(productDetails.getProductColors() != null ? productDetails.getProductColors().getColorValue() : "Không xác định");
+                    item.setSizeValue(productDetails.getProductSizes() != null ? productDetails.getProductSizes().getSizeValue() : "Không xác định");
+                    item.setWeightValue(productDetails.getWeights() != null ? productDetails.getWeights().getWeightValue() : 0.0f);
+                } else {
+                    item.setProductName("Sản phẩm không xác định");
+                    item.setColorValue("Không xác định");
+                    item.setSizeValue("Không xác định");
+                    item.setWeightValue(0.0f);
+                }
+                item.setPrice(detail.getPrice());
+                item.setQuantity(detail.getQuantity());
+                return item;
+            }).collect(Collectors.toList());
             response.setItems(items);
             return response;
         }).collect(Collectors.toList());
     }
 
-
-    // giỏ hàng offline
     @Transactional
-    public CartDetails addProductToOfflineCart(Long userId, Long productDetailId, int quantity) {
+    public CartDetails addProductToOfflineCart(Long userId, Long productDetailId, int quantity, Integer tabId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên với ID: " + userId));
-
         ProductDetails productDetail = productDetailsRepository.findById(productDetailId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + productDetailId));
 
@@ -314,8 +227,7 @@ public class OfflineOrderService {
             throw new RuntimeException("Không đủ hàng tồn kho cho sản phẩm: " + productDetail.getProducts().getProductName());
         }
 
-        CartDetails existingCartDetail = cartDetailsRepository.findByUserAndProductDetails(user, productDetail);
-
+        CartDetails existingCartDetail = cartDetailsRepository.findByUserAndProductDetailsAndTabId(user, productDetail, tabId);
         if (existingCartDetail != null) {
             existingCartDetail.setQuantityItem(existingCartDetail.getQuantityItem() + quantity);
             return cartDetailsRepository.save(existingCartDetail);
@@ -324,30 +236,33 @@ public class OfflineOrderService {
             cartDetail.setUser(user);
             cartDetail.setProductDetails(productDetail);
             cartDetail.setQuantityItem(quantity);
+            cartDetail.setTabId(tabId);
             return cartDetailsRepository.save(cartDetail);
         }
     }
 
     @Transactional
-    public void removeProductFromOfflineCart(Long userId, Long productDetailId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên với ID: " + userId));
-
-        ProductDetails productDetail = productDetailsRepository.findById(productDetailId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + productDetailId));
-
-        CartDetails cartDetail = cartDetailsRepository.findByUserAndProductDetails(user, productDetail);
-
-        if (cartDetail == null) {
-            throw new RuntimeException("Không tìm thấy sản phẩm trong giỏ hàng.");
-        }
-
+    public void removeProductFromOfflineCart(Long userId, Long productDetailId, Integer tabId) {
+        CartDetails cartDetail = cartDetailsRepository.findByUserUserIdAndTabId(userId, tabId)
+                .stream()
+                .filter(cd -> cd.getProductDetails().getProductDetailId().equals(productDetailId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm trong giỏ hàng."));
         cartDetailsRepository.delete(cartDetail);
     }
 
-    public List<CartDetails> getOfflineCartDetails(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên với ID: " + userId));
-        return cartDetailsRepository.findByUser(user);
+    public List<CartDetails> getOfflineCartDetails(Long userId, Integer tabId) {
+        return (tabId == null) ? cartDetailsRepository.findByUserUserId(userId)
+                : cartDetailsRepository.findByUserUserIdAndTabId(userId, tabId);
+    }
+
+    @Transactional
+    public void deleteByUserIdAndTabId(Long userId, Integer tabId) {
+        cartDetailsRepository.deleteByUserIdAndTabId(userId, tabId);
+    }
+
+    public PointInfoDTO getPointsByPhone(String phone) {
+        Point point = pointRepository.findByPhone(phone).orElse(null);
+        return point == null ? new PointInfoDTO("Khách vãng lai", 0) : new PointInfoDTO(point.getName(), point.getTotalPoint());
     }
 }

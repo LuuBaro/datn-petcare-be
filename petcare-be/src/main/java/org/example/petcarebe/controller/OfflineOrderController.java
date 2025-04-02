@@ -59,6 +59,7 @@ public class OfflineOrderController {
         return ResponseEntity.ok(orders);
     }
 
+
     // Tìm hóa đơn theo ngày
     @GetMapping("/orders-by-date")
     public ResponseEntity<List<OfflineOrderDTO.OfflineOrderResponse>> getOrdersByDateRange(
@@ -89,25 +90,28 @@ public class OfflineOrderController {
     public ResponseEntity<CartDetails> addProductToOfflineCart(
             @RequestParam Long userId,
             @RequestParam Long productDetailId,
+            @RequestParam Integer tabId, // Thêm tabId
             @RequestParam(defaultValue = "1") int quantity) {
-        CartDetails cartDetail = offlineOrderService.addProductToOfflineCart(userId, productDetailId, quantity);
+        CartDetails cartDetail = offlineOrderService.addProductToOfflineCart(userId, productDetailId, quantity, tabId);
         return ResponseEntity.ok(cartDetail);
     }
 
     @DeleteMapping("/cart/remove-product")
     public ResponseEntity<Void> removeProductFromOfflineCart(
             @RequestParam Long userId,
-            @RequestParam Long productDetailId) {
-        offlineOrderService.removeProductFromOfflineCart(userId, productDetailId);
+            @RequestParam Long productDetailId,
+            @RequestParam Integer tabId) { // Thêm tabId
+        offlineOrderService.removeProductFromOfflineCart(userId, productDetailId, tabId);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/cart")
-    public ResponseEntity<List<CartDetails>> getOfflineCartDetails(@RequestParam Long userId) {
-        List<CartDetails> cartDetails = offlineOrderService.getOfflineCartDetails(userId);
+    public ResponseEntity<List<CartDetails>> getOfflineCartDetails(
+            @RequestParam Long userId,
+            @RequestParam(required = false) Integer tabId) {
+        List<CartDetails> cartDetails = offlineOrderService.getOfflineCartDetails(userId, tabId);
         return ResponseEntity.ok(cartDetails);
     }
-    
 
 
 
