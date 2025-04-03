@@ -62,6 +62,11 @@ public class ProductsService {
         product.setBrand(existingBrand);
         product.setCategories(existingCategory);
 
+        // Đảm bảo status mặc định là true nếu không được cung cấp
+        if (product.getStatus() == null) {
+            product.setStatus(true);
+        }
+
         return productRepository.save(product);
     }
 
@@ -149,7 +154,9 @@ public class ProductsService {
                             product.getDescription(),
                             product.getImage(),
                             product.getCategories().getCategoryName(),
-                            product.getBrand().getBrandName()
+                            product.getBrand().getBrandName(),
+                            product.getStatus()
+
                     );
 
                     return productListDTO;
@@ -183,5 +190,18 @@ public class ProductsService {
             return productRepository.findAll();
         }
         return productRepository.searchProducts(keyword);
+    }
+
+    // hàm đổi trạng thái
+    public boolean toggleStatus(Long productId) {
+        Products product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Sản phẩm không tồn tại"));
+
+        // Đổi trạng thái: true -> false hoặc false -> true
+        boolean currentStatus = product.getStatus() != null ? product.getStatus() : false; // Mặc định là false nếu null
+        product.setStatus(!currentStatus);
+
+        productRepository.save(product);
+        return product.getStatus(); // Trả về trạng thái mới
     }
 }
