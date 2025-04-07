@@ -13,5 +13,6 @@ public class CheckoutRequestDTO {
     private Long voucherId; // Nếu có thể sử dụng voucher
     private String type; // Loại đơn hàng
     private List<OrderItemDTO> items;
+    private String orderId;
 }
 

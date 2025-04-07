@@ -837,4 +837,29 @@ public class OrderService {
         List<Orders> orders = orderRepository.findOrdersByVoucherId(voucherId);
         return orders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
     }
+
+    public boolean checkOrderExists(String orderId) {
+        return orderRepository.existsByOrderId(orderId);
+    }
+
+    public Orders getOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
+    }
+
+    public Orders updateOrderStatusAndPayment(Long orderId, Long statusId, String paymentStatus) {
+        Orders order = getOrderById(orderId);
+        
+        if (statusId != null) {
+            StatusOrder statusOrder = statusOrderRepository.findById(statusId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy trạng thái với ID: " + statusId));
+            order.setStatusOrder(statusOrder);
+        }
+        
+        if (paymentStatus != null) {
+            order.setPaymentStatus(paymentStatus);
+        }
+        
+        return orderRepository.save(order);
+    }
 }

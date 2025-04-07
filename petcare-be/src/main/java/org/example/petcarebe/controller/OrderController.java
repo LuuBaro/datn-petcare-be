@@ -23,6 +23,19 @@ public class OrderController {
     @Autowired
     private CartDetailsService cartDetailsService;
 
+    @GetMapping("/check-exists/{orderId}")
+    public ResponseEntity<Map<String, Object>> checkOrderExists(@PathVariable String orderId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            boolean exists = orderService.checkOrderExists(orderId);
+            response.put("exists", exists);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("message", "Lỗi khi kiểm tra đơn hàng: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
     @PostMapping("/checkout")
     public ResponseEntity<Map<String, Object>> checkout(@RequestBody CheckoutRequestDTO request) {
         System.out.println("Received checkout request: " + request);
@@ -34,21 +47,32 @@ public class OrderController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
             }
 
+            // Kiểm tra xem đơn hàng đã tồn tại chưa
+            if (request.getOrderId() != null) {
+                boolean exists = orderService.checkOrderExists(request.getOrderId());
+                if (exists) {
+                    response.put("message", "Đơn hàng đã tồn tại");
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+                }
+            }
+
             // Gọi OrderService để tạo đơn hàng
             Orders order = orderService.checkout(request);
 
             // Trả về response với thông tin đơn hàng
             response.put("message", "Đặt hàng thành công");
             response.put("orderId", order.getOrderId());
-            response.put("paymentStatus", order.getPaymentStatus()); // Thêm paymentStatus vào response
+            response.put("paymentStatus", order.getPaymentStatus());
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             response.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        } catch (Exception e) {
+            response.put("message", "Lỗi server: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
-    // Các phương thức khác giữ nguyên
     @DeleteMapping("/clearCart/{productDetailId}")
     public ResponseEntity<Map<String, Object>> clearCart(@PathVariable Long productDetailId) {
         cartDetailsService.deleteCartDetails(productDetailId);
@@ -64,22 +88,38 @@ public class OrderController {
     }
 
     @PostMapping("/{orderId}/cancel")
-    public ResponseEntity<Map<String, Object>> cancelOrder(@PathVariable Long orderId, @RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> cancelOrder(
+            @PathVariable Long orderId,
+            @RequestBody Map<String, String> request) {
         Map<String, Object> response = new HashMap<>();
         try {
+            // Kiểm tra xem đơn hàng đã bị hủy chưa
+            Orders existingOrder = orderService.getOrderById(orderId);
+            if (existingOrder.getStatusOrder().getStatusId() == 5) {
+                response.put("message", "Đơn hàng này đã được hủy trước đó");
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+            }
+
             String reason = request.get("reason");
             if (reason == null || reason.trim().isEmpty()) {
                 response.put("message", "Lý do hủy không được để trống");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
             }
+
+            // Hủy đơn hàng và cập nhật trạng thái thanh toán
             Orders order = orderService.cancelOrder(orderId, reason);
+            
             response.put("message", "Đơn hàng đã được hủy thành công");
             response.put("orderId", order.getOrderId());
             response.put("status", order.getStatusOrder().getStatusName());
+            response.put("paymentStatus", order.getPaymentStatus());
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             response.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        } catch (Exception e) {
+            response.put("message", "Lỗi server: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
@@ -89,17 +129,39 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
-    @PutMapping("/{orderId}/{statusId}")
-    public ResponseEntity<?> updateOrderStatus(
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<Map<String, Object>> updateOrderStatus(
             @PathVariable Long orderId,
-            @PathVariable Long statusId,
-            @RequestBody(required = false) Map<String, String> requestBody) { // Thêm requestBody để nhận reason
+            @RequestBody Map<String, Object> requestBody
+    ) {
+        Map<String, Object> response = new HashMap<>();
         try {
-            String reason = (requestBody != null) ? requestBody.get("reason") : null;
-            Orders updatedOrder = orderService.updateOrderStatus(orderId, statusId, reason); // Truyền reason
-            return ResponseEntity.ok().body(Collections.singletonMap("updatedOrder", updatedOrder));
+            // Lấy các tham số từ request body
+            Long statusId = requestBody.get("statusId") != null ? 
+                Long.parseLong(requestBody.get("statusId").toString()) : null;
+            String paymentStatus = requestBody.get("paymentStatus") != null ? 
+                requestBody.get("paymentStatus").toString() : null;
+
+            // Kiểm tra dữ liệu đầu vào
+            if (statusId == null && paymentStatus == null) {
+                response.put("message", "Cần cung cấp statusId hoặc paymentStatus");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+
+            // Cập nhật trạng thái đơn hàng
+            Orders updatedOrder = orderService.updateOrderStatusAndPayment(orderId, statusId, paymentStatus);
+
+            response.put("message", "Cập nhật trạng thái đơn hàng thành công");
+            response.put("orderId", updatedOrder.getOrderId());
+            response.put("statusId", updatedOrder.getStatusOrder().getStatusId());
+            response.put("paymentStatus", updatedOrder.getPaymentStatus());
+            return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        } catch (Exception e) {
+            response.put("message", "Lỗi server: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
