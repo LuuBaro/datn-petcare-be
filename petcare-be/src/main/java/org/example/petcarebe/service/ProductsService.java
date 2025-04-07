@@ -116,8 +116,9 @@ public class ProductsService {
         // Lấy tất cả các sản phẩm từ ProductRepository
         List<Products> products = productRepository.findAll();
 
-        // Lọc và map các sản phẩm có ít nhất một ProductDetails
+        // Lọc và map các sản phẩm có ít nhất một ProductDetails và status = true
         return products.stream()
+                .filter(product -> product.getStatus() == true) // Thêm điều kiện lọc status = true
                 .filter(product -> !productDetailsRepository.findByProductId(product.getProductId()).isEmpty()) // Chỉ lấy sản phẩm có ProductDetails
                 .map(product -> {
                     // Lấy giá thấp nhất của sản phẩm
@@ -129,7 +130,8 @@ public class ProductsService {
                             product.getDescription(),
                             product.getImage(),
                             product.getCategories().getCategoryName(),
-                            product.getBrand().getBrandName()
+                            product.getBrand().getBrandName(),
+                            product.getStatus()
                     );
 
                     // Set giá trị price
@@ -187,11 +189,10 @@ public class ProductsService {
 
     public List<Products> searchProducts(String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {
-            return productRepository.findAll();
+            return productRepository.findByStatusTrue();
         }
         return productRepository.searchProducts(keyword);
     }
-
     // hàm đổi trạng thái
     public boolean toggleStatus(Long productId) {
         Products product = productRepository.findById(productId)

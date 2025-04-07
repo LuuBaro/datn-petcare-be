@@ -15,14 +15,16 @@ public class ProductsDTO {
     private String image;
     private String categoryName;  // Thêm thuộc tính loại sản phẩm
     private String brandName;
+    private Boolean status;
 
-    public ProductsDTO(Long productId, String productName, String description,String image, String categoryName, String brandName) {
+    public ProductsDTO(Long productId, String productName, String description,String image, String categoryName, String brandName, Boolean status) {
         this.productId = productId;
         this.productName = productName;
         this.description = description;
         this.image = image;
         this.categoryName = categoryName;
         this.brandName = brandName;
+        this.status = status;
     }
 
     public void setPrice(Float price) {
