@@ -29,7 +29,9 @@ public class Orders {
     private String type;
     private int pointEarned;
     private int pointUsed;
-
+    
+    @Column(name = "momo_order_id", nullable = true)
+    private String momoOrderId;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

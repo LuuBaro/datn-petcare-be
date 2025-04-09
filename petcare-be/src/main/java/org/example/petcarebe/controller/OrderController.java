@@ -5,6 +5,8 @@ import org.example.petcarebe.dto.request.CheckoutRequestDTO;
 import org.example.petcarebe.model.Orders;
 import org.example.petcarebe.service.CartDetailsService;
 import org.example.petcarebe.service.OrderService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,8 @@ import java.util.*;
 @RequestMapping("/api/orders")
 public class OrderController {
 
+    private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
+
     @Autowired
     private OrderService orderService;
 
@@ -24,7 +28,7 @@ public class OrderController {
     private CartDetailsService cartDetailsService;
 
     @GetMapping("/check-exists/{orderId}")
-    public ResponseEntity<Map<String, Object>> checkOrderExists(@PathVariable String orderId) {
+    public ResponseEntity<Map<String, Object>> checkOrderExists(@PathVariable Long orderId) {
         Map<String, Object> response = new HashMap<>();
         try {
             boolean exists = orderService.checkOrderExists(orderId);
@@ -132,40 +136,45 @@ public class OrderController {
     @PutMapping("/{orderId}/status")
     public ResponseEntity<Map<String, Object>> updateOrderStatus(
             @PathVariable Long orderId,
-            @RequestBody Map<String, Object> requestBody
-    ) {
+            @RequestBody Map<String, Object> request) {
+        
         Map<String, Object> response = new HashMap<>();
         try {
-            // Lấy các tham số từ request body
-            Long statusId = requestBody.get("statusId") != null ? 
-                Long.parseLong(requestBody.get("statusId").toString()) : null;
-            String paymentStatus = requestBody.get("paymentStatus") != null ? 
-                requestBody.get("paymentStatus").toString() : null;
-
-            // Kiểm tra dữ liệu đầu vào
-            if (statusId == null && paymentStatus == null) {
-                response.put("message", "Cần cung cấp statusId hoặc paymentStatus");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            Long statusId = request.get("statusId") != null ? 
+                    Long.valueOf(request.get("statusId").toString()) : null;
+            
+            String paymentStatus = request.get("paymentStatus") != null ? 
+                    request.get("paymentStatus").toString() : null;
+            
+            String cancelReason = request.get("cancelReason") != null ?
+                    request.get("cancelReason").toString() : null;
+            
+            logger.info("Updating order status: orderId={}, statusId={}, paymentStatus={}, cancelReason={}",
+                    orderId, statusId, paymentStatus, cancelReason);
+            
+            Orders order = orderService.updateOrderStatusAndPayment(orderId, statusId, paymentStatus);
+            
+            // Nếu có lý do hủy đơn, lưu lại
+            if (cancelReason != null && !cancelReason.isEmpty() && statusId != null && statusId == 5) {
+                orderService.addCancellationReason(orderId, cancelReason);
+                logger.info("Added cancellation reason for orderId={}: {}", orderId, cancelReason);
             }
-
-            // Cập nhật trạng thái đơn hàng
-            Orders updatedOrder = orderService.updateOrderStatusAndPayment(orderId, statusId, paymentStatus);
-
-            response.put("message", "Cập nhật trạng thái đơn hàng thành công");
-            response.put("orderId", updatedOrder.getOrderId());
-            response.put("statusId", updatedOrder.getStatusOrder().getStatusId());
-            response.put("paymentStatus", updatedOrder.getPaymentStatus());
+            
+            response.put("message", "Cập nhật trạng thái đơn hàng thành công!");
+            response.put("orderId", order.getOrderId());
+            response.put("newStatusId", order.getStatusOrder().getStatusId());
+            response.put("newStatusName", order.getStatusOrder().getStatusName());
+            response.put("paymentStatus", order.getPaymentStatus());
+            
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
+            logger.error("Error updating order status for orderId={}: {}", orderId, e.getMessage());
             response.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-        } catch (Exception e) {
-            response.put("message", "Lỗi server: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
-    @PutMapping("/{orderId}/status")
+    @PutMapping("/{orderId}/payment-status")
     public ResponseEntity<Map<String, Object>> updatePaymentStatus(
             @PathVariable Long orderId,
             @RequestBody Map<String, String> requestBody
@@ -242,6 +251,19 @@ public class OrderController {
         } catch (RuntimeException e) {
             response.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+
+    @GetMapping("/check-momo-order")
+    public ResponseEntity<Map<String, Object>> checkMomoOrderExists(@RequestParam String momoOrderId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            boolean exists = orderService.checkMomoOrderExists(momoOrderId);
+            response.put("exists", exists);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("message", "Lỗi khi kiểm tra đơn hàng MoMo: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
