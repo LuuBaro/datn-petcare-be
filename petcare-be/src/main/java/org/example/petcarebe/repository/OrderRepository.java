@@ -273,4 +273,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             @Param("startDate") Date startDate,
             @Param("endDate") Date endDate);
 
+    boolean existsByOrderId(Long orderId);
+    
+    List<Orders> findByMomoOrderId(String momoOrderId);
 }

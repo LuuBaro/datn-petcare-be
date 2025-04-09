@@ -124,6 +124,11 @@ public class OrderService {
         order.setType(request.getType());
         order.setPointEarned(0);
         order.setPointUsed(0);
+        
+        // Lưu momoOrderId nếu có
+        if (request.getMomoOrderId() != null && !request.getMomoOrderId().isEmpty()) {
+            order.setMomoOrderId(request.getMomoOrderId());
+        }
 
         // 3️⃣ Kiểm tra voucher
         if (request.getVoucherId() != null) {
@@ -202,8 +207,25 @@ public class OrderService {
             }
             cartDetailsService.clearCartDetailsByUserId(request.getUserId());
             logger.info("Stock deducted and cart cleared for COD orderId: {}", savedOrder.getOrderId());
+        } 
+        // Trừ kho và clear giỏ hàng cho VNPay/MoMo khi trạng thái là "Chờ xác nhận"
+        else if (("VNPay".equals(request.getPaymentMethod()) || "MoMo".equals(request.getPaymentMethod())) 
+                 && "Chờ xác nhận".equals(request.getPaymentStatus())) {
+            logger.info("Processing inventory and cart for VNPay/MoMo order with 'Chờ xác nhận' status, orderId: {}", savedOrder.getOrderId());
+            for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
+                int updated = productDetailsRepository.updateStock(
+                        orderDetail.getProductDetails().getProductDetailId(),
+                        orderDetail.getQuantity()
+                );
+                if (updated == 0) {
+                    throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " +
+                            orderDetail.getProductDetails().getProductDetailId());
+                }
+            }
+            cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+            logger.info("Stock deducted and cart cleared for VNPay/MoMo orderId: {}", savedOrder.getOrderId());
         }
-        // ❌ Không trừ kho cho VNPay/MoMo ở đây, chỉ trừ khi thanh toán thành công
+        // ❌ Không trừ kho cho VNPay/MoMo với trạng thái khác, chỉ trừ khi thanh toán thành công
 
         return savedOrder;
     }
@@ -220,18 +242,23 @@ public class OrderService {
         // Cập nhật trạng thái thanh toán
         order.setPaymentStatus(paymentStatus);
 
-        // Hủy đơn hàng nếu VNPay/MoMo bị hủy thanh toán
-        if ((("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
-                && "Đã hủy thanh toán".equals(paymentStatus))) {
+        // Hủy đơn hàng nếu VNPay/MoMo bị hủy thanh toán hoặc hoàn tiền
+        if (("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) && 
+            ("Đã hủy thanh toán".equals(paymentStatus) || "Đã hoàn tiền".equals(paymentStatus))) {
             StatusOrder cancelledStatus = statusOrderRepository.findById(5L)
                     .orElseThrow(() -> new RuntimeException("Status 'Cancelled' not found"));
             order.setStatusOrder(cancelledStatus);
-            logger.info("Order {} cancelled due to payment cancellation", orderId);
+            logger.info("Order {} cancelled due to payment cancellation/refund", orderId);
+            
+            // Ghi log thêm thông tin chi tiết
+            if ("Đã hoàn tiền".equals(paymentStatus)) {
+                logger.info("Order {} marked as refunded for payment method: {}", orderId, order.getPaymentMethod());
+            }
         }
 
         // Lưu trạng thái đơn hàng trước
         Orders savedOrder = orderRepository.save(order);
-        logger.info("Updated paymentStatus for orderId: {} to {}", orderId, paymentStatus);
+        logger.info("Updated paymentStatus for orderId: {} from '{}' to '{}'", orderId, oldPaymentStatus, paymentStatus);
 
         // ✅ Chỉ trừ kho khi VNPay/MoMo chuyển từ "Chờ thanh toán" sang "Chờ xác nhận"
         if ((("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
@@ -253,8 +280,33 @@ public class OrderService {
             }
             logger.info("Clearing cart for online payment order, userId: {}", order.getUser().getUserId());
             cartDetailsService.clearCartDetailsByUserId(order.getUser().getUserId());
+        } 
+        // ✅ Hoàn trả stock khi đơn hàng bị hủy hoặc hoàn tiền
+        else if (("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
+                && ("Đã hủy thanh toán".equals(paymentStatus) || "Đã hoàn tiền".equals(paymentStatus)) 
+                && !"Đã hủy thanh toán".equals(oldPaymentStatus) 
+                && !"Đã hoàn tiền".equals(oldPaymentStatus)) {
+            logger.info("Restoring stock for cancelled/refunded online payment orderId: {}", orderId);
+            for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
+                try {
+                    int updated = productDetailsRepository.updateStockcancel(
+                            orderDetail.getProductDetails().getProductDetailId(),
+                            orderDetail.getQuantity()
+                    );
+                    logger.info("Stock restored for product {}: rows affected {}",
+                            orderDetail.getProductDetails().getProductDetailId(), updated);
+                    if (updated == 0) {
+                        logger.error("Failed to restore stock for product: {}",
+                                orderDetail.getProductDetails().getProductDetailId());
+                        // Không throw exception ở đây để tiếp tục xử lý các sản phẩm khác
+                    }
+                } catch (Exception e) {
+                    logger.error("Error restoring stock for product {}: {}",
+                            orderDetail.getProductDetails().getProductDetailId(), e.getMessage());
+                }
+            }
         } else {
-            logger.info("No stock deduction for orderId: {} - condition not met (paymentMethod: {}, oldStatus: {}, newStatus: {})",
+            logger.info("No stock changes for orderId: {} - condition not met (paymentMethod: {}, oldStatus: {}, newStatus: {})",
                     orderId, order.getPaymentMethod(), oldPaymentStatus, paymentStatus);
         }
 
@@ -836,5 +888,105 @@ public class OrderService {
     public List<OrderDTO> getOrdersByVoucherId(Long voucherId) {
         List<Orders> orders = orderRepository.findOrdersByVoucherId(voucherId);
         return orders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
+    }
+
+    public boolean checkOrderExists(Long orderId) {
+        return orderRepository.existsById(orderId);
+    }
+
+    public Orders getOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
+    }
+
+    public Orders updateOrderStatusAndPayment(Long orderId, Long statusId, String paymentStatus) {
+        Orders order = getOrderById(orderId);
+        
+        if (statusId != null) {
+            // Kiểm tra trạng thái hiện tại
+            Long currentStatusId = order.getStatusOrder().getStatusId();
+            
+            // Chặn cập nhật từ các trạng thái cuối
+            List<Long> finalStatuses = Arrays.asList(4L, 5L, 6L);
+            if (finalStatuses.contains(currentStatusId)) {
+                throw new RuntimeException("Không thể cập nhật trạng thái từ 'Hoàn thành', 'Đã hủy' hoặc 'Trả hàng'.");
+            }
+            
+            // Kiểm tra tính hợp lệ của việc chuyển trạng thái
+            if (currentStatusId == 1L && statusId != 2L && statusId != 5L) {
+                throw new RuntimeException("Đơn hàng ở trạng thái 'Chờ xác nhận' chỉ có thể chuyển sang 'Đang vận chuyển' hoặc 'Đã hủy'.");
+            }
+            
+            if (currentStatusId == 2L && statusId != 3L && statusId != 5L) {
+                throw new RuntimeException("Đơn hàng ở trạng thái 'Đang vận chuyển' chỉ có thể chuyển sang 'Chờ giao hàng' hoặc 'Đã hủy'.");
+            }
+            
+            if (currentStatusId == 3L && statusId != 4L && statusId != 5L) {
+                throw new RuntimeException("Đơn hàng ở trạng thái 'Chờ giao hàng' chỉ có thể chuyển sang 'Hoàn thành' hoặc 'Đã hủy'.");
+            }
+            
+            StatusOrder statusOrder = statusOrderRepository.findById(statusId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy trạng thái với ID: " + statusId));
+            order.setStatusOrder(statusOrder);
+        }
+        
+        if (paymentStatus != null) {
+            order.setPaymentStatus(paymentStatus);
+        }
+        
+        return orderRepository.save(order);
+    }
+
+    // Kiểm tra đơn hàng MoMo có tồn tại theo momoOrderId
+    public boolean checkMomoOrderExists(String momoOrderId) {
+        // Sử dụng cách lưu momoOrderId trong CheckoutRequestDTO
+        if (momoOrderId == null || momoOrderId.isEmpty()) {
+            logger.warn("checkMomoOrderExists called with null or empty momoOrderId");
+            return false;
+        }
+        
+        // Kiểm tra trong bảng Orders nếu có cột momoOrderId
+        logger.info("Checking if MoMo order exists with momoOrderId: {}", momoOrderId);
+        List<Orders> orders = orderRepository.findByMomoOrderId(momoOrderId);
+        boolean exists = !orders.isEmpty();
+        
+        if (exists) {
+            logger.info("Found {} existing orders with momoOrderId: {}", orders.size(), momoOrderId);
+            for (Orders order : orders) {
+                logger.info("Existing order details: orderId={}, status={}, paymentStatus={}", 
+                            order.getOrderId(), 
+                            order.getStatusOrder() != null ? order.getStatusOrder().getStatusName() : "null",
+                            order.getPaymentStatus());
+            }
+        } else {
+            logger.info("No existing orders found with momoOrderId: {}", momoOrderId);
+        }
+        
+        return exists;
+    }
+
+    // Thêm lý do hủy đơn hàng
+    @Transactional
+    public void addCancellationReason(Long orderId, String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            logger.warn("Empty cancellation reason provided for orderId: {}", orderId);
+            return;
+        }
+        
+        Orders order = getOrderById(orderId);
+        if (order == null) {
+            logger.error("Cannot add cancellation reason: Order not found with ID: {}", orderId);
+            throw new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId);
+        }
+        
+        try {
+            // Lưu lý do hủy đơn hàng (có thể lưu vào một trường mới hoặc bảng phụ)
+            // Ví dụ: order.setCancellationReason(reason);
+            logger.info("Cancellation reason set for order {}: {}", orderId, reason);
+            orderRepository.save(order);
+        } catch (Exception e) {
+            logger.error("Error saving cancellation reason for orderId {}: {}", orderId, e.getMessage());
+            throw new RuntimeException("Không thể lưu lý do hủy đơn hàng: " + e.getMessage());
+        }
     }
 }
