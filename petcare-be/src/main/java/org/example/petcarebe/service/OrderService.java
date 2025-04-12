@@ -1,5 +1,7 @@
 package org.example.petcarebe.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.internet.MimeMessage;
 import org.example.petcarebe.controller.WebSocketController;
 import org.example.petcarebe.dto.OrderDTO;
@@ -20,14 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-
 import java.sql.Timestamp;
-
-
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
-
 import java.util.stream.Collectors;
 
 @Service
@@ -63,6 +61,9 @@ public class OrderService {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private EmailService emailService;
 
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
@@ -124,6 +125,21 @@ public class OrderService {
         order.setType(request.getType());
         order.setPointEarned(0);
         order.setPointUsed(0);
+        
+        // Lưu momoOrderId nếu có
+        if (request.getMomoOrderId() != null && !request.getMomoOrderId().isEmpty()) {
+            order.setMomoOrderId(request.getMomoOrderId());
+        }
+        
+        // Lưu momoTransId nếu có
+        if (request.getMomoTransId() != null && !request.getMomoTransId().isEmpty()) {
+            order.setMomoTransId(request.getMomoTransId());
+        }
+        
+        // Lưu momoAmount nếu có
+        if (request.getMomoAmount() != null && !request.getMomoAmount().isEmpty()) {
+            order.setMomoAmount(request.getMomoAmount());
+        }
 
         // 3️⃣ Kiểm tra voucher
         if (request.getVoucherId() != null) {
@@ -202,8 +218,25 @@ public class OrderService {
             }
             cartDetailsService.clearCartDetailsByUserId(request.getUserId());
             logger.info("Stock deducted and cart cleared for COD orderId: {}", savedOrder.getOrderId());
+        } 
+        // Trừ kho và clear giỏ hàng cho VNPay/MoMo khi trạng thái là "Chờ xác nhận"
+        else if (("VNPay".equals(request.getPaymentMethod()) || "MoMo".equals(request.getPaymentMethod())) 
+                 && "Chờ xác nhận".equals(request.getPaymentStatus())) {
+            logger.info("Processing inventory and cart for VNPay/MoMo order with 'Chờ xác nhận' status, orderId: {}", savedOrder.getOrderId());
+            for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
+                int updated = productDetailsRepository.updateStock(
+                        orderDetail.getProductDetails().getProductDetailId(),
+                        orderDetail.getQuantity()
+                );
+                if (updated == 0) {
+                    throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " +
+                            orderDetail.getProductDetails().getProductDetailId());
+                }
+            }
+            cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+            logger.info("Stock deducted and cart cleared for VNPay/MoMo orderId: {}", savedOrder.getOrderId());
         }
-        // ❌ Không trừ kho cho VNPay/MoMo ở đây, chỉ trừ khi thanh toán thành công
+        // ❌ Không trừ kho cho VNPay/MoMo với trạng thái khác, chỉ trừ khi thanh toán thành công
 
         return savedOrder;
     }
@@ -220,18 +253,23 @@ public class OrderService {
         // Cập nhật trạng thái thanh toán
         order.setPaymentStatus(paymentStatus);
 
-        // Hủy đơn hàng nếu VNPay/MoMo bị hủy thanh toán
-        if ((("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
-                && "Đã hủy thanh toán".equals(paymentStatus))) {
+        // Hủy đơn hàng nếu VNPay/MoMo bị hủy thanh toán hoặc hoàn tiền
+        if (("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) && 
+            ("Đã hủy thanh toán".equals(paymentStatus) || "Đã hoàn tiền".equals(paymentStatus))) {
             StatusOrder cancelledStatus = statusOrderRepository.findById(5L)
                     .orElseThrow(() -> new RuntimeException("Status 'Cancelled' not found"));
             order.setStatusOrder(cancelledStatus);
-            logger.info("Order {} cancelled due to payment cancellation", orderId);
+            logger.info("Order {} cancelled due to payment cancellation/refund", orderId);
+            
+            // Ghi log thêm thông tin chi tiết
+            if ("Đã hoàn tiền".equals(paymentStatus)) {
+                logger.info("Order {} marked as refunded for payment method: {}", orderId, order.getPaymentMethod());
+            }
         }
 
         // Lưu trạng thái đơn hàng trước
         Orders savedOrder = orderRepository.save(order);
-        logger.info("Updated paymentStatus for orderId: {} to {}", orderId, paymentStatus);
+        logger.info("Updated paymentStatus for orderId: {} from '{}' to '{}'", orderId, oldPaymentStatus, paymentStatus);
 
         // ✅ Chỉ trừ kho khi VNPay/MoMo chuyển từ "Chờ thanh toán" sang "Chờ xác nhận"
         if ((("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
@@ -253,8 +291,33 @@ public class OrderService {
             }
             logger.info("Clearing cart for online payment order, userId: {}", order.getUser().getUserId());
             cartDetailsService.clearCartDetailsByUserId(order.getUser().getUserId());
+        } 
+        // ✅ Hoàn trả stock khi đơn hàng bị hủy hoặc hoàn tiền
+        else if (("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
+                && ("Đã hủy thanh toán".equals(paymentStatus) || "Đã hoàn tiền".equals(paymentStatus)) 
+                && !"Đã hủy thanh toán".equals(oldPaymentStatus) 
+                && !"Đã hoàn tiền".equals(oldPaymentStatus)) {
+            logger.info("Restoring stock for cancelled/refunded online payment orderId: {}", orderId);
+            for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
+                try {
+                    int updated = productDetailsRepository.updateStockcancel(
+                            orderDetail.getProductDetails().getProductDetailId(),
+                            orderDetail.getQuantity()
+                    );
+                    logger.info("Stock restored for product {}: rows affected {}",
+                            orderDetail.getProductDetails().getProductDetailId(), updated);
+                    if (updated == 0) {
+                        logger.error("Failed to restore stock for product: {}",
+                                orderDetail.getProductDetails().getProductDetailId());
+                        // Không throw exception ở đây để tiếp tục xử lý các sản phẩm khác
+                    }
+                } catch (Exception e) {
+                    logger.error("Error restoring stock for product {}: {}",
+                            orderDetail.getProductDetails().getProductDetailId(), e.getMessage());
+                }
+            }
         } else {
-            logger.info("No stock deduction for orderId: {} - condition not met (paymentMethod: {}, oldStatus: {}, newStatus: {})",
+            logger.info("No stock changes for orderId: {} - condition not met (paymentMethod: {}, oldStatus: {}, newStatus: {})",
                     orderId, order.getPaymentMethod(), oldPaymentStatus, paymentStatus);
         }
 
@@ -323,23 +386,37 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Status 'Cancelled' not found"));
         order.setStatusOrder(cancelledStatus);
 
-        if ("COD".equals(order.getPaymentMethod()) ||
-                (("VNPay".equals(order.getPaymentMethod()) || "MoMo".equals(order.getPaymentMethod())) 
-                 && !"Chờ thanh toán".equals(order.getPaymentStatus()))) {
+        // Luôn khôi phục tồn kho khi hủy đơn hàng, bất kể phương thức thanh toán và trạng thái
+        try {
             for (OrderDetails orderDetail : order.getOrderDetails()) {
                 int updated = productDetailsRepository.updateStockcancel(
                         orderDetail.getProductDetails().getProductDetailId(),
                         orderDetail.getQuantity()
                 );
                 if (updated == 0) {
-                    throw new RuntimeException("Cập nhật tồn kho thất bại cho sản phẩm: " +
+                    logger.error("Cập nhật tồn kho thất bại cho sản phẩm: {}", 
+                            orderDetail.getProductDetails().getProductDetailId());
+                    // Không throw exception, tiếp tục quá trình hủy đơn và các mặt hàng khác
+                } else {
+                    logger.info("Đã khôi phục {} sản phẩm {} vào kho", 
+                            orderDetail.getQuantity(), 
                             orderDetail.getProductDetails().getProductDetailId());
                 }
             }
-            logger.info("Stock restored for cancelled orderId: {}", orderId);
+            logger.info("Đã khôi phục tồn kho cho đơn hàng bị hủy, orderId: {}", orderId);
+        } catch (Exception e) {
+            logger.error("Lỗi khi khôi phục tồn kho cho đơn hàng {}: {}", orderId, e.getMessage());
+            // Vẫn tiếp tục quá trình hủy đơn
         }
 
         Orders savedOrder = orderRepository.save(order);
+        
+        // Cập nhật trạng thái thanh toán thành "Đã hoàn tiền" nếu là MoMo hoặc VNPay
+        if ("MoMo".equals(order.getPaymentMethod()) || "VNPay".equals(order.getPaymentMethod())) {
+            order.setPaymentStatus("Đã hoàn tiền");
+            logger.info("Đã cập nhật trạng thái thanh toán thành 'Đã hoàn tiền' cho đơn hàng {}", orderId);
+        }
+
         sendCancelNotificationToAdmin(savedOrder, reason);
 
         Long userId = order.getUser().getUserId();
@@ -350,12 +427,9 @@ public class OrderService {
     }
 
     private void sendCancelNotificationToAdmin(Orders order, String reason) {
-        MimeMessage message = mailSender.createMimeMessage();
         try {
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setTo("baolgpc08011@fpt.edu.vn");
-            helper.setSubject("Thông báo: Đơn hàng #" + order.getOrderId() + " đã bị hủy");
-            helper.setFrom("baolgpc08011@fpt.edu.vn");
+            String adminEmail = "baolgpc08011@fpt.edu.vn"; // Email admin
+            String subject = "Thông báo: Đơn hàng #" + order.getOrderId() + " đã bị hủy";
 
             // Nội dung email HTML với background cho h2
             String htmlContent = "<!DOCTYPE html>" +
@@ -395,11 +469,17 @@ public class OrderService {
                     "</body>" +
                     "</html>";
 
-            helper.setText(htmlContent, true); // true = HTML content
-            mailSender.send(message);
-            logger.info("Email thông báo hủy đơn hàng #{} đã được gửi đến Admin.", order.getOrderId());
+            // Sử dụng EmailService để gửi email
+            boolean success = emailService.sendHtmlEmail(adminEmail, subject, htmlContent);
+            
+            if (success) {
+                logger.info("Email thông báo hủy đơn hàng #{} đã được gửi thành công đến Admin.", order.getOrderId());
+            } else {
+                logger.warn("Không thể gửi email thông báo hủy đơn hàng #{} đến Admin.", order.getOrderId());
+            }
         } catch (Exception e) {
-            logger.error("Lỗi khi gửi email thông báo hủy đơn hàng #{}: {}", order.getOrderId(), e.getMessage());
+            logger.error("Lỗi khi gửi email thông báo hủy đơn hàng #{} đến Admin: {}", order.getOrderId(), e.getMessage());
+            e.printStackTrace(); // In stack trace để debug
         }
     }
 
@@ -749,18 +829,15 @@ public class OrderService {
     }
 
     private void sendCancelNotificationToUser(Orders order, String reason) {
-        MimeMessage message = mailSender.createMimeMessage();
         try {
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            String userEmail = order.getUser().getEmail(); // Giả định User có trường email
+            String userEmail = order.getUser().getEmail(); // Lấy email từ user
             if (userEmail == null || userEmail.isEmpty()) {
                 logger.warn("Không tìm thấy email của người dùng cho đơn hàng #{}", order.getOrderId());
                 return;
             }
-            helper.setTo(userEmail);
-            helper.setSubject("Thông báo: Đơn hàng #" + order.getOrderId() + " của bạn đã bị hủy");
-            helper.setFrom("baolgpc08011@fpt.edu.vn");
-
+            
+            String subject = "Thông báo: Đơn hàng #" + order.getOrderId() + " của bạn đã bị hủy";
+            
             // Định dạng ngày giờ theo giờ Việt Nam
             java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
                     .withZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
@@ -825,16 +902,273 @@ public class OrderService {
                     "</body>" +
                     "</html>";
 
-            helper.setText(htmlContent, true); // true = HTML content
-            mailSender.send(message);
-            logger.info("Email thông báo hủy đơn hàng #{} đã được gửi đến người dùng: {}", order.getOrderId(), userEmail);
+            // Sử dụng EmailService để gửi email
+            boolean success = emailService.sendHtmlEmail(userEmail, subject, htmlContent);
+            
+            if (success) {
+                logger.info("Email thông báo hủy đơn hàng #{} đã được gửi thành công đến người dùng: {}", 
+                           order.getOrderId(), userEmail);
+            } else {
+                logger.warn("Không thể gửi email thông báo hủy đơn hàng #{} đến người dùng: {}", 
+                          order.getOrderId(), userEmail);
+            }
         } catch (Exception e) {
-            logger.error("Lỗi khi gửi email thông báo hủy đơn hàng #{} đến người dùng: {}", order.getOrderId(), e.getMessage());
+            logger.error("Lỗi khi gửi email thông báo hủy đơn hàng #{} đến người dùng: {}", 
+                       order.getOrderId(), e.getMessage());
+            e.printStackTrace(); // In stack trace để debug
         }
     }
 
     public List<OrderDTO> getOrdersByVoucherId(Long voucherId) {
         List<Orders> orders = orderRepository.findOrdersByVoucherId(voucherId);
         return orders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
+    }
+
+    public boolean checkOrderExists(Long orderId) {
+        return orderRepository.existsById(orderId);
+    }
+
+    public boolean checkOrderExists(String orderIdStr) {
+        if (orderIdStr == null || orderIdStr.isEmpty()) {
+            return false;
+        }
+        try {
+            Long orderId = Long.parseLong(orderIdStr);
+            return checkOrderExists(orderId);
+        } catch (NumberFormatException e) {
+            logger.warn("Invalid orderId format: {}", orderIdStr);
+            return false;
+        }
+    }
+
+    public Orders getOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
+    }
+
+    public Orders updateOrderStatusAndPayment(Long orderId, Long statusId, String paymentStatus) {
+        Orders order = getOrderById(orderId);
+        
+        logger.info("Updating order status and payment: orderId={}, statusId={}, paymentStatus={}", 
+                orderId, statusId, paymentStatus);
+        
+        String oldStatus = order.getStatusOrder() != null ? order.getStatusOrder().getStatusName() : "null";
+        String oldPaymentStatus = order.getPaymentStatus();
+        
+        if (statusId != null) {
+            // Kiểm tra trạng thái hiện tại
+            Long currentStatusId = order.getStatusOrder().getStatusId();
+            
+            // Chặn cập nhật từ các trạng thái cuối
+            List<Long> finalStatuses = Arrays.asList(4L, 5L, 6L);
+            if (finalStatuses.contains(currentStatusId)) {
+                throw new RuntimeException("Không thể cập nhật trạng thái từ 'Hoàn thành', 'Đã hủy' hoặc 'Trả hàng'.");
+            }
+            
+            // Kiểm tra tính hợp lệ của việc chuyển trạng thái
+            if (currentStatusId == 1L && statusId != 2L && statusId != 5L) {
+                throw new RuntimeException("Đơn hàng ở trạng thái 'Chờ xác nhận' chỉ có thể chuyển sang 'Đang vận chuyển' hoặc 'Đã hủy'.");
+            }
+            
+            if (currentStatusId == 2L && statusId != 3L && statusId != 5L) {
+                throw new RuntimeException("Đơn hàng ở trạng thái 'Đang vận chuyển' chỉ có thể chuyển sang 'Chờ giao hàng' hoặc 'Đã hủy'.");
+            }
+            
+            if (currentStatusId == 3L && statusId != 4L && statusId != 5L) {
+                throw new RuntimeException("Đơn hàng ở trạng thái 'Chờ giao hàng' chỉ có thể chuyển sang 'Hoàn thành' hoặc 'Đã hủy'.");
+            }
+            
+            StatusOrder statusOrder = statusOrderRepository.findById(statusId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy trạng thái với ID: " + statusId));
+            order.setStatusOrder(statusOrder);
+            
+            // Nếu chuyển sang trạng thái "Hoàn thành" (statusId = 4) và không có paymentStatus cụ thể
+            if (statusId == 4L && paymentStatus == null) {
+                logger.info("Auto setting paymentStatus to 'Đã thanh toán' for completed order: {}", orderId);
+                order.setPaymentStatus("Đã thanh toán");
+            }
+        }
+        
+        // Chỉ cập nhật paymentStatus khi có giá trị rõ ràng
+        if (paymentStatus != null) {
+            logger.info("Explicitly updating paymentStatus for orderId={} from '{}' to '{}'", 
+                    orderId, oldPaymentStatus, paymentStatus);
+            order.setPaymentStatus(paymentStatus);
+        }
+        
+        Orders savedOrder = orderRepository.save(order);
+        
+        logger.info("Updated order: {} status from '{}' to '{}', paymentStatus from '{}' to '{}'", 
+                orderId, oldStatus, savedOrder.getStatusOrder().getStatusName(), 
+                oldPaymentStatus, savedOrder.getPaymentStatus());
+        
+        // Nếu trạng thái mới là "Đã hủy" (statusId = 5), khôi phục tồn kho
+        if (statusId != null && statusId == 5L) {
+            try {
+                for (OrderDetails orderDetail : order.getOrderDetails()) {
+                    int updated = productDetailsRepository.updateStockcancel(
+                            orderDetail.getProductDetails().getProductDetailId(),
+                            orderDetail.getQuantity()
+                    );
+                    if (updated > 0) {
+                        logger.info("Đã khôi phục {} sản phẩm {} vào kho khi cập nhật trạng thái sang Đã hủy", 
+                                orderDetail.getQuantity(), 
+                                orderDetail.getProductDetails().getProductDetailId());
+                    } else {
+                        logger.error("Không thể khôi phục tồn kho cho sản phẩm {} khi hủy đơn", 
+                                orderDetail.getProductDetails().getProductDetailId());
+                    }
+                }
+                logger.info("Đã khôi phục tồn kho cho đơn hàng {} khi cập nhật trạng thái sang Đã hủy", orderId);
+            } catch (Exception e) {
+                logger.error("Lỗi khi khôi phục tồn kho cho đơn hàng {} sau khi cập nhật trạng thái: {}", 
+                        orderId, e.getMessage());
+            }
+        }
+        
+        return savedOrder;
+    }
+
+    // Kiểm tra đơn hàng MoMo có tồn tại theo momoOrderId
+    public boolean checkMomoOrderExists(String momoOrderId) {
+        // Sử dụng cách lưu momoOrderId trong CheckoutRequestDTO
+        if (momoOrderId == null || momoOrderId.isEmpty()) {
+            logger.warn("checkMomoOrderExists called with null or empty momoOrderId");
+            return false;
+        }
+        
+        // Kiểm tra trong bảng Orders nếu có cột momoOrderId
+        logger.info("Checking if MoMo order exists with momoOrderId: {}", momoOrderId);
+        List<Orders> orders = orderRepository.findByMomoOrderId(momoOrderId);
+        boolean exists = !orders.isEmpty();
+        
+        if (exists) {
+            logger.info("Found {} existing orders with momoOrderId: {}", orders.size(), momoOrderId);
+            for (Orders order : orders) {
+                logger.info("Existing order details: orderId={}, status={}, paymentStatus={}", 
+                            order.getOrderId(), 
+                            order.getStatusOrder() != null ? order.getStatusOrder().getStatusName() : "null",
+                            order.getPaymentStatus());
+            }
+        } else {
+            logger.info("No existing orders found with momoOrderId: {}", momoOrderId);
+        }
+        
+        return exists;
+    }
+
+    // Thêm lý do hủy đơn hàng
+    @Transactional
+    public void addCancellationReason(Long orderId, String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            logger.warn("Empty cancellation reason provided for orderId: {}", orderId);
+            return;
+        }
+        
+        Orders order = getOrderById(orderId);
+        if (order == null) {
+            logger.error("Cannot add cancellation reason: Order not found with ID: {}", orderId);
+            throw new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId);
+        }
+        
+        try {
+            // Lưu lý do hủy đơn hàng (có thể lưu vào một trường mới hoặc bảng phụ)
+            // Ví dụ: order.setCancellationReason(reason);
+            logger.info("Cancellation reason set for order {}: {}", orderId, reason);
+            orderRepository.save(order);
+        } catch (Exception e) {
+            logger.error("Error saving cancellation reason for orderId {}: {}", orderId, e.getMessage());
+            throw new RuntimeException("Không thể lưu lý do hủy đơn hàng: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Cập nhật thông tin thanh toán MoMo cho đơn hàng
+     * @param orderId ID đơn hàng
+     * @param momoOrderId ID đơn hàng từ MoMo
+     * @param momoTransId ID giao dịch từ MoMo
+     * @param momoAmount Số tiền thanh toán qua MoMo
+     * @return Đối tượng đơn hàng đã cập nhật
+     */
+    @Transactional
+    public Orders updateMomoInfo(Long orderId, String momoOrderId, String momoTransId, String momoAmount) {
+        // Tìm đơn hàng
+        Orders order = getOrderById(orderId);
+        
+        // Kiểm tra phương thức thanh toán
+        if (!"MoMo".equals(order.getPaymentMethod())) {
+            logger.warn("Attempt to update MoMo info for non-MoMo payment method: {}", order.getPaymentMethod());
+            throw new RuntimeException("Không thể cập nhật thông tin MoMo cho đơn hàng không thanh toán qua MoMo");
+        }
+        
+        // Cập nhật thông tin MoMo
+        if (momoOrderId != null && !momoOrderId.isEmpty()) {
+            order.setMomoOrderId(momoOrderId);
+        }
+        
+        if (momoTransId != null && !momoTransId.isEmpty()) {
+            order.setMomoTransId(momoTransId);
+        }
+        
+        // Xử lý trường hợp momoAmount là undefined, NaN hoặc không hợp lệ
+        if (momoAmount != null && !momoAmount.isEmpty() && 
+            !"undefined".equals(momoAmount) && !"NaN".equals(momoAmount)) {
+            // Thử parse giá trị để xác nhận là số hợp lệ
+            try {
+                // Kiểm tra xem có phải là số hợp lệ không
+                double amount = Double.parseDouble(momoAmount);
+                if (Double.isNaN(amount)) {
+                    throw new NumberFormatException("Value is NaN");
+                }
+                logger.info("Cập nhật momoAmount cho đơn hàng {}: {}", orderId, momoAmount);
+                order.setMomoAmount(momoAmount);
+            } catch (NumberFormatException e) {
+                // Nếu không phải số hợp lệ, sử dụng giá trị totalAmount thay thế
+                String totalAmountStr = String.valueOf(Math.round(order.getTotalAmount()));
+                order.setMomoAmount(totalAmountStr);
+                logger.info("momoAmount không phải là số hợp lệ ({}), thay thế bằng totalAmount cho đơn hàng {}: {}", 
+                        momoAmount, orderId, totalAmountStr);
+            }
+        } else {
+            // Sử dụng totalAmount nếu momoAmount không hợp lệ
+            String totalAmountStr = String.valueOf(Math.round(order.getTotalAmount()));
+            order.setMomoAmount(totalAmountStr);
+            logger.info("Thay thế momoAmount không hợp lệ ({}) bằng totalAmount cho đơn hàng {}: {}", 
+                    momoAmount, orderId, totalAmountStr);
+        }
+        
+        logger.info("Updated MoMo info for orderId={}: momoOrderId={}, momoTransId={}, momoAmount={}", 
+                orderId, momoOrderId, momoTransId, order.getMomoAmount());
+        
+        // Lưu và trả về đơn hàng cập nhật
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Tìm các đơn hàng theo phương thức thanh toán
+     * @param paymentMethod Phương thức thanh toán cần tìm
+     * @return Danh sách đơn hàng 
+     */
+    public List<Orders> findByPaymentMethod(String paymentMethod) {
+        return orderRepository.findByPaymentMethod(paymentMethod);
+    }
+    
+    /**
+     * Lưu đối tượng Orders vào cơ sở dữ liệu
+     * @param order Đối tượng Orders cần lưu
+     * @return Đối tượng Orders đã được lưu
+     */
+    public Orders save(Orders order) {
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Lấy thông tin đơn hàng dưới dạng DTO theo ID
+     * @param orderId ID của đơn hàng cần tìm
+     * @return OrderDTO chứa thông tin đơn hàng
+     */
+    public OrderDTO getOrderDTOById(Long orderId) {
+        Orders order = getOrderById(orderId);
+        return convertToOrderDTO(order);
     }
 }
