@@ -30,12 +30,6 @@ public class ReviewsController {
         }
     }
 
-    // API lấy đánh giá theo OrderDetailId
-//    @GetMapping("/order-detail/{orderDetailId}")
-//    public ResponseEntity<List<ReviewDTO>> getReviewsByOrderDetail(@PathVariable Long orderDetailId) {
-//        List<ReviewDTO> reviews = reviewsService.getReviewsByOrderDetails(orderDetailId);
-//        return ResponseEntity.ok(reviews);
-//    }
 
     // API lấy đánh giá theo UserId
     @GetMapping("/user/{userId}")
@@ -43,13 +37,6 @@ public class ReviewsController {
         List<ReviewDTO> reviews = reviewsService.getReviewsByUser(userId);
         return ResponseEntity.ok(reviews);
     }
-
-    // API lấy đánh giá theo ProductDetailId
-//    @GetMapping("/product-detail/{productDetailId}")
-//    public ResponseEntity<List<ReviewDTO>> getReviewsByProductDetail(@PathVariable Long productDetailId) {
-//        List<ReviewDTO> reviews = reviewsService.getReviewsByOrderDetails(productDetailId);
-//        return ResponseEntity.ok(reviews);
-//    }
 
 
     // API lấy đánh giá theo ProductDetailId
