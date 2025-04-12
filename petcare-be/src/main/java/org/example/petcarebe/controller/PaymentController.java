@@ -44,4 +44,25 @@ public class PaymentController {
             return ResponseEntity.badRequest().body(errorResponse);
         }
     }
+    
+    // API Hoàn tiền MoMo dựa trên orderId nội bộ
+    @PostMapping("/momo/refund/order/{orderId}")
+    public ResponseEntity<?> refundMomoPaymentByOrderId(
+            @PathVariable Long orderId, 
+            @RequestBody Map<String, String> request) {
+        try {
+            String description = request.get("description");
+            if (description == null || description.trim().isEmpty()) {
+                description = "Hoàn tiền cho đơn hàng #" + orderId;
+            }
+            
+            Map<String, Object> result = paymentService.refundMomoPaymentByOrderId(orderId, description);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to refund MoMo payment for order");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
 }

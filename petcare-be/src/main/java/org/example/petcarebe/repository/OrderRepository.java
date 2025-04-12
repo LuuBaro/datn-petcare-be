@@ -276,4 +276,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     boolean existsByOrderId(Long orderId);
     
     List<Orders> findByMomoOrderId(String momoOrderId);
+    
+    // Tìm đơn hàng theo phương thức thanh toán
+    List<Orders> findByPaymentMethod(String paymentMethod);
 }

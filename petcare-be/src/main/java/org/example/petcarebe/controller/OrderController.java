@@ -267,4 +267,115 @@ public class OrderController {
         }
     }
 
+    @PutMapping("/{orderId}")
+    public ResponseEntity<Map<String, Object>> updateOrderMomoInfo(
+            @PathVariable Long orderId,
+            @RequestBody Map<String, String> request
+    ) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String momoOrderId = request.get("momoOrderId");
+            String momoTransId = request.get("momoTransId");
+            String momoAmount = request.get("momoAmount");
+            
+            logger.info("Updating MoMo info for orderId={}: momoOrderId={}, momoTransId={}, momoAmount={}", 
+                    orderId, momoOrderId, momoTransId, momoAmount);
+            
+            Orders order = orderService.updateMomoInfo(orderId, momoOrderId, momoTransId, momoAmount);
+            
+            response.put("message", "Cập nhật thông tin thanh toán MoMo thành công");
+            response.put("orderId", order.getOrderId());
+            response.put("momoOrderId", order.getMomoOrderId());
+            
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            logger.error("Error updating MoMo info for orderId={}: {}", orderId, e.getMessage());
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        } catch (Exception e) {
+            logger.error("Server error when updating MoMo info for orderId={}: {}", orderId, e.getMessage());
+            response.put("message", "Lỗi server: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    // API để sửa lỗi các đơn hàng có momoAmount là "undefined"
+    @PostMapping("/fix-undefined-momo-amount")
+    public ResponseEntity<Map<String, Object>> fixUndefinedMomoAmount() {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            logger.info("Bắt đầu xử lý yêu cầu sửa lỗi momoAmount 'undefined' hoặc 'NaN'");
+            
+            // Lấy tất cả đơn hàng thanh toán qua MoMo
+            List<Orders> momoOrders = orderService.findByPaymentMethod("MoMo");
+            
+            int fixedCount = 0;
+            List<Long> fixedOrderIds = new ArrayList<>();
+            
+            for (Orders order : momoOrders) {
+                String momoAmount = order.getMomoAmount();
+                
+                // Kiểm tra nếu momoAmount là undefined, NaN hoặc không phải là số hợp lệ
+                boolean needsFix = momoAmount == null || 
+                                 momoAmount.isEmpty() || 
+                                 "undefined".equals(momoAmount) ||
+                                 "NaN".equals(momoAmount);
+                
+                // Kiểm tra thêm nếu là chuỗi số hợp lệ
+                if (!needsFix) {
+                    try {
+                        double amount = Double.parseDouble(momoAmount);
+                        if (Double.isNaN(amount) || amount <= 0) {
+                            needsFix = true;
+                        }
+                    } catch (NumberFormatException e) {
+                        // Không phải số hợp lệ
+                        needsFix = true;
+                    }
+                }
+                
+                if (needsFix) {
+                    // Sử dụng totalAmount thay thế
+                    String newAmount = String.valueOf(Math.round(order.getTotalAmount()));
+                    order.setMomoAmount(newAmount);
+                    
+                    // Lưu đơn hàng
+                    orderService.save(order);
+                    
+                    logger.info("Đã sửa momoAmount từ '{}' thành '{}' cho đơn hàng {}", 
+                            momoAmount, newAmount, order.getOrderId());
+                    
+                    fixedCount++;
+                    fixedOrderIds.add(order.getOrderId());
+                }
+            }
+            
+            response.put("success", true);
+            response.put("message", "Đã sửa thành công " + fixedCount + " đơn hàng có momoAmount không hợp lệ");
+            response.put("fixedCount", fixedCount);
+            response.put("fixedOrderIds", fixedOrderIds);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Lỗi khi sửa momoAmount: " + e.getMessage(), e);
+            
+            response.put("success", false);
+            response.put("message", "Lỗi khi sửa momoAmount: " + e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<?> getOrderById(@PathVariable Long orderId) {
+        try {
+            OrderDTO orderDTO = orderService.getOrderDTOById(orderId);
+            return ResponseEntity.ok(orderDTO);
+        } catch (RuntimeException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        }
+    }
+
 }
