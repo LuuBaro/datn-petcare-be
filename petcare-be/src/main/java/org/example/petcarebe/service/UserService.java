@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -28,6 +30,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService implements UserDetailsService {
@@ -49,13 +52,18 @@ public class UserService implements UserDetailsService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // 1. UserDetailsService method
+    @Transactional
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email);
         if (user == null) {
             throw new UsernameNotFoundException("User not found with email: " + email);
         }
+
+        List<GrantedAuthority> authorities = user.getUserRoles().stream()
+                .map(role -> new SimpleGrantedAuthority(role.getRoleName()))
+                .collect(Collectors.toList());
+
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
@@ -63,9 +71,11 @@ public class UserService implements UserDetailsService {
                 true,
                 true,
                 true,
-                new ArrayList<>()
+                authorities
         );
     }
+
+
 
     // 2. CRUD methods
     public void saveUser(User user) {

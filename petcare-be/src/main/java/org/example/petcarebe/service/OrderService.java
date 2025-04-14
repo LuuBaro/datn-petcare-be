@@ -201,6 +201,7 @@ public class OrderService {
                 }
             }
             cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+
             logger.info("Stock deducted and cart cleared for COD orderId: {}", savedOrder.getOrderId());
         }
         // ❌ Không trừ kho cho VNPay/MoMo ở đây, chỉ trừ khi thanh toán thành công

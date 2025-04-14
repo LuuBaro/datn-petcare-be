@@ -7,6 +7,7 @@ import org.example.petcarebe.service.ProductColorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,6 +32,7 @@ public class ProductColorController {
     public Optional<ProductColors> getProductColors(@PathVariable long productColorId) {return productColorService.getProductColorById(productColorId);}
 
     @PostMapping("/createProductColor")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ProductColors> createProductColor(@RequestBody @Valid ProductColors productColors) {
         ProductColors createProductColor = productColorService.saveProductColor(productColors);
         return ResponseEntity.status(201).body(createProductColor);

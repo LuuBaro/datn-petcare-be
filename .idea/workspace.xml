@@ -5,17 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f30310c1-7733-4c0e-bce6-0da4e7e1c370" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/NotificationController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/model/Notification.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/repository/NotificationRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/NotificationService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/CustomAccessDeniedHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/SecurityConstants.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/PetcareBeApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/PetcareBeApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/WebSocketConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/WebSocketConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/WebSocketController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/WebSocketController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/JwtAuthFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/JwtAuthFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/CartDetailsController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/CartDetailsController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/ProductColorController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/ProductColorController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/JwtService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/JwtService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/OrderService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/OrderService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/WebSocketService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/WebSocketService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/UserService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/UserService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,6 +45,7 @@
   </component>
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
+    &quot;Maven.petcare-be [clean,install].executor&quot;: &quot;Run&quot;,
     &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
     &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
     &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
@@ -60,6 +60,11 @@
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
+  <component name="RunAnythingCache">
+    <option name="myCommands">
+      <command value="mvn clean install" />
+    </option>
+  </component>
   <component name="RunManager">
     <configuration name="PetcareBeApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
       <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
@@ -102,10 +107,35 @@
       <workItem from="1740851359477" duration="4532000" />
       <workItem from="1740967825312" duration="18670000" />
       <workItem from="1741054120368" duration="10416000" />
+      <workItem from="1741676431118" duration="29000" />
+      <workItem from="1741681465252" duration="2340000" />
+      <workItem from="1742052361857" duration="3442000" />
+      <workItem from="1742404679915" duration="24000" />
+      <workItem from="1742666355046" duration="1004000" />
+      <workItem from="1742742962707" duration="641000" />
+      <workItem from="1742781137182" duration="7257000" />
+      <workItem from="1742921321641" duration="1447000" />
+      <workItem from="1743144915236" duration="2159000" />
+      <workItem from="1743395195827" duration="592000" />
+      <workItem from="1743558446921" duration="13003000" />
+      <workItem from="1743848733054" duration="4381000" />
+      <workItem from="1744077271961" duration="8260000" />
+      <workItem from="1744185121813" duration="1795000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
 </project>

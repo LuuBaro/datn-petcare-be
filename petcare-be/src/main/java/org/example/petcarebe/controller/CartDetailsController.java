@@ -6,6 +6,7 @@ import org.example.petcarebe.service.CartDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,6 +34,7 @@ public class CartDetailsController {
     }
 
     @PostMapping("/add")
+    @PreAuthorize("hasAuthority('USER')")
     public ResponseEntity<?> addCartDetails(@RequestBody Map<String, Object> payload) {
         try {
             Long userId = Long.parseLong(payload.get("userId").toString());

@@ -1,6 +1,5 @@
 package org.example.petcarebe.config;
 
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,26 +30,58 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String requestURI = request.getRequestURI();
+        for (String publicEndpoint : SecurityConstants.PUBLIC_ENDPOINTS) {
+            if (publicEndpoint.endsWith("/**")) {
+                String prefix = publicEndpoint.substring(0, publicEndpoint.length() - 3);
+                if (requestURI.startsWith(prefix)) {
+                    return true;
+                }
+            } else if (requestURI.equals(publicEndpoint)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         final String authorizationHeader = request.getHeader("Authorization");
+        System.out.println("Authorization Header: " + authorizationHeader);
 
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            System.out.println("No token provided, proceeding without authentication");
+            chain.doFilter(request, response);
+            return;
+        }
+
+        String jwt = authorizationHeader.substring(7);
         String username = null;
-        String jwt = null;
-
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            jwt = authorizationHeader.substring(7);
+        try {
             username = jwtService.extractUsername(jwt);
+        } catch (Exception e) {
+            System.out.println("Invalid token, returning 403");
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\": \"Access is denied: Invalid or expired token\"}");
+            return;
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userService.loadUserByUsername(username);
-
+            UserDetails userDetails = userService.loadUserByUsername(username);
             if (jwtService.validateToken(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
+                UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+                System.out.println("Token validation failed, returning 403");
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Access is denied: Token validation failed\"}");
+                return;
             }
         }
         chain.doFilter(request, response);

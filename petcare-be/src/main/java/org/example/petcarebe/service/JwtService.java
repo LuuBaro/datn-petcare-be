@@ -1,21 +1,21 @@
 package org.example.petcarebe.service;
 
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
-import org.example.petcarebe.model.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Service;
+    import io.jsonwebtoken.Claims;
+    import io.jsonwebtoken.Jwts;
+    import io.jsonwebtoken.SignatureAlgorithm;
+    import io.jsonwebtoken.io.Decoders;
+    import io.jsonwebtoken.security.Keys;
+    import org.example.petcarebe.model.User;
+    import org.springframework.security.core.userdetails.UserDetails;
+    import org.springframework.stereotype.Service;
 
-import java.security.Key;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
+    import java.security.Key;
+    import java.time.format.DateTimeFormatter;
+    import java.util.Date;
+    import java.util.HashMap;
+    import java.util.Map;
+    import java.util.function.Function;
 
 
 @Service
@@ -75,7 +75,7 @@ public class JwtService {
         if (user.getRegistration_date() != null) {
             claims.put("registration_date", user.getRegistration_date().format(DateTimeFormatter.ISO_LOCAL_DATE));
         }
-        return createToken(claims, userDetails.getUsername());
+        return createToken(claims, user.getEmail());
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
