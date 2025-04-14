@@ -1,9 +1,11 @@
 package org.example.petcarebe.controller;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.example.petcarebe.enums.PetType;
 import org.example.petcarebe.model.VetService;
 import org.example.petcarebe.service.VetServiceService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,44 +19,60 @@ public class VetServiceController {
     private final VetServiceService vetServiceService;
 
     // Create
-    @PostMapping("/createVetService")
-    public ResponseEntity<VetService> createVetService(@RequestBody VetService vetService) {
-        VetService createdService = vetServiceService.createVetService(vetService);
-        return new ResponseEntity<>(createdService, HttpStatus.CREATED);
+    @PostMapping
+    public ResponseEntity<ApiResponse<VetService>> createVetService(@RequestBody VetService vetService) {
+        VetService created = vetServiceService.createVetService(vetService);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Tạo dịch vụ thú y thành công", created));
     }
 
-    // Read - Get all active services
+    // Get all active vet services
     @GetMapping("/active")
-    public ResponseEntity<List<VetService>> getAllActiveVetServices() {
-        List<VetService> services = vetServiceService.getAllActiveVetServices();
-        return new ResponseEntity<>(services, HttpStatus.OK);
+    public ResponseEntity<ApiResponse<List<VetService>>> getAllActiveVetServices() {
+        List<VetService> list = vetServiceService.getAllActiveVetServices();
+        return ResponseEntity.ok(new ApiResponse<>(true, "Lấy danh sách dịch vụ đang hoạt động", list));
     }
 
-    // Read - Get all services
-    @GetMapping("getAllVetServices")
-    public ResponseEntity<List<VetService>> getAllVetServices() {
-        List<VetService> services = vetServiceService.getAllVetServices();
-        return new ResponseEntity<>(services, HttpStatus.OK);
+    // Get all vet services
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<VetService>>> getAllVetServices() {
+        List<VetService> list = vetServiceService.getAllVetServices();
+        return ResponseEntity.ok(new ApiResponse<>(true, "Lấy tất cả dịch vụ thú y", list));
     }
 
-    // Read - Get by ID
-    @GetMapping("/getVetServiceById/{id}")
-    public ResponseEntity<VetService> getVetServiceById(@PathVariable Long id) {
-        VetService service = vetServiceService.getVetServiceById(id);
-        return new ResponseEntity<>(service, HttpStatus.OK);
+    // Get vet service by ID
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<VetService>> getVetServiceById(@PathVariable Long id) {
+        VetService vetService = vetServiceService.getVetServiceById(id);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Lấy thông tin dịch vụ thành công", vetService));
     }
 
-    // Update
-    @PutMapping("/updateVetService/{id}")
-    public ResponseEntity<VetService> updateVetService(@PathVariable Long id, @RequestBody VetService vetService) {
-        VetService updatedService = vetServiceService.updateVetService(id, vetService);
-        return new ResponseEntity<>(updatedService, HttpStatus.OK);
+    // Update vet service
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<VetService>> updateVetService(@PathVariable Long id, @RequestBody VetService updatedService) {
+        VetService updated = vetServiceService.updateVetService(id, updatedService);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Cập nhật dịch vụ thành công", updated));
     }
 
-    // Delete
-    @DeleteMapping("/deleteVetService/{id}")
-    public ResponseEntity<Void> deleteVetService(@PathVariable Long id) {
-        vetServiceService.deleteVetService(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    // Toggle active status (soft delete / restore)
+    @PatchMapping("/{id}/toggle-active") // Changed from @DeleteMapping to @PatchMapping
+    public ResponseEntity<ApiResponse<Void>> toggleVetServiceActive(@PathVariable Long id) {
+        vetServiceService.toggleVetServiceActive(id);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Thay đổi trạng thái hoạt động thành công", null));
+    }
+
+    // Get vet services by PetType
+    @GetMapping("/by-pet-type")
+    public ResponseEntity<ApiResponse<List<VetService>>> getByPetType(@RequestParam PetType petType) {
+        List<VetService> services = vetServiceService.getVetServicesByPetType(petType);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Lọc dịch vụ theo loại thú cưng thành công", services));
+    }
+
+    // Inner static class dùng chung cho response
+    @Data
+    @AllArgsConstructor
+    static class ApiResponse<T> {
+        private boolean success;
+        private String message;
+        private T data;
     }
 }

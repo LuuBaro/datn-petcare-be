@@ -1,6 +1,7 @@
 package org.example.petcarebe.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.petcarebe.enums.PetType;
 import org.example.petcarebe.model.VetService;
 import org.example.petcarebe.repository.VetServiceRepository;
 import org.springframework.stereotype.Service;
@@ -45,7 +46,7 @@ public class VetServiceService {
         existingService.setName(updatedService.getName());
         existingService.setDescription(updatedService.getDescription());
         existingService.setPriceBase(updatedService.getPriceBase());
-        existingService.setDuration(updatedService.getDuration());
+        existingService.setPetType(updatedService.getPetType());
         existingService.setActive(updatedService.getActive());
 
         return vetServiceRepository.save(existingService);
@@ -53,9 +54,14 @@ public class VetServiceService {
 
     // Delete (soft delete - set active to false)
     @Transactional
-    public void deleteVetService(Long id) {
+    public void toggleVetServiceActive(Long id) {
         VetService vetService = getVetServiceById(id);
-        vetService.setActive(false);
+        vetService.setActive(!vetService.getActive()); // Đảo trạng thái active
         vetServiceRepository.save(vetService);
     }
+
+    public List<VetService> getVetServicesByPetType(PetType petType) {
+        return vetServiceRepository.findByPetType(petType);
+    }
+
 }

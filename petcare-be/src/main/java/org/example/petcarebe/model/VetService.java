@@ -1,8 +1,8 @@
 package org.example.petcarebe.model;
+
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.util.List;
+import org.example.petcarebe.enums.PetType;
 
 @Entity
 @Table(name = "VetService")
@@ -24,11 +24,11 @@ public class VetService {
     @Column(name = "price", nullable = false)
     private Float priceBase;
 
-    @Column(name = "duration", nullable = false)
-    private Integer duration;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pet_type", nullable = false)
+    private PetType petType;
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;
-
 
 }

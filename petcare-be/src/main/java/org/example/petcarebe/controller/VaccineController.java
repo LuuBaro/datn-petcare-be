@@ -1,9 +1,9 @@
 package org.example.petcarebe.controller;
 
-import jakarta.validation.Valid;
 import org.example.petcarebe.model.Vaccine;
 import org.example.petcarebe.service.VaccineService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,46 +12,116 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/vaccines")
+@CrossOrigin(origins = "http://localhost:3000")
 public class VaccineController {
 
     @Autowired
     private VaccineService vaccineService;
 
-    // Create
-    @PostMapping("/createVaccine")
-    public ResponseEntity<Vaccine> createVaccine(@Valid @RequestBody Vaccine vaccine) {
-        Vaccine createdVaccine = vaccineService.createVaccine(vaccine);
-        return ResponseEntity.ok(createdVaccine);
+    @PostMapping("/create")
+    public ResponseEntity<ApiResponse<Vaccine>> createVaccine(@RequestBody Vaccine vaccine) {
+        try {
+            Vaccine createdVaccine = vaccineService.createVaccine(vaccine);
+            return new ResponseEntity<>(new ApiResponse<>(createdVaccine), HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(new ApiResponse<>(e.getMessage()), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(new ApiResponse<>("Lỗi server khi tạo vaccine"), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // Read (Get all)
-    @GetMapping("/getAllVaccine")
-    public ResponseEntity<List<Vaccine>> getAllVaccines() {
-        List<Vaccine> vaccines = vaccineService.getAllVaccines();
-        return ResponseEntity.ok(vaccines);
+    @GetMapping("/getAllVaccines")
+    public ResponseEntity<ApiResponse<List<Vaccine>>> getAllVaccines() {
+        try {
+            List<Vaccine> vaccines = vaccineService.getAllVaccines();
+            return new ResponseEntity<>(new ApiResponse<>(vaccines), HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(new ApiResponse<>("Lỗi server khi lấy danh sách vaccine"), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // Read (Get by ID)
-    @GetMapping("/getVaccineId/{id}")
-    public ResponseEntity<Vaccine> getVaccineById(@PathVariable Long id) {
-        Optional<Vaccine> vaccine = vaccineService.getVaccineById(id);
-        return vaccine.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    @GetMapping("/getVaccine/{id}")
+    public ResponseEntity<ApiResponse<Vaccine>> getVaccineById(@PathVariable Long id) {
+        try {
+            Optional<Vaccine> vaccine = vaccineService.getVaccineById(id);
+            if (vaccine.isPresent()) {
+                return new ResponseEntity<>(new ApiResponse<>(vaccine.get()), HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(new ApiResponse<>("Vaccine không tồn tại"), HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>(new ApiResponse<>("Lỗi server khi lấy vaccine"), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // Update
     @PutMapping("/updateVaccine/{id}")
-    public ResponseEntity<Vaccine> updateVaccine(@PathVariable Long id, @Valid @RequestBody Vaccine vaccine) {
-        Vaccine updatedVaccine = vaccineService.updateVaccine(id, vaccine);
-        return ResponseEntity.ok(updatedVaccine);
+    public ResponseEntity<ApiResponse<Vaccine>> updateVaccine(@PathVariable Long id, @RequestBody Vaccine vaccine) {
+        try {
+            Vaccine updatedVaccine = vaccineService.updateVaccine(id, vaccine);
+            return new ResponseEntity<>(new ApiResponse<>(updatedVaccine), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(new ApiResponse<>(e.getMessage()), HttpStatus.BAD_REQUEST);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(new ApiResponse<>(e.getMessage()), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(new ApiResponse<>("Lỗi server khi cập nhật vaccine"), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // Delete (Soft delete - đổi status thành false)
     @DeleteMapping("/deleteVaccine/{id}")
-    public ResponseEntity<Vaccine> deleteVaccine(@PathVariable Long id) {
-        vaccineService.deleteVaccine(id);
-        Optional<Vaccine> vaccine = vaccineService.getVaccineById(id); // Lấy lại vaccine để trả về
-        return vaccine.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<ApiResponse<String>> toggleVaccineStatus(@PathVariable Long id) {
+        try {
+            vaccineService.deleteVaccine(id);
+            return new ResponseEntity<>(new ApiResponse<>("Toggle trạng thái vaccine thành công"), HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(new ApiResponse<>(e.getMessage()), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(new ApiResponse<>("Lỗi server khi toggle trạng thái vaccine"), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
+
+
+    public class ApiResponse<T> {
+        private boolean success;
+        private T data;
+        private String message;
+
+        public ApiResponse(T data) {
+            this.success = true;
+            this.data = data;
+            this.message = null;
+        }
+
+        public ApiResponse(String message) {
+            this.success = false;
+            this.data = null;
+            this.message = message;
+        }
+
+        // Getters và setters
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public void setSuccess(boolean success) {
+            this.success = success;
+        }
+
+        public T getData() {
+            return data;
+        }
+
+        public void setData(T data) {
+            this.data = data;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+}
+
 }
