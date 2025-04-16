@@ -44,5 +44,6 @@ public class ProductDetails {
     @JoinColumn(name = "product_color_id", nullable = false)
     private ProductColors productColors;
 
+    private Boolean status;
 
 }

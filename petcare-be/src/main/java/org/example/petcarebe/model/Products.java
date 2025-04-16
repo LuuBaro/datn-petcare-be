@@ -44,6 +44,8 @@ public class Products {
     @JoinColumn(name = "brand_id", nullable = false)
     private Brand brand;
 
+    private Boolean status;
+
     @OneToMany(mappedBy = "products")
     @JsonIgnore
     private List<ProductDetails> productDetails;

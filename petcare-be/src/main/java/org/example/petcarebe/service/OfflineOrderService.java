@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -86,9 +85,10 @@ public class OfflineOrderService {
                         return newPoint;
                     });
 
-            int previousTotalSpent = customerPoint.getTotalPoint() * 100000;
+            // Logic: 10,000 VND = 1 điểm
+            int previousTotalSpent = customerPoint.getTotalPoint() * 10000; // Mỗi điểm tương ứng 10,000 VND đã chi tiêu
             int newTotalSpent = previousTotalSpent + (int) totalAmount;
-            totalPoints = newTotalSpent / 100000;
+            totalPoints = newTotalSpent / 10000; // Tổng điểm dựa trên tổng chi tiêu
             pointsEarned = totalPoints - customerPoint.getTotalPoint();
 
             customerPoint.setTotalPoint(totalPoints);
@@ -130,8 +130,9 @@ public class OfflineOrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin điểm với số điện thoại: " + request.getCustomerPhone()));
 
         int pointsToUse = request.getPointsToUse();
-        if (pointsToUse < 10 || pointsToUse % 10 != 0) {
-            throw new RuntimeException("Số điểm sử dụng phải là bội số của 10 và tối thiểu 10 điểm.");
+        // Logic mới: Phải có ít nhất 100 điểm và chỉ sử dụng bội số của 100
+        if (pointsToUse < 100 || pointsToUse % 100 != 0) {
+            throw new RuntimeException("Số điểm sử dụng phải là bội số của 100 và tối thiểu 100 điểm.");
         }
         if (customerPoint.getTotalPoint() < pointsToUse) {
             throw new RuntimeException("Không đủ điểm để áp dụng giảm giá (cần tối thiểu " + pointsToUse + " điểm).");
@@ -143,7 +144,8 @@ public class OfflineOrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng vừa tạo."));
 
         float originalTotalAmount = order.getTotalAmount();
-        float discountAmount = (pointsToUse / 10) * 30000;
+        // Logic mới: 100 điểm = 30,000 VND giảm giá
+        float discountAmount = (pointsToUse / 100) * 30000; // Mỗi 100 điểm giảm 30,000 VND
         float newTotalAmount = Math.max(0, originalTotalAmount - discountAmount);
 
         order.setTotalAmount(newTotalAmount);
@@ -159,6 +161,7 @@ public class OfflineOrderService {
         return response;
     }
 
+    // Các phương thức khác giữ nguyên
     public List<OfflineOrderDTO.OfflineOrderResponse> getAllOrders() {
         List<Orders> orders = ordersRepository.findAllByType("OFFLINE");
         return mapOrdersToResponse(orders);

@@ -17,6 +17,7 @@ public class ProductListDTO {
     private String image;
     private String categoryName;  // Thêm thuộc tính loại sản phẩm
     private String brandName;
+    private Boolean status; // Thêm trạng thái
 
 
 }

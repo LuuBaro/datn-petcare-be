@@ -33,6 +33,9 @@ public interface ProductRepository extends JpaRepository<Products, Long> {
     List<ProductSummaryDTO> findAllProductSummaries();
 
     // Method mới được thêm vào
-    @Query("SELECT p FROM Products p WHERE LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    @Query("SELECT p FROM Products p WHERE LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%')) AND p.status = true")
     List<Products> searchProducts(@Param("keyword") String keyword);
+
+
+    List<Products> findByStatusTrue();
 }
