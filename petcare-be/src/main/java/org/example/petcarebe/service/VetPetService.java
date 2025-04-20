@@ -6,10 +6,12 @@ import org.example.petcarebe.dto.VetPetWeightDTO;
 import org.example.petcarebe.model.Pet;
 import org.example.petcarebe.model.PetWeight;
 import org.example.petcarebe.repository.VetPetRepository;
+import org.example.petcarebe.repository.VetPetWeightRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -18,13 +20,12 @@ import java.util.stream.Collectors;
 public class VetPetService {
 
     private final VetPetRepository vetPetRepository;
+    private final VetPetWeightRepository petWeightRepository;
 
     @Transactional(readOnly = true)
-    public List<VetPetDTO> getAllPets() {
-        return vetPetRepository.findAll().stream()
-                .filter(pet -> !pet.isDeleted())
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+    public Page<VetPetDTO> getAllPets(Pageable pageable) {
+        return vetPetRepository.findAllByDeletedFalse(pageable)
+                .map(this::convertToDTO);
     }
 
     @Transactional(readOnly = true)
@@ -37,7 +38,23 @@ public class VetPetService {
     @Transactional
     public VetPetDTO createPet(VetPetDTO vetPetDTO) {
         Pet pet = new Pet();
-        mapDtoToEntity(vetPetDTO, pet);
+        pet.setNamePet(vetPetDTO.getNamePet());
+        pet.setNameBoss(vetPetDTO.getNameBoss());
+        pet.setPhoneBoss(vetPetDTO.getPhoneBoss());
+        pet.setAge(vetPetDTO.getAge());
+        pet.setNote(vetPetDTO.getNote());
+        pet.setDeleted(false);
+        pet.setPetType(vetPetDTO.getPetType());
+
+        if (vetPetDTO.getPetWeight() != null && vetPetDTO.getPetWeight().getPetWeightId() != null) {
+            Optional<PetWeight> petWeightOpt = petWeightRepository.findById(vetPetDTO.getPetWeight().getPetWeightId());
+            if (petWeightOpt.isPresent()) {
+                pet.setPetWeight(petWeightOpt.get());
+            } else {
+                throw new IllegalArgumentException("PetWeight with ID " + vetPetDTO.getPetWeight().getPetWeightId() + " not found");
+            }
+        }
+
         Pet savedPet = vetPetRepository.save(pet);
         return convertToDTO(savedPet);
     }
@@ -46,7 +63,21 @@ public class VetPetService {
     public Optional<VetPetDTO> updatePet(Long id, VetPetDTO vetPetDTO) {
         return vetPetRepository.findById(id)
                 .map(pet -> {
-                    mapDtoToEntity(vetPetDTO, pet);
+                    pet.setNamePet(vetPetDTO.getNamePet());
+                    pet.setNameBoss(vetPetDTO.getNameBoss());
+                    pet.setPhoneBoss(vetPetDTO.getPhoneBoss());
+                    pet.setAge(vetPetDTO.getAge());
+                    pet.setNote(vetPetDTO.getNote());
+
+                    if (vetPetDTO.getPetWeight() != null && vetPetDTO.getPetWeight().getPetWeightId() != null) {
+                        Optional<PetWeight> petWeightOpt = petWeightRepository.findById(vetPetDTO.getPetWeight().getPetWeightId());
+                        if (petWeightOpt.isPresent()) {
+                            pet.setPetWeight(petWeightOpt.get());
+                        } else {
+                            throw new IllegalArgumentException("PetWeight with ID " + vetPetDTO.getPetWeight().getPetWeightId() + " not found");
+                        }
+                    }
+
                     Pet updatedPet = vetPetRepository.save(pet);
                     return convertToDTO(updatedPet);
                 });
@@ -65,20 +96,15 @@ public class VetPetService {
 
     private VetPetDTO convertToDTO(Pet pet) {
         VetPetDTO dto = new VetPetDTO();
-        // Pet info
         dto.setId(pet.getId());
         dto.setNamePet(pet.getNamePet());
         dto.setAge(pet.getAge());
-        dto.setPetType(pet.getPetType());
         dto.setNote(pet.getNote());
-        dto.setPrice(pet.getPrice());
         dto.setPhoneBoss(pet.getPhoneBoss());
         dto.setNameBoss(pet.getNameBoss());
-        dto.setDepositAmount(pet.getDepositAmount());
-        dto.setPaidAmount(pet.getPaidAmount());
         dto.setDeleted(pet.isDeleted());
+        dto.setPetType(pet.getPetType());
 
-        // PetWeight info
         if (pet.getPetWeight() != null) {
             VetPetWeightDTO weightDTO = VetPetWeightDTO.builder()
                     .petWeightId(pet.getPetWeight().getPetWeightId())
@@ -91,29 +117,5 @@ public class VetPetService {
         }
 
         return dto;
-    }
-
-    private void mapDtoToEntity(VetPetDTO dto, Pet pet) {
-        // Pet info
-        pet.setNamePet(dto.getNamePet());
-        pet.setAge(dto.getAge());
-        pet.setPetType(dto.getPetType());
-        pet.setNote(dto.getNote());
-        pet.setPrice(dto.getPrice());
-        pet.setPhoneBoss(dto.getPhoneBoss());
-        pet.setNameBoss(dto.getNameBoss());
-        pet.setDepositAmount(dto.getDepositAmount() != null ? dto.getDepositAmount() : 0f);
-        pet.setPaidAmount(dto.getPaidAmount() != null ? dto.getPaidAmount() : 0f);
-
-        // PetWeight info
-        if (dto.getPetWeight() != null) {
-            PetWeight petWeight = new PetWeight();
-            petWeight.setPetWeightId(dto.getPetWeight().getPetWeightId());
-            petWeight.setWeightRange(dto.getPetWeight().getWeightRange());
-            petWeight.setPriceMultiplier(dto.getPetWeight().getPriceMultiplier());
-            petWeight.setStatusType(dto.getPetWeight().getStatusType());
-            petWeight.setPetType(dto.getPetWeight().getPetType());
-            pet.setPetWeight(petWeight);
-        }
     }
 }

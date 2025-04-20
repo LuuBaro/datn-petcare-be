@@ -16,6 +16,7 @@ public class VetServiceService {
 
     private final VetServiceRepository vetServiceRepository;
 
+
     // Create
     @Transactional
     public VetService createVetService(VetService vetService) {
@@ -63,5 +64,6 @@ public class VetServiceService {
     public List<VetService> getVetServicesByPetType(PetType petType) {
         return vetServiceRepository.findByPetType(petType);
     }
+
 
 }

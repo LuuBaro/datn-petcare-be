@@ -19,8 +19,8 @@ public class OrderVetDetail {
     private Orders orderId;
 
     @ManyToOne
-    @JoinColumn(name = "pet_id")
-    private Pet pet;
+    @JoinColumn(name = "medical_record_id")
+    private MedicalRecord MedicalRecord;
 
     @Column(name = "quantity", nullable = false)
     private Integer quantity;

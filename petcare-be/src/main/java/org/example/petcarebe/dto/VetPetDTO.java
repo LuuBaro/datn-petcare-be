@@ -1,7 +1,14 @@
 package org.example.petcarebe.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.*;
 import org.example.petcarebe.enums.PetType;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -9,19 +16,33 @@ import org.example.petcarebe.enums.PetType;
 @AllArgsConstructor
 @Builder
 public class VetPetDTO {
-    // Pet info
     private Long id;
+
+    @NotBlank(message = "Tên thú cưng không được để trống")
     private String namePet;
-    private Float age; // Changed to Float to match Pet entity
-    private PetType petType;
+
+    @Positive(message = "Tuổi phải là số dương")
+    private Float age;
+
     private String note;
-    private Float price; // Changed to Float to match Pet entity
+
+    @NotBlank(message = "Số điện thoại chủ không được để trống")
     private String phoneBoss;
+
+    @NotBlank(message = "Tên chủ không được để trống")
     private String nameBoss;
-    private Float depositAmount;
-    private Float paidAmount;
+
+    @NotNull(message = "Loại thú cưng không được để trống")
+    private PetType petType;
+
     private boolean deleted;
 
-    // Reference to PetWeight info
+    @NotNull(message = "Loại cân nặng không được để trống")
     private VetPetWeightDTO petWeight;
+
+
+    @JsonIgnore // Prevent circular reference when serialized within MedicalRecordDTO
+    private List<MedicalRecordDTO> medicalRecords = new ArrayList<>();
+
+
 }

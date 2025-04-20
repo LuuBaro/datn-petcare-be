@@ -21,23 +21,15 @@ public class Pet {
     private PetWeight petWeight;
 
     @ManyToOne
-    @JoinColumn(name = "service_id", nullable = false)
+    @JoinColumn(name = "service_id", nullable = true)
     private PetService petService;
-
-    @ManyToOne
-    @JoinColumn(name = "Vetservice_id")
-    private VetService service;
-
-    @ManyToOne
-    @JoinColumn(name = "vaccine_id")
-    private Vaccine vaccine;
 
     @ManyToOne
     @JoinColumn(name = "employee_id", nullable = true)
     private Employee employee;
 
     @ManyToOne
-    @JoinColumn(name = "appointment_id", nullable = false)
+    @JoinColumn(name = "appointment_id", nullable = true)
     private Appointment appointment;
 
     @Enumerated(EnumType.STRING)
