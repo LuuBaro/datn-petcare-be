@@ -3,6 +3,7 @@ package org.example.petcarebe.controller;
 import org.example.petcarebe.dto.UpdateUserDTO;
 import org.example.petcarebe.dto.request.UserUpdateRequest;
 import org.example.petcarebe.model.User;
+import org.example.petcarebe.repository.UserRepository;
 import org.example.petcarebe.service.JwtService;
 import org.example.petcarebe.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,15 +25,42 @@ public class UserController {
     private final UserService userService;
 
     @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
     private JwtService jwtUtil;
     public UserController(UserService userService) {
         this.userService = userService;
     }
 
-    // Lấy danh sách tất cả người dùng
+    // Cập nhật status của user
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Void> updateStatus(@PathVariable Long id, @RequestBody boolean status) {
+        try {
+            if (!userRepository.existsById(id)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            userRepository.updateUserStatus(id, status);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            System.err.println("Error updating status for user " + id + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/role/{role}")
+    public ResponseEntity<List<User>> getUsersByRole(@PathVariable String role) {
+        List<User> users = userRepository.findByRole(role.toUpperCase()); // Convert to uppercase to match the role names
+        users.forEach(user -> user.setPassword(null)); // Remove password for security
+        return ResponseEntity.ok(users);
+    }
+
+    // Lấy danh sách tất cả người dùng (không bao gồm password)
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
+        List<User> users = userRepository.findAllWithoutPassword();
+        users.forEach(user -> user.setPassword(null)); // Xóa password
         return ResponseEntity.ok(users);
     }
 

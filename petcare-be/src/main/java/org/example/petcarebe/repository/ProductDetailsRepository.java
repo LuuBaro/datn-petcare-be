@@ -28,7 +28,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
     // Fetch product details by ID
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
             "dp.productDetailId, p.productName, p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, " +
-            "dp.quantity, p.description, c.categoryName) " +  // ✅ Thêm categoryName
+            "dp.quantity, p.description, c.categoryName, dp.status) " +  // ✅ Thêm categoryName
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
             "JOIN p.categories c " +  // ✅ JOIN lấy danh mục sản phẩm
@@ -41,7 +41,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
     // Fetch all product details
     @Query("SELECT new org.example.petcarebe.dto.ProductDetailsDTO(" +
             "dp.productDetailId, p.productName, p.image, dp.price, pc.colorValue, ps.sizeValue, w.weightValue, " +
-            "dp.quantity, p.description, c.categoryName) " +  // ✅ Thêm categoryName
+            "dp.quantity, p.description, c.categoryName, dp.status) " +  // ✅ Thêm categoryName
             "FROM ProductDetails dp " +
             "JOIN dp.products p " +
             "JOIN p.categories c " +  // ✅ JOIN lấy danh mục sản phẩm
@@ -66,7 +66,7 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
     Float findMinPriceByProductId(@Param("productId") Long productId);
 
     // Tìm tất cả ProductDetails theo productId
-    @Query("SELECT pd FROM ProductDetails pd WHERE pd.products.productId = :productId")
+    @Query("SELECT pd FROM ProductDetails pd WHERE pd.products.productId = :productId AND pd.status = true")
     List<ProductDetails> findByProductId(@Param("productId") Long productId);
 
 
@@ -88,7 +88,9 @@ public interface ProductDetailsRepository extends JpaRepository<ProductDetails, 
             "GROUP BY p")
     List<Object[]> searchProductsWithPrice(@Param("productName") String productName);
 
-
+    // lất tất cả productDetail theo productID
+    @Query("SELECT pd FROM ProductDetails pd WHERE pd.products.productId = :productId")
+    List<ProductDetails> findAllByProductId(@Param("productId") Long productId);
 
 
 

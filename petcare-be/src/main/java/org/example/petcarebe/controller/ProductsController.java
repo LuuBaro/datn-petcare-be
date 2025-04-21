@@ -20,42 +20,53 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/products")
 public class ProductsController {
+
     @Autowired
     private ProductsService productsService;
 
     // Lấy một Product theo ID
     @GetMapping("/getByIdProducts/{productsId}")
-    public Products getProductsById(@PathVariable Long productsId) {
-        return productsService.getProductsById(productsId);
+    public ResponseEntity<Products> getProductsById(@PathVariable Long productsId) {
+        Products product = productsService.getProductsById(productsId);
+        if (product == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(product);
     }
 
     // Tạo mới một Product
     @PostMapping("/createProducts")
     public ResponseEntity<Products> createProducts(@Valid @RequestBody Products products) {
-        Products createdProduct = productsService.createProduct(products);
-        return ResponseEntity.status(201).body(createdProduct);  // Trả về HTTP 201 (Created)
+        try {
+            Products createdProduct = productsService.createProduct(products);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
-
 
     // Cập nhật Product theo ID
     @PutMapping("/updateProducts/{productId}")
     public ResponseEntity<Products> updateProduct(
             @PathVariable Long productId,
             @RequestBody @Valid Products updatedProduct) {
-
         try {
             Products updated = productsService.update(productId, updatedProduct);
-            return new ResponseEntity<>(updated, HttpStatus.OK);
+            return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException ex) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            return ResponseEntity.notFound().build();
         }
     }
 
     // Xóa một Product theo ID
     @DeleteMapping("/deleteProducts/{productsId}")
     public ResponseEntity<String> deleteProduct(@PathVariable Long productsId) {
-        productsService.delete(productsId);
-        return ResponseEntity.ok("Sản phẩm với ID " + productsId + " đã được xóa thành công.");
+        try {
+            productsService.delete(productsId);
+            return ResponseEntity.ok("Sản phẩm với ID " + productsId + " đã được xóa thành công.");
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Sản phẩm không tồn tại.");
+        }
     }
 
     @GetMapping("/getAllProductss")
@@ -73,17 +84,13 @@ public class ProductsController {
     // API lấy thông tin sản phẩm theo ID
     @GetMapping("/products-summary/{productId}")
     public ResponseEntity<List<ProductSummaryDTO>> getProductByProductId(@PathVariable Long productId) {
-        System.out.println("🔍 Đang tìm sản phẩm với productId: " + productId);
-        List<ProductSummaryDTO> products = productsService.getProductSummaryByProductId(productId);
-
-        if (products.isEmpty()) {
-            System.out.println("❌ Không tìm thấy sản phẩm với productId: " + productId);
+        try {
+            List<ProductSummaryDTO> products = productsService.getProductSummaryByProductId(productId);
+            return ResponseEntity.ok(products);
+        } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
-
-        return ResponseEntity.ok(products);
     }
-
 
     // API lấy danh sách tất cả sản phẩm
     @GetMapping("/products-summary")
@@ -92,4 +99,20 @@ public class ProductsController {
         return ResponseEntity.ok(products);
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<Products>> searchProducts(@RequestParam(required = false) String keyword) {
+        List<Products> products = productsService.searchProducts(keyword);
+        return ResponseEntity.ok(products);
+    }
+
+    // hàm đổi trạng thái
+    @PutMapping("/toggle-status/{productId}")
+    public ResponseEntity<String> toggleProductStatus(@PathVariable Long productId) {
+        try {
+            boolean newStatus = productsService.toggleStatus(productId);
+            return ResponseEntity.ok("Trạng thái sản phẩm với ID " + productId + " đã được cập nhật thành: " + (newStatus ? "Hoạt động" : "Không hoạt động"));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Sản phẩm không tồn tại.");
+        }
+    }
 }

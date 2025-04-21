@@ -29,6 +29,15 @@ public class Orders {
     private String type;
     private int pointEarned;
     private int pointUsed;
+    
+    @Column(name = "momo_order_id", nullable = true)
+    private String momoOrderId;
+    
+    @Column(name = "momo_trans_id", nullable = true)
+    private String momoTransId;
+    
+    @Column(name = "momo_amount", nullable = true)
+    private String momoAmount;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)

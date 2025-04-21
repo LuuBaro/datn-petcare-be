@@ -61,7 +61,23 @@ public interface CartDetailsRepository extends JpaRepository<CartDetails, Long> 
     @Query(value = "DELETE FROM petcare.cart_detail WHERE product_detail_id = :productDetailId", nativeQuery = true)
     void deleteCartItemByProductDetailId(@Param("productDetailId") Long productDetailId);
 
+
+    List<CartDetails> findByUser(User user);
+
+
     // Thêm phương thức để tìm CartDetails theo productDetailId
     @Query("SELECT c FROM CartDetails c WHERE c.productDetails.productDetailId = :productDetailId")
     List<CartDetails> findByProductDetails_ProductDetailId(@Param("productDetailId") Long productDetailId);
+
+    // Thêm phương thức mới để lấy theo userId và tabId
+    List<CartDetails> findByUserUserIdAndTabId(Long userId, Integer tabId);
+
+    // 🔥 Thêm phương thức mới
+    @Query("SELECT c FROM CartDetails c WHERE c.user = :user AND c.productDetails = :productDetails AND c.tabId = :tabId")
+    CartDetails findByUserAndProductDetailsAndTabId(@Param("user") User user, @Param("productDetails") ProductDetails productDetails, @Param("tabId") Integer tabId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM CartDetails c WHERE c.user.userId = :userId AND c.tabId = :tabId")
+    void deleteByUserIdAndTabId(@Param("userId") Long userId, @Param("tabId") Integer tabId);
 }
