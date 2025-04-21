@@ -164,6 +164,38 @@ public ProductDetailsDTO getProductDetails(
         return productDetailsRepository.searchProductsWithPrice(productName);
     }
 
+    // sửa trạng thái
+    @PutMapping("/toggle-status/{id}")
+    public ResponseEntity<ProductDetails> toggleProductDetailStatus(@PathVariable Long id) {
+        try {
+            ProductDetails updatedProductDetail = productDetailsService.toggleProductDetailStatus(id);
+            return ResponseEntity.ok(updatedProductDetail);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(null);
+        }
+    }
+
+    /**
+     * Lấy tất cả ProductDetailsDTO theo productId (bao gồm cả status true và false).
+     *
+     * @param productId ID của sản phẩm.
+     * @return Danh sách ProductDetailsDTO.
+     */
+    @GetMapping("/dto/all-by-product/{productId}")
+    public ResponseEntity<List<ProductDetailsDTO>> getAllProductDetailsDTOByProductId(@PathVariable Long productId) {
+        // Lấy danh sách ProductDetailsDTO theo productId
+        List<ProductDetailsDTO> productDetailsDTOList = productDetailsService.getAllProductDetailsDTOByProductId(productId);
+
+        // Duyệt qua danh sách và thêm imageUrls từ ProductImagesService
+        for (ProductDetailsDTO productDetails : productDetailsDTOList) {
+            List<String> imageUrls = productImagesService.getImageUrlsByProductDetailId(productDetails.getProductDetailId());
+            if (imageUrls != null && !imageUrls.isEmpty()) {
+                productDetails.setImageUrls(imageUrls); // Gán danh sách URL hình ảnh
+            }
+        }
+
+        return ResponseEntity.ok(productDetailsDTOList); // Trả về danh sách DTO
+    }
 
 
 }
