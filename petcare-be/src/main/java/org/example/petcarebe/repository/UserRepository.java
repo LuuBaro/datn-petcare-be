@@ -29,4 +29,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     void updateUserStatus(Long userId, boolean status);
 
     User findByPhone(String phone);
+
+    // Thêm phương thức tìm fullName theo userId
+    @Query("SELECT u.fullName FROM User u WHERE u.userId = :userId")
+    String findFullNameByUserId(@Param("userId") Long userId);
+
+
 }
