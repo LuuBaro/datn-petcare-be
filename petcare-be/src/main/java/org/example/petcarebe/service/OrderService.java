@@ -524,10 +524,12 @@ public class OrderService {
 
     // Thống kê
 
+    // Tính tổng doanh thu trong khoảng thời gian xác định
     public BigDecimal getRevenueByDateRange(Date startDate, Date endDate) {
         return orderRepository.getTotalRevenueByDateRange(startDate, endDate);
     }
 
+    // Lấy doanh thu hàng ngày và số lượng đơn hàng trong khoảng thời gian xác định
     public Map<Date, Map<String, Object>> getDailyRevenueByDateRange(Date startDate, Date endDate) {
         Calendar cal = Calendar.getInstance();
 
@@ -564,6 +566,7 @@ public class OrderService {
         return dailyStats;
     }
 
+    // Lấy doanh thu hàng ngày và số lượng đơn hàng trong một tháng cụ thể
     public Map<Date, Map<String, Object>> getDailyRevenueByMonth(int year, int month) {
         List<Object[]> results = orderRepository.getDailyRevenueByMonth(year, month);
         Map<Date, Map<String, Object>> dailyStats = new LinkedHashMap<>();
@@ -582,6 +585,7 @@ public class OrderService {
         return dailyStats;
     }
 
+    // Lấy doanh thu hàng tuần trong khoảng thời gian xác định
     public List<Map<String, Object>> getWeeklyRevenueByDateRange(Date startDate, Date endDate) {
         List<Object[]> results = orderRepository.getWeeklyRevenueByDateRange(startDate, endDate);
         List<Map<String, Object>> revenueList = new ArrayList<>();
@@ -594,34 +598,58 @@ public class OrderService {
         return revenueList;
     }
 
+    // Tính tổng doanh thu tháng hiện tại
     public BigDecimal getRevenueThisMonth() {
         return orderRepository.getTotalRevenueThisMonth();
     }
 
+    // Tính tổng doanh thu năm hiện tại
     public BigDecimal getRevenueThisYear() {
         return orderRepository.getTotalRevenueThisYear();
     }
 
+    // Tính tổng doanh thu hôm nay
     public BigDecimal getRevenueToday() {
         return orderRepository.getRevenueToday();
     }
 
+    // Tính tổng doanh thu hôm qua
     public BigDecimal getRevenueYesterday() {
         return orderRepository.getRevenueYesterday();
     }
 
-    // Tổng số đơn hàng OFFLINE hôm qua
+    // Đếm tổng số đơn hàng OFFLINE hôm qua
     public Long getTotalOfflineOrdersYesterday() {
         return orderRepository.getTotalOfflineOrdersYesterday();
     }
 
-    // Tổng số đơn hàng ONLINE hôm qua
+    // Đếm tổng số đơn hàng ONLINE hôm qua
     public Long getTotalOnlineOrdersYesterday() {
         return orderRepository.getTotalOnlineOrdersYesterday();
     }
 
+    // Lấy số lượng đơn hàng hàng ngày theo loại (ONLINE và OFFLINE)
     public Map<Date, Map<String, Long>> getDailyOrderCountByType(Date startDate, Date endDate) {
-        List<Object[]> results = orderRepository.getDailyOrderCountByType(startDate, endDate);
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Truy vấn dữ liệu với khoảng thời gian đã điều chỉnh
+        List<Object[]> results = orderRepository.getDailyOrderCountByType(startDateInclusive, endDateInclusive);
         Map<Date, Map<String, Long>> dailyOrderStats = new LinkedHashMap<>();
 
         for (Object[] row : results) {
@@ -630,71 +658,84 @@ public class OrderService {
             Long offlineOrders = (Long) row[2];
 
             Map<String, Long> stats = new HashMap<>();
-            stats.put("onlineOrders", onlineOrders);
-            stats.put("offlineOrders", offlineOrders);
+            stats.put("onlineOrders", onlineOrders != null ? onlineOrders : 0L);
+            stats.put("offlineOrders", offlineOrders != null ? offlineOrders : 0L);
 
             dailyOrderStats.put(date, stats);
         }
+
+        // Đảm bảo tất cả các ngày trong khoảng đều được bao gồm, kể cả khi không có đơn hàng
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            Date currentDate = cal.getTime();
+            dailyOrderStats.computeIfAbsent(currentDate, k -> {
+                Map<String, Long> stats = new HashMap<>();
+                stats.put("onlineOrders", 0L);
+                stats.put("offlineOrders", 0L);
+                return stats;
+            });
+            cal.add(Calendar.DAY_OF_MONTH, 1);
+        }
+
         return dailyOrderStats;
     }
 
-
-
-    // Tổng số đơn hàng trong ngày hôm nay
+    // Đếm tổng số đơn hàng trong ngày hôm nay
     public Long getTotalOrdersToday() {
         return orderRepository.getTotalOrdersToday();
     }
 
-    // Tổng số đơn hàng OFFLINE hôm nay
+    // Đếm tổng số đơn hàng OFFLINE hôm nay
     public Long getTotalOfflineOrdersToday() {
         return orderRepository.getTotalOfflineOrdersToday();
     }
 
-    // Tổng số đơn hàng ORDER ONLINE hôm nay
+    // Đếm tổng số đơn hàng ORDER ONLINE hôm nay
     public Long getTotalOnlineOrdersToday() {
         return orderRepository.getTotalOnlineOrdersToday();
     }
 
-    // Tổng số đơn hàng trong tuần này
+    // Đếm tổng số đơn hàng trong tuần này
     public Long getTotalOrdersThisWeek() {
         return orderRepository.getTotalOrdersThisWeek();
     }
 
-    // Tổng số đơn hàng trong tháng này
+    // Đếm tổng số đơn hàng trong tháng này
     public Long getTotalOrdersThisMonth() {
         return orderRepository.getTotalOrdersThisMonth();
     }
 
-    // Tổng số đơn hàng OFFLINE trong tháng này
+    // Đếm tổng số đơn hàng OFFLINE trong tháng này
     public Long getTotalOfflineOrdersThisMonth() {
         return orderRepository.getTotalOfflineOrdersThisMonth();
     }
 
-    // Tổng số đơn hàng ORDER ONLINE trong tháng này
+    // Đếm tổng số đơn hàng ORDER ONLINE trong tháng này
     public Long getTotalOnlineOrdersThisMonth() {
         return orderRepository.getTotalOnlineOrdersThisMonth();
     }
 
-    // Tổng số đơn hàng hôm qua
+    // Đếm tổng số đơn hàng hôm qua
     public Long getTotalOrdersYesterday() {
         return orderRepository.getTotalOrdersYesterday();
     }
 
-    // Tổng số đơn hàng OFFLINE trong khoảng thời gian
+    // Đếm tổng số đơn hàng OFFLINE trong khoảng thời gian
     public Long getTotalOfflineOrdersByDateRange(Date startDate, Date endDate) {
         return orderRepository.getTotalOfflineOrdersByDateRange(startDate, endDate);
     }
 
-    // Tổng số đơn hàng ORDER ONLINE trong khoảng thời gian
+    // Đếm tổng số đơn hàng ORDER ONLINE trong khoảng thời gian
     public Long getTotalOnlineOrdersByDateRange(Date startDate, Date endDate) {
         return orderRepository.getTotalOnlineOrdersByDateRange(startDate, endDate);
     }
 
-    // Tổng số khách hàng
+    // Đếm tổng số khách hàng
     public Long getTotalCustomers() {
         return orderRepository.getTotalCustomers();
     }
 
+    // Lấy danh sách 5 khách hàng có số lượng đơn hàng ORDER ONLINE nhiều nhất
     public List<Map<String, Object>> getTopFiveCustomersByOrderCount() {
         List<Object[]> results = orderRepository.getTopFiveCustomersByOrderCount();
         List<Map<String, Object>> topCustomers = new ArrayList<>();
@@ -710,6 +751,8 @@ public class OrderService {
 
         return topCustomers;
     }
+
+    // Lấy số lượng đơn hàng hàng tuần theo loại (ONLINE và OFFLINE)
     public List<Map<String, Object>> getWeeklyOrderCountByType(Date startDate, Date endDate) {
         List<Object[]> results = orderRepository.getWeeklyOrderCountByType(startDate, endDate);
         List<Map<String, Object>> orderList = new ArrayList<>();
@@ -724,22 +767,372 @@ public class OrderService {
         return orderList;
     }
 
-    public List<Map<String, Object>> getMonthlyOrderCountByType(Date startDate, Date endDate) {
-        List<Object[]> results = orderRepository.getMonthlyOrderCountByType(startDate, endDate);
-        List<Map<String, Object>> orderList = new ArrayList<>();
-        for (Object[] row : results) {
-            Map<String, Object> orderMap = new HashMap<>();
-            orderMap.put("month", row[0]); // String: yyyy-MM
-            orderMap.put("orderCount", row[1]); // Long: tổng số đơn hàng
-            orderMap.put("onlineOrders", row[2]); // Long: số đơn online
-            orderMap.put("offlineOrders", row[3]); // Long: số đơn offline
-            orderList.add(orderMap);
+    // Lấy doanh thu hàng tháng theo loại (ONLINE và OFFLINE)
+    public List<Map<String, Object>> getMonthlyRevenueByOrderType(Date startDate, Date endDate) {
+        // Chuẩn hóa thời gian
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Truy vấn dữ liệu
+        List<Object[]> results = orderRepository.getMonthlyRevenueByOrderType(startDateInclusive, endDateInclusive);
+
+        // Tạo danh sách tháng đầy đủ
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            String monthKey = String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
+            Map<String, Object> map = new HashMap<>();
+            map.put("month", monthKey);
+            map.put("onlineRevenue", BigDecimal.ZERO);
+            map.put("offlineRevenue", BigDecimal.ZERO);
+            revenueList.add(map);
+            cal.add(Calendar.MONTH, 1);
         }
-        return orderList;
+
+        // Gán dữ liệu từ query
+        for (Object[] row : results) {
+            String month = (String) row[0];
+            BigDecimal online = convertToBigDecimal(row[1]);
+            BigDecimal offline = convertToBigDecimal(row[2]);
+
+            for (Map<String, Object> map : revenueList) {
+                if (map.get("month").equals(month)) {
+                    map.put("onlineRevenue", online);
+                    map.put("offlineRevenue", offline);
+                    break;
+                }
+            }
+        }
+
+
+        return revenueList;
     }
 
 
 
+    // Lấy số lượng đơn hàng hàng tháng theo loại (ONLINE và OFFLINE)
+    public List<Map<String, Object>> getMonthlyOrderCountByType(Date startDate, Date endDate) {
+        // Điều chỉnh thời gian
+        Calendar cal = Calendar.getInstance();
+
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+
+        // Truy vấn dữ liệu
+        List<Object[]> results = orderRepository.getMonthlyOrderCountByType(startDateInclusive, endDateInclusive);
+
+
+        // Tạo danh sách tháng đầy đủ
+        List<Map<String, Object>> orderList = new ArrayList<>();
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            String monthKey = String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
+            Map<String, Object> orderMap = new HashMap<>();
+            orderMap.put("month", monthKey);
+            orderMap.put("orderCount", 0L);
+            orderMap.put("onlineOrders", 0L);
+            orderMap.put("offlineOrders", 0L);
+            orderList.add(orderMap);
+            cal.add(Calendar.MONTH, 1);
+        }
+
+        // Gán dữ liệu từ kết quả truy vấn
+        for (Object[] row : results) {
+            String month = (String) row[0]; // yyyy-MM
+            Long orderCount = ((Number) row[1]).longValue();
+            Long onlineOrders = ((Number) row[2]).longValue();
+            Long offlineOrders = ((Number) row[3]).longValue();
+
+            // Tìm và cập nhật tháng tương ứng
+            for (Map<String, Object> orderMap : orderList) {
+                if (month.equals(orderMap.get("month"))) {
+                    orderMap.put("orderCount", orderCount);
+                    orderMap.put("onlineOrders", onlineOrders);
+                    orderMap.put("offlineOrders", offlineOrders);
+                    break;
+                }
+            }
+        }
+
+        return orderList;
+    }
+
+    // Tính tổng doanh thu offline và online hôm nay
+    public Map<String, BigDecimal> getRevenueTodayByType() {
+        LocalDate today = LocalDate.now();
+        Date startDate = Date.from(today.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDate = cal.getTime();
+
+        List<Object[]> results = orderRepository.getRevenueByTypeAndDateRange(startDate, endDate);
+        Map<String, BigDecimal> revenueByType = new HashMap<>();
+        revenueByType.put("onlineRevenue", BigDecimal.ZERO);
+        revenueByType.put("offlineRevenue", BigDecimal.ZERO);
+
+        for (Object[] row : results) {
+            String type = (String) row[0];
+            BigDecimal revenue = convertToBigDecimal(row[1]); // Chuyển đổi an toàn
+            if ("ORDER ONLINE".equals(type)) {
+                revenueByType.put("onlineRevenue", revenue);
+            } else if ("OFFLINE".equals(type)) {
+                revenueByType.put("offlineRevenue", revenue);
+            }
+        }
+
+        return revenueByType;
+    }
+
+    // Tính tổng doanh thu offline và online hôm qua
+    public Map<String, BigDecimal> getRevenueYesterdayByType() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        Date startDate = Date.from(yesterday.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDate = cal.getTime();
+
+        List<Object[]> results = orderRepository.getRevenueByTypeAndDateRange(startDate, endDate);
+        Map<String, BigDecimal> revenueByType = new HashMap<>();
+        revenueByType.put("onlineRevenue", BigDecimal.ZERO);
+        revenueByType.put("offlineRevenue", BigDecimal.ZERO);
+
+        for (Object[] row : results) {
+            String type = (String) row[0];
+            BigDecimal revenue = convertToBigDecimal(row[1]); // Chuyển đổi an toàn
+            if ("ORDER ONLINE".equals(type)) {
+                revenueByType.put("onlineRevenue", revenue);
+            } else if ("OFFLINE".equals(type)) {
+                revenueByType.put("offlineRevenue", revenue);
+            }
+        }
+
+        return revenueByType;
+    }
+
+    // Tính tổng doanh thu offline và online tháng này
+    public Map<String, BigDecimal> getRevenueThisMonthByType() {
+        LocalDate now = LocalDate.now();
+        LocalDate startOfMonth = LocalDate.of(now.getYear(), now.getMonthValue(), 1);
+        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
+
+        Date startDate = Date.from(startOfMonth.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date endDate = Date.from(endOfMonth.atTime(23, 59, 59, 999_000_000).atZone(ZoneId.systemDefault()).toInstant());
+
+        List<Object[]> results = orderRepository.getRevenueByTypeAndDateRange(startDate, endDate);
+        Map<String, BigDecimal> revenueByType = new HashMap<>();
+        revenueByType.put("onlineRevenue", BigDecimal.ZERO);
+        revenueByType.put("offlineRevenue", BigDecimal.ZERO);
+
+        for (Object[] row : results) {
+            String type = (String) row[0];
+            BigDecimal revenue = convertToBigDecimal(row[1]); // Chuyển đổi an toàn
+            if ("ORDER ONLINE".equals(type)) {
+                revenueByType.put("onlineRevenue", revenue);
+            } else if ("OFFLINE".equals(type)) {
+                revenueByType.put("offlineRevenue", revenue);
+            }
+        }
+
+        return revenueByType;
+    }
+
+    // Lấy doanh thu online và offline từng ngày trong khoảng thời gian xác định
+    public Map<Date, Map<String, BigDecimal>> getDailyRevenueByType(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        List<Object[]> results = orderRepository.getDailyRevenueByType(startDateInclusive, endDateInclusive);
+        Map<Date, Map<String, BigDecimal>> dailyRevenueByType = new LinkedHashMap<>();
+
+        // Khởi tạo dữ liệu cho tất cả các ngày trong khoảng
+        LocalDate startLocalDate = startDateInclusive.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate endLocalDate = endDateInclusive.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate current = startLocalDate;
+        while (!current.isAfter(endLocalDate)) {
+            Date date = Date.from(current.atStartOfDay(ZoneId.systemDefault()).toInstant());
+            dailyRevenueByType.put(date, new HashMap<>(Map.of(
+                    "onlineRevenue", BigDecimal.ZERO,
+                    "offlineRevenue", BigDecimal.ZERO
+            )));
+            current = current.plusDays(1);
+        }
+
+        // Gán dữ liệu từ kết quả truy vấn
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            String type = (String) row[1];
+            BigDecimal revenue = convertToBigDecimal(row[2]);
+
+            Map<String, BigDecimal> revenueMap = dailyRevenueByType.computeIfAbsent(date, k -> new HashMap<>(Map.of(
+                    "onlineRevenue", BigDecimal.ZERO,
+                    "offlineRevenue", BigDecimal.ZERO
+            )));
+
+            if ("ORDER ONLINE".equals(type)) {
+                revenueMap.put("onlineRevenue", revenue);
+            } else if ("OFFLINE".equals(type)) {
+                revenueMap.put("offlineRevenue", revenue);
+            }
+        }
+
+        return dailyRevenueByType;
+    }
+
+    // Lấy tổng doanh thu từng tháng trong khoảng thời gian xác định
+    public List<Map<String, Object>> getMonthlyRevenueByDateRange(Date startDate, Date endDate) {
+        // Adjust time
+        Calendar cal = Calendar.getInstance();
+
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Query data
+        List<Object[]> results = orderRepository.getMonthlyRevenueByDateRange(startDateInclusive, endDateInclusive);
+
+        // Create full month list
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            String monthKey = String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("month", monthKey);
+            revenueMap.put("revenue", BigDecimal.ZERO);
+            revenueMap.put("orderCount", 0L);
+            revenueList.add(revenueMap);
+            cal.add(Calendar.MONTH, 1);
+        }
+
+        // Assign data from query results
+        for (Object[] row : results) {
+            String month = (String) row[0]; // yyyy-MM
+            BigDecimal revenue = convertToBigDecimal(row[1]);
+            Long orderCount = ((Number) row[2]).longValue();
+
+            // Find and update corresponding month
+            for (Map<String, Object> revenueMap : revenueList) {
+                if (month.equals(revenueMap.get("month"))) {
+                    revenueMap.put("revenue", revenue);
+                    revenueMap.put("orderCount", orderCount);
+                    break;
+                }
+            }
+        }
+
+        return revenueList;
+    }
+    // Lấy doanh thu hàng tuần theo loại (ONLINE và OFFLINE) trong khoảng thời gian xác định
+    public List<Map<String, Object>> getWeeklyRevenueByTypeAndDateRange(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getWeeklyRevenueByTypeAndDateRange(startDate, endDate);
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+
+        for (Object[] row : results) {
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("week", row[0]); // YEARWEEK (e.g., 202510)
+            revenueMap.put("type", row[1]); // Loại đơn hàng: ORDER ONLINE hoặc OFFLINE
+            revenueMap.put("revenue", new BigDecimal(row[2].toString())); // Doanh thu
+            revenueList.add(revenueMap);
+        }
+
+        return revenueList;
+    }
+
+    // Hàm tiện ích để chuyển đổi an toàn sang BigDecimal
+    private BigDecimal convertToBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof Double) {
+            return BigDecimal.valueOf((Double) value);
+        }
+        if (value instanceof Long) {
+            return BigDecimal.valueOf((Long) value);
+        }
+        if (value instanceof Integer) {
+            return BigDecimal.valueOf((Integer) value);
+        }
+        throw new IllegalArgumentException("Unsupported type for conversion to BigDecimal: " + value.getClass().getName());
+    }
+
+    // 5 sản phẩm yêu thích nhất
+    public List<Map<String, Object>> getTopFiveFavoriteProducts() {
+        // Gọi phương thức từ OrderRepository để lấy top 5 sản phẩm yêu thích
+        List<Object[]> results = orderRepository.getTopFiveFavoriteProducts();
+        List<Map<String, Object>> favoriteProducts = new ArrayList<>();
+
+        // Chuyển đổi kết quả thành danh sách Map
+        for (Object[] result : results) {
+            Map<String, Object> productInfo = new HashMap<>();
+            productInfo.put("productId", result[0]); // product_id
+            productInfo.put("productName", result[1]); // product_name
+            productInfo.put("image", result[2]); // image
+            productInfo.put("favoriteCount", result[3]); // favorite_count
+            favoriteProducts.add(productInfo);
+        }
+
+        return favoriteProducts;
+    }
+
+    //
     public List<OrderDTO> getOrdersByUserId(Long userId) {
         List<Orders> userOrders = orderRepository.findByUserUserId(userId);
         return userOrders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());

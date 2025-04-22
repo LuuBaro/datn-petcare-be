@@ -13,37 +13,44 @@ import java.util.List;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Orders, Long> {
+
+    // Tìm tất cả các đơn hàng liên quan đến một người dùng cụ thể dựa trên ID người dùng.
     List<Orders> findByUserUserId(Long userId);
+
+    // Lấy danh sách các đơn hàng dựa trên ID trạng thái cụ thể.
     List<Orders> findByStatusOrder_StatusId(Long statusId);
+
+    // Lấy tất cả các đơn hàng thuộc một loại cụ thể (ví dụ: "OFFLINE" hoặc "ORDER ONLINE").
     List<Orders> findAllByType(String type);
-    // Tìm đơn hàng theo type và statusId
+
+    // Tìm các đơn hàng theo loại và ID trạng thái, cho phép lọc theo cả hai tiêu chí.
     List<Orders> findByTypeAndStatusOrderStatusId(String type, Long statusId);
-    // Tìm đơn hàng theo type, statusId và khoảng thời gian
+
+    // Lấy các đơn hàng theo loại, ID trạng thái và khoảng thời gian (từ startDate đến endDate).
     List<Orders> findByTypeAndStatusOrderStatusIdAndOrderDateBetween(
             String type, Long statusId, Date startDate, Date endDate);
 
-
-    // Tổng số đơn hàng hôm nay
+    // Đếm tổng số đơn hàng trong ngày hôm nay với trạng thái thanh toán là "Đã thanh toán".
     @Query("SELECT COUNT(o) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND DATE(o.orderDate) = CURRENT_DATE")
     Long getTotalOrdersToday();
 
-    // Tổng số đơn hàng OFFLINE hôm nay
+    // Đếm tổng số đơn hàng OFFLINE trong ngày hôm nay với trạng thái "Đã thanh toán".
     @Query("SELECT COUNT(o) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND o.type = 'OFFLINE' " +
             "AND DATE(o.orderDate) = CURRENT_DATE")
     Long getTotalOfflineOrdersToday();
 
-    // Tổng số đơn hàng ORDER ONLINE hôm nay
+    // Đếm tổng số đơn hàng ORDER ONLINE trong ngày hôm nay với trạng thái "Đã thanh toán".
     @Query("SELECT COUNT(o) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND o.type = 'ORDER ONLINE' " +
             "AND DATE(o.orderDate) = CURRENT_DATE")
     Long getTotalOnlineOrdersToday();
 
-    // Tổng số đơn hàng OFFLINE trong tháng này
+    // Đếm tổng số đơn hàng OFFLINE trong tháng hiện tại với trạng thái "Đã thanh toán".
     @Query("SELECT COUNT(o) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND o.type = 'OFFLINE' " +
@@ -51,7 +58,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             "AND MONTH(o.orderDate) = MONTH(CURRENT_DATE)")
     Long getTotalOfflineOrdersThisMonth();
 
-    // Tổng số đơn hàng ORDER ONLINE trong tháng này
+    // Đếm tổng số đơn hàng ORDER ONLINE trong tháng hiện tại với trạng thái "Đã thanh toán".
     @Query("SELECT COUNT(o) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND o.type = 'ORDER ONLINE' " +
@@ -59,7 +66,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             "AND MONTH(o.orderDate) = MONTH(CURRENT_DATE)")
     Long getTotalOnlineOrdersThisMonth();
 
-    // Tổng số đơn hàng OFFLINE trong khoảng thời gian
+    // Đếm tổng số đơn hàng OFFLINE trong khoảng thời gian xác định với trạng thái "Đã thanh toán".
     @Query("SELECT COUNT(o) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND o.type = 'OFFLINE' " +
@@ -67,7 +74,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     Long getTotalOfflineOrdersByDateRange(@Param("startDate") Date startDate,
                                           @Param("endDate") Date endDate);
 
-    // Tổng số đơn hàng ORDER ONLINE trong khoảng thời gian
+    // Đếm tổng số đơn hàng ORDER ONLINE trong khoảng thời gian xác định với trạng thái "Đã thanh toán".
     @Query("SELECT COUNT(o) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND o.type = 'ORDER ONLINE' " +
@@ -75,7 +82,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     Long getTotalOnlineOrdersByDateRange(@Param("startDate") Date startDate,
                                          @Param("endDate") Date endDate);
 
-    // Tổng doanh thu trong khoảng thời gian
+    // Tính tổng doanh thu trong khoảng thời gian xác định từ các đơn hàng "Đã thanh toán".
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) " +
             "FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
@@ -83,7 +90,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     BigDecimal getTotalRevenueByDateRange(@Param("startDate") Date startDate,
                                           @Param("endDate") Date endDate);
 
-    // Doanh thu hàng ngày trong khoảng thời gian
+    // Lấy doanh thu hàng ngày và số lượng đơn hàng trong khoảng thời gian xác định.
     @Query("SELECT CAST(o.orderDate AS date) AS date, " +
             "COALESCE(SUM(o.totalAmount), 0) AS revenue, " +
             "COUNT(o) AS order_count " +
@@ -95,14 +102,13 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Object[]> getDailyRevenueByDateRange(@Param("startDate") Date startDate,
                                               @Param("endDate") Date endDate);
 
-
-    // Doanh thu hôm nay
+    // Tính doanh thu trong ngày hôm nay từ các đơn hàng "Đã thanh toán".
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND DATE(o.orderDate) = CURRENT_DATE")
     BigDecimal getRevenueToday();
 
-    // Doanh thu hôm qua (native query)
+    // Tính doanh thu của ngày hôm qua từ các đơn hàng "Đã thanh toán" (sử dụng native SQL).
     @Query(value = "SELECT COALESCE(SUM(o.total_amount), 0) " +
             "FROM Orders o " +
             "WHERE o.payment_status = 'Đã thanh toán' " +
@@ -110,7 +116,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             nativeQuery = true)
     BigDecimal getRevenueYesterday();
 
-    // Tổng số đơn hàng OFFLINE hôm qua (native query)
+    // Đếm tổng số đơn hàng OFFLINE của ngày hôm qua với trạng thái "Đã thanh toán" (sử dụng native SQL).
     @Query(value = "SELECT COUNT(*) " +
             "FROM orders o " +
             "WHERE o.payment_status = 'Đã thanh toán' " +
@@ -119,7 +125,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             nativeQuery = true)
     Long getTotalOfflineOrdersYesterday();
 
-    // Tổng số đơn hàng ORDER ONLINE hôm qua (native query)
+    // Đếm tổng số đơn hàng ORDER ONLINE của ngày hôm qua với trạng thái "Đã thanh toán" (sử dụng native SQL).
     @Query(value = "SELECT COUNT(*) " +
             "FROM orders o " +
             "WHERE o.payment_status = 'Đã thanh toán' " +
@@ -128,7 +134,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             nativeQuery = true)
     Long getTotalOnlineOrdersYesterday();
 
-    // Số đơn hàng hàng ngày theo loại
+    // Lấy số lượng đơn hàng hàng ngày theo loại (ONLINE và OFFLINE) trong khoảng thời gian xác định.
     @Query("SELECT DATE(o.orderDate) AS date, " +
             "SUM(CASE WHEN o.type = 'ORDER ONLINE' THEN 1 ELSE 0 END) AS online_orders, " +
             "SUM(CASE WHEN o.type = 'OFFLINE' THEN 1 ELSE 0 END) AS offline_orders " +
@@ -140,7 +146,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Object[]> getDailyOrderCountByType(@Param("startDate") Date startDate,
                                             @Param("endDate") Date endDate);
 
-    // Doanh thu hàng tuần trong khoảng thời gian (native query)
+    // Lấy doanh thu hàng tuần trong khoảng thời gian xác định (sử dụng native SQL).
     @Query(value = "SELECT YEARWEEK(o.order_date) AS week, COALESCE(SUM(o.total_amount), 0) AS revenue " +
             "FROM orders o " +
             "WHERE o.payment_status = 'Đã thanh toán' " +
@@ -151,7 +157,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Object[]> getWeeklyRevenueByDateRange(@Param("startDate") Date startDate,
                                                @Param("endDate") Date endDate);
 
-    // Số đơn hàng hàng tuần theo loại
+    // Lấy số lượng đơn hàng hàng tuần theo loại (ONLINE và OFFLINE) trong khoảng thời gian xác định.
     @Query("SELECT YEARWEEK(o.orderDate) AS week, " +
             "COUNT(o) AS order_count, " +
             "SUM(CASE WHEN o.type = 'ORDER ONLINE' THEN 1 ELSE 0 END) AS online_orders, " +
@@ -164,39 +170,34 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Object[]> getWeeklyOrderCountByType(@Param("startDate") Date startDate,
                                              @Param("endDate") Date endDate);
 
-    // Số đơn hàng hàng tháng theo loại (native query)
-    @Query(value = "SELECT CONCAT(year_value, '-', month_value) AS month, " +
-            "COUNT(order_id) AS order_count, " +
-            "SUM(CASE WHEN type = 'ORDER ONLINE' THEN 1 ELSE 0 END) AS online_orders, " +
-            "SUM(CASE WHEN type = 'OFFLINE' THEN 1 ELSE 0 END) AS offline_orders " +
-            "FROM (" +
-            "    SELECT YEAR(o.order_date) AS year_value, " +
-            "           MONTH(o.order_date) AS month_value, " +
-            "           o.order_id, " +
-            "           o.type " +
-            "    FROM orders o " +
-            "    WHERE o.payment_status = 'Đã thanh toán' " +
-            "    AND o.order_date BETWEEN ?1 AND ?2" +
-            ") AS temp " +
-            "GROUP BY year_value, month_value " +
-            "ORDER BY year_value, month_value", nativeQuery = true)
+    // Lấy số lượng đơn hàng hàng tháng theo loại (ONLINE và OFFLINE) trong khoảng thời gian xác định (sử dụng native SQL).
+    @Query(value = "SELECT CONCAT(YEAR(o.order_date), '-', LPAD(MONTH(o.order_date), 2, '0')) AS month, " +
+            "COUNT(o.order_id) AS order_count, " +
+            "SUM(CASE WHEN o.type = 'ORDER ONLINE' THEN 1 ELSE 0 END) AS online_orders, " +
+            "SUM(CASE WHEN o.type = 'OFFLINE' THEN 1 ELSE 0 END) AS offline_orders " +
+            "FROM orders o " +
+            "WHERE o.payment_status = 'Đã thanh toán' " +
+            "AND o.order_date BETWEEN :startDate AND :endDate " +
+            "GROUP BY CONCAT(YEAR(o.order_date), '-', LPAD(MONTH(o.order_date), 2, '0')) " +
+            "ORDER BY month", nativeQuery = true)
     List<Object[]> getMonthlyOrderCountByType(@Param("startDate") Date startDate,
                                               @Param("endDate") Date endDate);
 
-    // Tổng doanh thu tháng này
+
+    // Tính tổng doanh thu trong tháng hiện tại từ các đơn hàng "Đã thanh toán".
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND YEAR(o.orderDate) = YEAR(CURRENT_DATE) " +
             "AND MONTH(o.orderDate) = MONTH(CURRENT_DATE)")
     BigDecimal getTotalRevenueThisMonth();
 
-    // Tổng doanh thu năm này
+    // Tính tổng doanh thu trong năm hiện tại từ các đơn hàng "Đã thanh toán".
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND YEAR(o.orderDate) = YEAR(CURRENT_DATE)")
     BigDecimal getTotalRevenueThisYear();
 
-    // Doanh thu hàng ngày trong tháng
+    // Lấy doanh thu hàng ngày và số lượng đơn hàng trong một tháng cụ thể.
     @Query("SELECT DATE(o.orderDate) AS date, " +
             "COALESCE(SUM(o.totalAmount), 0) AS revenue, " +
             "COUNT(o) AS order_count " +
@@ -209,20 +210,20 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Object[]> getDailyRevenueByMonth(@Param("year") int year,
                                           @Param("month") int month);
 
-    // Tổng số đơn hàng tuần này
+    // Đếm tổng số đơn hàng trong tuần hiện tại với trạng thái "Đã thanh toán".
     @Query("SELECT COUNT(o) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND YEARWEEK(o.orderDate) = YEARWEEK(CURRENT_DATE)")
     Long getTotalOrdersThisWeek();
 
-    // Tổng số đơn hàng tháng này
+    // Đếm tổng số đơn hàng trong tháng hiện tại với trạng thái "Đã thanh toán".
     @Query("SELECT COUNT(o) FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán' " +
             "AND YEAR(o.orderDate) = YEAR(CURRENT_DATE) " +
             "AND MONTH(o.orderDate) = MONTH(CURRENT_DATE)")
     Long getTotalOrdersThisMonth();
 
-    // Tổng số đơn hàng hôm qua (native query)
+    // Đếm tổng số đơn hàng của ngày hôm qua với trạng thái "Đã thanh toán" (sử dụng native SQL).
     @Query(value = "SELECT COUNT(*) " +
             "FROM orders " +
             "WHERE payment_status = 'Đã thanh toán' " +
@@ -230,13 +231,13 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             nativeQuery = true)
     Long getTotalOrdersYesterday();
 
-    // Tổng số khách hàng
+    // Đếm tổng số khách hàng duy nhất (dựa trên user) từ các đơn hàng "Đã thanh toán".
     @Query("SELECT COUNT(DISTINCT o.user) " +
             "FROM Orders o " +
             "WHERE o.paymentStatus = 'Đã thanh toán'")
     Long getTotalCustomers();
 
-    // Top 5 khách hàng mua nhiều nhất (native query)
+    // Lấy danh sách 5 khách hàng có số lượng đơn hàng ORDER ONLINE nhiều nhất (sử dụng native SQL).
     @Query(value = "SELECT o.user_id, u.full_name, u.phone, COUNT(*) as order_count " +
             "FROM orders o " +
             "JOIN users u ON o.user_id = u.user_id " +
@@ -248,8 +249,7 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             nativeQuery = true)
     List<Object[]> getTopFiveCustomersByOrderCount();
 
-
-    // Lấy danh sách voucher đã được áp dụng trong đơn hàng
+    // Lấy danh sách các voucher đã được áp dụng trong các đơn hàng "Đã thanh toán".
     @Query("SELECT DISTINCT v.voucherId, v.name, v.percents, v.condition, v.startDate, v.endDate, v.quantity, v.status " +
             "FROM Orders o " +
             "JOIN o.voucher v " +
@@ -257,14 +257,11 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             "AND o.paymentStatus = 'Đã thanh toán'")
     List<Object[]> getAppliedVouchers();
 
-
+    // Tìm các đơn hàng sử dụng một voucher cụ thể dựa trên ID voucher.
     @Query("SELECT o FROM Orders o WHERE o.voucher.voucherId = :voucherId")
     List<Orders> findOrdersByVoucherId(@Param("voucherId") Long voucherId);
 
-
-
-
-    // Tìm hóa đơn từ ngày
+    // Tìm các đơn hàng OFFLINE trong khoảng thời gian xác định, sắp xếp theo ngày đặt hàng.
     @Query("SELECT o FROM Orders o " +
             "WHERE o.type = 'OFFLINE' " +
             "AND o.orderDate BETWEEN :startDate AND :endDate " +
@@ -273,10 +270,75 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             @Param("startDate") Date startDate,
             @Param("endDate") Date endDate);
 
+    // Kiểm tra xem một đơn hàng có tồn tại dựa trên ID đơn hàng.
     boolean existsByOrderId(Long orderId);
-    
+
+    // Tìm các đơn hàng dựa trên ID đơn hàng của Momo.
     List<Orders> findByMomoOrderId(String momoOrderId);
-    
-    // Tìm đơn hàng theo phương thức thanh toán
+
+    // Tìm các đơn hàng theo phương thức thanh toán.
     List<Orders> findByPaymentMethod(String paymentMethod);
+
+    // Lấy tổng doanh thu theo loại đơn hàng (ONLINE hoặc OFFLINE) trong khoảng thời gian xác định.
+    @Query("SELECT o.type, COALESCE(SUM(o.totalAmount), 0) " +
+            "FROM Orders o " +
+            "WHERE o.orderDate BETWEEN :startDate AND :endDate " +
+            "GROUP BY o.type")
+    List<Object[]> getRevenueByTypeAndDateRange(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+
+    // Lấy doanh thu hàng ngày theo loại đơn hàng (ONLINE hoặc OFFLINE) trong khoảng thời gian xác định.
+    @Query("SELECT DATE(o.orderDate) as date, o.type, COALESCE(SUM(o.totalAmount), 0) " +
+            "FROM Orders o " +
+            "WHERE o.orderDate BETWEEN :startDate AND :endDate " +
+            "GROUP BY DATE(o.orderDate), o.type")
+    List<Object[]> getDailyRevenueByType(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+
+    // Lấy tổng doanh thu từng tháng trong khoảng thời gian xác định (sử dụng native SQL).
+    @Query(value = "SELECT CONCAT(YEAR(order_date), '-', LPAD(MONTH(order_date), 2, '0')) AS month, " +
+            "COALESCE(SUM(total_amount), 0) AS revenue, " +
+            "COUNT(order_id) AS order_count " +
+            "FROM orders " +
+            "WHERE payment_status = 'Đã thanh toán' " +
+            "AND order_date BETWEEN :startDate AND :endDate " +
+            "GROUP BY CONCAT(YEAR(order_date), '-', LPAD(MONTH(order_date), 2, '0')) " +
+            "ORDER BY month", nativeQuery = true)
+    List<Object[]> getMonthlyRevenueByDateRange(@Param("startDate") Date startDate,
+                                                @Param("endDate") Date endDate);
+
+    // Lấy tổng doanh thu từng tháng trong khoảng thời gian xác định theo loại đơn offline và online
+
+    @Query(value = "SELECT CONCAT(YEAR(o.order_date), '-', LPAD(MONTH(o.order_date), 2, '0')) AS month, " +
+            "SUM(CASE WHEN o.type = 'ORDER ONLINE' THEN o.total_amount ELSE 0 END) AS online_revenue, " +
+            "SUM(CASE WHEN o.type = 'OFFLINE' THEN o.total_amount ELSE 0 END) AS offline_revenue " +
+            "FROM orders o " +
+            "WHERE o.payment_status = 'Đã thanh toán' " +
+            "AND o.order_date BETWEEN :startDate AND :endDate " +
+            "GROUP BY CONCAT(YEAR(o.order_date), '-', LPAD(MONTH(o.order_date), 2, '0')) " +
+            "ORDER BY month", nativeQuery = true)
+    List<Object[]> getMonthlyRevenueByOrderType(@Param("startDate") Date startDate,
+                                                @Param("endDate") Date endDate);
+
+
+
+    // Lấy doanh thu hàng tuần theo loại đơn hàng (ONLINE và OFFLINE) trong khoảng thời gian xác định (sử dụng native SQL).
+    @Query(value = "SELECT YEARWEEK(o.order_date) AS week, o.type, COALESCE(SUM(o.total_amount), 0) AS revenue " +
+            "FROM orders o " +
+            "WHERE o.payment_status = 'Đã thanh toán' " +
+            "AND o.order_date BETWEEN :startDate AND :endDate " +
+            "GROUP BY YEARWEEK(o.order_date), o.type " +
+            "ORDER BY YEARWEEK(o.order_date), o.type",
+            nativeQuery = true)
+    List<Object[]> getWeeklyRevenueByTypeAndDateRange(@Param("startDate") Date startDate,
+                                                      @Param("endDate") Date endDate);
+
+
+    // Lấy top 5 sản phẩm được yêu thích nhất dựa trên số lượng lượt thích
+    @Query(value = "SELECT p.product_id, p.product_name, p.image, COUNT(f.favorites_id) as favorite_count " +
+            "FROM favorites f " +
+            "JOIN products p ON f.product_id = p.product_id " +
+            "WHERE f.is_liked = true " +
+            "GROUP BY p.product_id, p.product_name, p.image " +
+            "ORDER BY favorite_count DESC " +
+            "LIMIT 5", nativeQuery = true)
+    List<Object[]> getTopFiveFavoriteProducts();
 }
