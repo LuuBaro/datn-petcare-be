@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Date;
 
 @Service
 public class UserService implements UserDetailsService {
@@ -35,6 +36,9 @@ public class UserService implements UserDetailsService {
     @Autowired
     @Lazy
     private EmailService emailService;
+
+    @Autowired
+    private WebSocketService webSocketService;
 
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
@@ -323,5 +327,33 @@ public class UserService implements UserDetailsService {
                 .append("</div>")
                 .append("</div>")
                 .toString();
+    }
+
+    // 6. Toggle user account status
+    public User toggleUserStatus(Long userId, boolean status) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + userId));
+        user.setStatus(status);
+        User updatedUser = userRepository.save(user);
+        
+        // Nếu tài khoản bị vô hiệu hóa (status = false), gửi thông báo qua WebSocket
+        if (!status) {
+            try {
+                String notification = String.format(
+                    "{\"type\":\"ACCOUNT_DISABLED\",\"userId\":%d,\"message\":\"Tài khoản của bạn đã bị vô hiệu hóa bởi quản trị viên.\",\"timestamp\":\"%s\",\"id\":\"%s\"}",
+                    userId, new Date().toString(), System.currentTimeMillis()
+                );
+                webSocketService.sendToUser(userId, "/notifications", notification);
+                // Đồng thời gửi đến topic chung để cập nhật cho admin panel
+                webSocketService.sendToTopic("/topic/status", notification);
+                System.out.println("Đã gửi thông báo vô hiệu hóa tài khoản đến user " + userId);
+            } catch (Exception e) {
+                // Ghi log lỗi nhưng không dừng quy trình
+                System.err.println("Không thể gửi thông báo WebSocket đến user " + userId + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        
+        return updatedUser;
     }
 }
