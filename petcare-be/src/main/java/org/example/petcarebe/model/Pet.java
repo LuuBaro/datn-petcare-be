@@ -2,6 +2,7 @@ package org.example.petcarebe.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.example.petcarebe.enums.PetType;
 
 @Entity
 @Table(name = "pets")
@@ -17,22 +18,46 @@ public class Pet {
 
     @ManyToOne
     @JoinColumn(name = "weight_id", nullable = false)
-    private PetWeight weight;
+    private PetWeight petWeight;
 
+    @ManyToOne
+    @JoinColumn(name = "service_id", nullable = true)
+    private PetService petService;
+
+    @ManyToOne
+    @JoinColumn(name = "employee_id", nullable = true)
+    private Employee employee;
+
+    @ManyToOne
+    @JoinColumn(name = "appointment_id", nullable = true)
+    private Appointment appointment;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pet_type", nullable = false)
+    private PetType petType;
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
+    private float price;
+
+    @Column(name = "name_pet", columnDefinition = "NVARCHAR(255)")
     private String namePet;
+
     private float age;
+
+    @Column(name = "phone_boss", columnDefinition = "NVARCHAR(255)")
     private String phoneBoss;
+
+    @Column(name = "name_boss", columnDefinition = "NVARCHAR(255)")
     private String nameBoss;
 
-    @ManyToOne
-    @JoinColumn(name = "service_id", nullable = false)
-    private Service service;
+    @Column(name = "deposit_amount", nullable = false)
+    private Float depositAmount = 0f;
 
-    @ManyToOne
-    @JoinColumn(name = "employee_id", nullable = false)
-    private Employee employee; // FK - Nhân viên thực hiện
+    @Column(name = "paid_amount", nullable = false)
+    private Float paidAmount = 0f;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
 }
