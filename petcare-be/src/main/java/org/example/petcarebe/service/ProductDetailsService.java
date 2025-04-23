@@ -59,7 +59,8 @@ public class ProductDetailsService {
                 productDetails.getWeights().getWeightValue(),
                 productDetails.getQuantity(),
                 productDetails.getProducts().getDescription(),
-                productDetails.getProducts().getCategories().getCategoryName()
+                productDetails.getProducts().getCategories().getCategoryName(),
+                productDetails.getStatus()
         )).collect(Collectors.toList());
     }
 
@@ -123,6 +124,40 @@ public class ProductDetailsService {
 
     public int getTotalStock() {
         return productDetailsRepository.getTotalStock();
+    }
+
+    // sửa trạng thái
+    public ProductDetails toggleProductDetailStatus(Long id) {
+        Optional<ProductDetails> existingProductDetail = productDetailsRepository.findById(id);
+
+        if (existingProductDetail.isPresent()) {
+            ProductDetails productDetail = existingProductDetail.get();
+            // Đảo ngược trạng thái: true -> false, false -> true
+            productDetail.setStatus(!productDetail.getStatus());
+            return productDetailsRepository.save(productDetail);
+        } else {
+            throw new RuntimeException("Không tìm thấy chi tiết sản phẩm với ID: " + id);
+        }
+    }
+
+    public List<ProductDetailsDTO> getAllProductDetailsDTOByProductId(Long productId) {
+        // Lấy tất cả ProductDetails theo productId
+        List<ProductDetails> productDetailsList = productDetailsRepository.findAllByProductId(productId);
+
+        // Chuyển đổi danh sách ProductDetails thành danh sách ProductDetailsDTO
+        return productDetailsList.stream().map(productDetails -> new ProductDetailsDTO(
+                productDetails.getProductDetailId(),
+                productDetails.getProducts().getProductName(),
+                productDetails.getProducts().getImage(),
+                productDetails.getPrice(),
+                productDetails.getProductColors().getColorValue(),
+                productDetails.getProductSizes().getSizeValue(),
+                productDetails.getWeights().getWeightValue(),
+                productDetails.getQuantity(),
+                productDetails.getProducts().getDescription(),
+                productDetails.getProducts().getCategories().getCategoryName(),
+                productDetails.getStatus()
+        )).collect(Collectors.toList());
     }
 
 

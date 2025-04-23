@@ -104,4 +104,15 @@ public class ProductsController {
         List<Products> products = productsService.searchProducts(keyword);
         return ResponseEntity.ok(products);
     }
+
+    // hàm đổi trạng thái
+    @PutMapping("/toggle-status/{productId}")
+    public ResponseEntity<String> toggleProductStatus(@PathVariable Long productId) {
+        try {
+            boolean newStatus = productsService.toggleStatus(productId);
+            return ResponseEntity.ok("Trạng thái sản phẩm với ID " + productId + " đã được cập nhật thành: " + (newStatus ? "Hoạt động" : "Không hoạt động"));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Sản phẩm không tồn tại.");
+        }
+    }
 }
