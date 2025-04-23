@@ -1339,62 +1339,81 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
     }
 
+    @Transactional
     public Orders updateOrderStatusAndPayment(Long orderId, Long statusId, String paymentStatus) {
         Orders order = getOrderById(orderId);
-        
-        logger.info("Updating order status and payment: orderId={}, statusId={}, paymentStatus={}", 
+
+        logger.info("Updating order status and payment: orderId={}, statusId={}, paymentStatus={}",
                 orderId, statusId, paymentStatus);
-        
+
         String oldStatus = order.getStatusOrder() != null ? order.getStatusOrder().getStatusName() : "null";
         String oldPaymentStatus = order.getPaymentStatus();
-        
+
         if (statusId != null) {
             // Kiểm tra trạng thái hiện tại
             Long currentStatusId = order.getStatusOrder().getStatusId();
-            
+
             // Chặn cập nhật từ các trạng thái cuối
             List<Long> finalStatuses = Arrays.asList(4L, 5L, 6L);
             if (finalStatuses.contains(currentStatusId)) {
                 throw new RuntimeException("Không thể cập nhật trạng thái từ 'Hoàn thành', 'Đã hủy' hoặc 'Trả hàng'.");
             }
-            
+
             // Kiểm tra tính hợp lệ của việc chuyển trạng thái
             if (currentStatusId == 1L && statusId != 2L && statusId != 5L) {
                 throw new RuntimeException("Đơn hàng ở trạng thái 'Chờ xác nhận' chỉ có thể chuyển sang 'Đang vận chuyển' hoặc 'Đã hủy'.");
             }
-            
+
             if (currentStatusId == 2L && statusId != 3L && statusId != 5L) {
                 throw new RuntimeException("Đơn hàng ở trạng thái 'Đang vận chuyển' chỉ có thể chuyển sang 'Chờ giao hàng' hoặc 'Đã hủy'.");
             }
-            
+
             if (currentStatusId == 3L && statusId != 4L && statusId != 5L) {
                 throw new RuntimeException("Đơn hàng ở trạng thái 'Chờ giao hàng' chỉ có thể chuyển sang 'Hoàn thành' hoặc 'Đã hủy'.");
             }
-            
+
             StatusOrder statusOrder = statusOrderRepository.findById(statusId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy trạng thái với ID: " + statusId));
             order.setStatusOrder(statusOrder);
-            
+
             // Nếu chuyển sang trạng thái "Hoàn thành" (statusId = 4) và không có paymentStatus cụ thể
             if (statusId == 4L && paymentStatus == null) {
-                logger.info("Auto setting paymentStatus to 'Đã thanh toán' for completed order: {}", orderId);
+                logger.info("Auto setting paymentStatus to 'Đã thanh toán' for completed order: {}", statusOrder);
                 order.setPaymentStatus("Đã thanh toán");
             }
         }
-        
+
         // Chỉ cập nhật paymentStatus khi có giá trị rõ ràng
         if (paymentStatus != null) {
-            logger.info("Explicitly updating paymentStatus for orderId={} from '{}' to '{}'", 
+            logger.info("Explicitly updating paymentStatus for orderId={} from '{}' to '{}'",
                     orderId, oldPaymentStatus, paymentStatus);
             order.setPaymentStatus(paymentStatus);
         }
-        
+
         Orders savedOrder = orderRepository.save(order);
-        
-        logger.info("Updated order: {} status from '{}' to '{}', paymentStatus from '{}' to '{}'", 
-                orderId, oldStatus, savedOrder.getStatusOrder().getStatusName(), 
+        logger.info("Updated order: {} status from '{}' to '{}', paymentStatus from '{}' to '{}'",
+                orderId, oldStatus, savedOrder.getStatusOrder().getStatusName(),
                 oldPaymentStatus, savedOrder.getPaymentStatus());
-        
+
+        // Gửi thông báo qua WebSocket
+        // 11️⃣ Lưu và gửi thông báo qua WebSocket
+        Long userId = order.getUser().getUserId();
+        String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " +
+                savedOrder.getStatusOrder().getStatusName();
+
+        // Lưu thông báo vào database trước
+        Notification notification = notificationService.saveNotification(userId, message);
+
+        // Gửi thông báo qua WebSocket với ID thực tế
+        String webSocketMessage = "{\"id\": " + notification.getId() + ", \"message\": \"" + message + "\", \"orderId\": " + orderId + "}";
+        try {
+            webSocketService.sendToTopic("/topic/status", webSocketMessage); // Gửi broadcast với JSON
+            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + webSocketMessage);
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send WebSocket notification to /topic/status: " + e.getMessage());
+            logger.error("Failed to send WebSocket notification for orderId: " + orderId, e); // Ghi log chi tiết
+        }
+
         // Nếu trạng thái mới là "Đã hủy" (statusId = 5), khôi phục tồn kho
         if (statusId != null && statusId == 5L) {
             try {
@@ -1404,24 +1423,23 @@ public class OrderService {
                             orderDetail.getQuantity()
                     );
                     if (updated > 0) {
-                        logger.info("Đã khôi phục {} sản phẩm {} vào kho khi cập nhật trạng thái sang Đã hủy", 
-                                orderDetail.getQuantity(), 
+                        logger.info("Đã khôi phục {} sản phẩm {} vào kho khi cập nhật trạng thái sang Đã hủy",
+                                orderDetail.getQuantity(),
                                 orderDetail.getProductDetails().getProductDetailId());
                     } else {
-                        logger.error("Không thể khôi phục tồn kho cho sản phẩm {} khi hủy đơn", 
+                        logger.error("Không thể khôi phục tồn kho cho sản phẩm {} khi hủy đơn",
                                 orderDetail.getProductDetails().getProductDetailId());
                     }
                 }
                 logger.info("Đã khôi phục tồn kho cho đơn hàng {} khi cập nhật trạng thái sang Đã hủy", orderId);
             } catch (Exception e) {
-                logger.error("Lỗi khi khôi phục tồn kho cho đơn hàng {} sau khi cập nhật trạng thái: {}", 
+                logger.error("Lỗi khi khôi phục tồn kho cho đơn hàng {} sau khi cập nhật trạng thái: {}",
                         orderId, e.getMessage());
             }
         }
-        
+
         return savedOrder;
     }
-
     // Kiểm tra đơn hàng MoMo có tồn tại theo momoOrderId
     public boolean checkMomoOrderExists(String momoOrderId) {
         // Sử dụng cách lưu momoOrderId trong CheckoutRequestDTO
