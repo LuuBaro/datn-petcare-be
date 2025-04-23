@@ -27,9 +27,16 @@ public class StatisticsController {
     @Autowired
     private ProductDetailsService productDetailsService;
 
+    // Lấy danh sách các sản phẩm bán chạy nhất
     @GetMapping("/best-selling-products")
     public ResponseEntity<List<Map<String, Object>>> getBestSellingProducts() {
         return ResponseEntity.ok(orderService.getBestSellingProducts());
+    }
+
+    // Lấy danh sách top 5 sản phẩm được yêu thích nhất
+    @GetMapping("/top-favorite-products")
+    public ResponseEntity<List<Map<String, Object>>> getTopFavoriteProducts() {
+        return ResponseEntity.ok(orderService.getTopFiveFavoriteProducts());
     }
 
     // Lấy tổng doanh thu trong khoảng thời gian
@@ -74,6 +81,7 @@ public class StatisticsController {
         return ResponseEntity.ok(revenueYesterday);
     }
 
+    // Lấy số lượng đơn hàng hàng ngày theo loại (ONLINE và OFFLINE)
     @GetMapping("/orders/daily-by-type")
     public ResponseEntity<Map<Date, Map<String, Long>>> getDailyOrderCountByType(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
@@ -81,7 +89,8 @@ public class StatisticsController {
         Map<Date, Map<String, Long>> dailyOrderStats = orderService.getDailyOrderCountByType(startDate, endDate);
         return ResponseEntity.ok(dailyOrderStats);
     }
-    
+
+    // Lấy số lượng đơn hàng hàng tuần theo loại (ONLINE và OFFLINE)
     @GetMapping("/orders/weekly-by-type")
     public ResponseEntity<List<Map<String, Object>>> getWeeklyOrderCountByType(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
@@ -89,13 +98,15 @@ public class StatisticsController {
         return ResponseEntity.ok(orderService.getWeeklyOrderCountByType(startDate, endDate));
     }
 
+    // Lấy số lượng đơn hàng hàng tháng theo loại (ONLINE và OFFLINE)
     @GetMapping("/orders/monthly-by-type")
     public ResponseEntity<List<Map<String, Object>>> getMonthlyOrderCountByType(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
         return ResponseEntity.ok(orderService.getMonthlyOrderCountByType(startDate, endDate));
     }
-    // Endpoint lấy số liệu đơn hàng hôm qua
+
+    // Lấy số liệu đơn hàng hôm qua
     @GetMapping("/yesterday-stats")
     public ResponseEntity<Map<String, Long>> getYesterdayOrderStats() {
         Map<String, Long> stats = new HashMap<>();
@@ -104,6 +115,7 @@ public class StatisticsController {
         return ResponseEntity.ok(stats);
     }
 
+    // Lấy tổng doanh thu hàng tuần
     @GetMapping("/revenue/weekly")
     public ResponseEntity<List<Map<String, Object>>> getWeeklyRevenue(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
@@ -194,5 +206,64 @@ public class StatisticsController {
     public ResponseEntity<List<Map<String, Object>>> getTopFiveCustomersByOrderCount() {
         List<Map<String, Object>> topCustomers = orderService.getTopFiveCustomersByOrderCount();
         return ResponseEntity.ok(topCustomers);
+    }
+
+    // Tổng doanh thu offline và online hôm nay
+    @GetMapping("/revenue/today/by-type")
+    public ResponseEntity<Map<String, BigDecimal>> getRevenueTodayByType() {
+        Map<String, BigDecimal> revenueByType = orderService.getRevenueTodayByType();
+        return ResponseEntity.ok(revenueByType);
+    }
+
+    // Tổng doanh thu offline và online hôm qua
+    @GetMapping("/revenue/yesterday/by-type")
+    public ResponseEntity<Map<String, BigDecimal>> getRevenueYesterdayByType() {
+        Map<String, BigDecimal> revenueByType = orderService.getRevenueYesterdayByType();
+        return ResponseEntity.ok(revenueByType);
+    }
+
+    // Tổng doanh thu offline và online tháng này
+    @GetMapping("/revenue/this-month/by-type")
+    public ResponseEntity<Map<String, BigDecimal>> getRevenueThisMonthByType() {
+        Map<String, BigDecimal> revenueByType = orderService.getRevenueThisMonthByType();
+        return ResponseEntity.ok(revenueByType);
+    }
+
+    // Doanh thu online và offline từng ngày trong khoảng thời gian
+    @GetMapping("/revenue/daily-by-type")
+    public ResponseEntity<Map<Date, Map<String, BigDecimal>>> getDailyRevenueByType(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        Map<Date, Map<String, BigDecimal>> dailyRevenueByType = orderService.getDailyRevenueByType(startDate, endDate);
+        return ResponseEntity.ok(dailyRevenueByType);
+    }
+
+    // Lấy tổng doanh thu từng tháng trong khoảng thời gian xác định
+    @GetMapping("/revenue/monthly")
+    public ResponseEntity<List<Map<String, Object>>> getMonthlyRevenue(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        System.out.println("Nhận startDate: " + startDate + ", endDate: " + endDate);
+        List<Map<String, Object>> monthlyRevenue = orderService.getMonthlyRevenueByDateRange(startDate, endDate);
+        System.out.println("Kết quả: " + monthlyRevenue);
+        return ResponseEntity.ok(monthlyRevenue);
+    }
+
+    // Lấy tổng doanh thu từng tháng theo loại đơn trong khoảng thời gian xác định
+    @GetMapping("/revenue/monthly-by-type")
+    public ResponseEntity<List<Map<String, Object>>> getMonthlyRevenueByType(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        return ResponseEntity.ok(orderService.getMonthlyRevenueByOrderType(startDate, endDate));
+    }
+
+
+    // Lấy doanh thu hàng tuần theo loại (ONLINE và OFFLINE) trong khoảng thời gian xác định
+    @GetMapping("/revenue/weekly-by-type")
+    public ResponseEntity<List<Map<String, Object>>> getWeeklyRevenueByType(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        List<Map<String, Object>> weeklyRevenueByType = orderService.getWeeklyRevenueByTypeAndDateRange(startDate, endDate);
+        return ResponseEntity.ok(weeklyRevenueByType);
     }
 }
