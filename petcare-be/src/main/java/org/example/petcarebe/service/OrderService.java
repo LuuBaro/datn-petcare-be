@@ -324,17 +324,15 @@ public class OrderService {
         return savedOrder;
     }
 
-    // Lấy tất cả đơn hàng
+    // Lấy tất cả đơn hàng có type là "ORDER ONLINE"
     public List<OrderDTO> getAllOrders() {
-        List<Orders> ordersList = orderRepository.findAll();
-        return ordersList.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
+        List<Orders> danhSachDonHang = orderRepository.findByType("ORDER ONLINE");
+        return danhSachDonHang.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
     }
 
     // Chuyển từ Orders sang OrderDTO
     private OrderDTO convertToOrderDTO(Orders order) {
         List<OrderDetailDTO> orderDetailDTOList = order.getOrderDetails().stream().map(this::convertToOrderDetailDTO).collect(Collectors.toList());
-
-
 
         return OrderDTO.builder()
                 .orderId(order.getOrderId())

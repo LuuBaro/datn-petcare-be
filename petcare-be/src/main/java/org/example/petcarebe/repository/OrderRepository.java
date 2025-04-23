@@ -17,6 +17,8 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     // Tìm tất cả các đơn hàng liên quan đến một người dùng cụ thể dựa trên ID người dùng.
     List<Orders> findByUserUserId(Long userId);
 
+    List<Orders> findByType(String type);
+
     // Lấy danh sách các đơn hàng dựa trên ID trạng thái cụ thể.
     List<Orders> findByStatusOrder_StatusId(Long statusId);
 
