@@ -31,6 +31,7 @@ public class OfflineOrderDTO {
         private float totalAmount;
         private String status;
         private int pointsEarned;
+        private int pointUsed;
         private Long userId;
         private String staffName;
         private int totalPoints;
