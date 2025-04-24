@@ -46,8 +46,13 @@ public class PetWeightController {
     }
 
     @GetMapping("/by-pet-type")
-    public ResponseEntity<List<PetWeight>> getWeightsByPetType(@RequestParam("petType") PetType petType) {
-        List<PetWeight> weights = petWeightService.getWeightsByPetType(petType);
-        return ResponseEntity.ok(weights);
+    public ResponseEntity<List<PetWeight>> getWeightsByPetType(@RequestParam("petType") String petType) {
+        try {
+            PetType type = PetType.valueOf(petType.toUpperCase());
+            List<PetWeight> weights = petWeightService.getWeightsByPetType(type);
+            return ResponseEntity.ok(weights);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

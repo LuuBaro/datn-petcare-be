@@ -1,4 +1,3 @@
-// Appointment.java
 package org.example.petcarebe.model;
 
 import jakarta.persistence.*;
@@ -42,9 +41,20 @@ public class Appointment {
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Pet> pets = new ArrayList<>();
 
+    @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<AppointmentSlot> appointmentSlots = new ArrayList<>();
+
+    @Column(name = "deposit_amount")
     private float depositAmount;
 
+    @Column(name = "total_amount")
     private double totalAmount;
+
+    @Column(name = "paid_amount")
+    private float paidAmount; // Thêm trường paid_amount
+
+    @Column(name = "cancel_reason", length = 255)
+    private String cancelReason; // Thêm trường cancel_reason
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -53,10 +63,6 @@ public class Appointment {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
-
-    @ManyToOne
-    @JoinColumn(name = "staff_id", nullable = true) // Có thể null ban đầu
-    private User user;
 
     public void addPet(Pet pet) {
         pets.add(pet);

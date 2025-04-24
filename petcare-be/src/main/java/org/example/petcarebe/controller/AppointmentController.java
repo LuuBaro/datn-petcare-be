@@ -1,52 +1,76 @@
-// AppointmentController.java
 package org.example.petcarebe.controller;
 
-import org.example.petcarebe.dto.request.AppointmentRequestDTO;
-import org.example.petcarebe.enums.AppointmentStatus;
+import org.example.petcarebe.dto.AppointmentRequest;
+import org.example.petcarebe.dto.AppointmentResponse;
+import org.example.petcarebe.dto.PetResponse;
 import org.example.petcarebe.model.Appointment;
 import org.example.petcarebe.service.AppointmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/appointments")
 public class AppointmentController {
 
-    private final AppointmentService appointmentService;
-
     @Autowired
-    public AppointmentController(AppointmentService appointmentService) {
-        this.appointmentService = appointmentService;
-    }
+    private AppointmentService appointmentService;
 
     @PostMapping
-    public ResponseEntity<Appointment> createAppointment(@RequestBody AppointmentRequestDTO request) {
-        Appointment appointment = appointmentService.createAppointment(request);
-        return ResponseEntity.ok(appointment);
+    public ResponseEntity<?> createAppointment(@RequestBody AppointmentRequest request) {
+        try {
+            Appointment appointment = appointmentService.createAppointment(request);
+            return ResponseEntity.ok(new AppointmentResponse(appointment.getAppointmentId(), "PAID", "Lịch hẹn đã được lưu"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new AppointmentResponse(null, "FAILED", e.getMessage()));
+        }
     }
 
-    @PutMapping("/{id}/pay")
-    public ResponseEntity<Appointment> updatePayment(@PathVariable Long id, @RequestParam float depositAmount) {
-        Appointment appointment = appointmentService.updatePayment(id, depositAmount);
-        return ResponseEntity.ok(appointment);
+    @GetMapping("/pending")
+    public ResponseEntity<List<AppointmentResponse>> getPendingAppointments() {
+        try {
+            List<AppointmentResponse> pendingAppointments = appointmentService.getPendingAppointments();
+            return ResponseEntity.ok(pendingAppointments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
 
-    @PutMapping("/{id}/confirm")
-    public ResponseEntity<Appointment> confirmAppointment(@PathVariable Long id, @RequestParam Long staffId) {
-        Appointment appointment = appointmentService.confirmAppointment(id, staffId);
-        return ResponseEntity.ok(appointment);
+    @GetMapping("/{appointmentId}/pets")
+    public ResponseEntity<List<PetResponse>> getPetsByAppointmentId(@PathVariable Long appointmentId) {
+        try {
+            List<PetResponse> pets = appointmentService.getPetsByAppointmentId(appointmentId);
+            return ResponseEntity.ok(pets);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
 
-    @PutMapping("/{id}/update-status")
-    public ResponseEntity<Appointment> updateStatus(@PathVariable Long id, @RequestParam AppointmentStatus status) {
-        Appointment appointment = appointmentService.updateStatus(id, status);
-        return ResponseEntity.ok(appointment);
+    @PostMapping("/confirm")
+    public ResponseEntity<?> confirmAppointments(@RequestBody List<Long> appointmentIds) {
+        try {
+            appointmentService.confirmAppointments(appointmentIds);
+            return ResponseEntity.ok(new AppointmentResponse(null, "CONFIRMED", "Đã xác nhận các lịch hẹn"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new AppointmentResponse(null, "FAILED", e.getMessage()));
+        }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAppointment(@PathVariable Long id) {
-        appointmentService.deleteAppointment(id);
-        return ResponseEntity.ok().build();
+    @GetMapping("/confirmed-by-date-and-time")
+    public ResponseEntity<List<AppointmentResponse>> getConfirmedAppointmentsByDateAndTime(
+            @RequestParam("date") String date,
+            @RequestParam("time") String time) {
+        try {
+            LocalDate localDate = LocalDate.parse(date);
+            LocalTime localTime = LocalTime.parse(time);
+            List<AppointmentResponse> appointments = appointmentService.getConfirmedAppointmentsByDateAndTime(localDate, localTime);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
 }

@@ -59,6 +59,6 @@ public class PetWeightService {
     }
 
     public List<PetWeight> getWeightsByPetType(PetType petType) {
-        return petWeightRepository.findByPetType(petType);
+        return petWeightRepository.findByPetTypeAndStatusType(petType, StatusType.ACTIVE);
     }
 }

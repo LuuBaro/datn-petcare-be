@@ -1,11 +1,13 @@
-// DefaultTimeSlotRepository.java
 package org.example.petcarebe.repository;
 
 import org.example.petcarebe.model.DefaultTimeSlot;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import java.time.LocalTime;
+import java.util.Optional;
 
+@Repository
 public interface DefaultTimeSlotRepository extends JpaRepository<DefaultTimeSlot, Long> {
-    List<DefaultTimeSlot> findByIsActiveTrueOrderBySlotIndexAsc();
+    Optional<DefaultTimeSlot> findByTime(LocalTime time);
 }

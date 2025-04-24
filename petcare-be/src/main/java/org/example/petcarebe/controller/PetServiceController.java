@@ -40,10 +40,14 @@ public class PetServiceController {
         return ResponseEntity.ok().build();
     }
 
-    // Thêm endpoint mới để lấy dịch vụ theo petType
     @GetMapping("/by-pet-type")
-    public ResponseEntity<List<PetService>> getServicesByPetType(@RequestParam("petType") PetType petType) {
-        List<PetService> services = petServiceService.getServicesByPetType(petType);
-        return ResponseEntity.ok(services);
+    public ResponseEntity<List<PetService>> getServicesByPetType(@RequestParam("petType") String petType) {
+        try {
+            PetType type = PetType.valueOf(petType.toUpperCase());
+            List<PetService> services = petServiceService.getServicesByPetType(type);
+            return ResponseEntity.ok(services);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

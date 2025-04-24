@@ -21,16 +21,19 @@ public class SlotAdjustment {
     @Column(name = "date", nullable = false)
     private LocalDate date;
 
-    @Column(name = "time", nullable = false)
-    private LocalTime time;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_time_slot_id", nullable = false)
+    private DefaultTimeSlot defaultTimeSlot;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "adjustment_type", nullable = false)
-    private AdjustmentType adjustmentType;
+    private AdjustmentType adjustmentType; // Enum: ADD, REMOVE
 
     @Column(name = "slot_count", nullable = false)
     private int slotCount;
 
-    @Column(name = "is_permanent", nullable = false)
-    private boolean isPermanent;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "adjusted_by", nullable = false)
+    private User adjustedBy; // Tham chiếu đến bảng users
+
 }

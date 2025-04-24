@@ -18,7 +18,6 @@ public class Pet {
 
     @ManyToOne
     @JoinColumn(name = "weight_id", nullable = false)
-
     private PetWeight petWeight;
 
     @ManyToOne
@@ -42,7 +41,6 @@ public class Pet {
 
     private float price;
 
-
     @Column(name = "name_pet", columnDefinition = "NVARCHAR(255)")
     private String namePet;
 
@@ -54,4 +52,12 @@ public class Pet {
     @Column(name = "name_boss", columnDefinition = "NVARCHAR(255)")
     private String nameBoss;
 
+    @Column(name = "deleted")
+    private Boolean deleted; // Thêm trường deleted
+
+    @Column(name = "deposit_amount")
+    private Float depositAmount; // Thêm trường deposit_amount
+
+    @Column(name = "paid_amount")
+    private Float paidAmount; // Thêm trường paid_amount
 }

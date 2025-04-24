@@ -1,14 +1,10 @@
-// TimeSlotController.java
 package org.example.petcarebe.controller;
 
 import org.example.petcarebe.dto.TimeSlotDTO;
 import org.example.petcarebe.service.TimeSlotService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,9 +18,13 @@ public class TimeSlotController {
     private TimeSlotService timeSlotService;
 
     @GetMapping
-    public ResponseEntity<Map<String, List<TimeSlotDTO>>> getTimeSlots(@RequestParam("date") String date) {
-        LocalDate localDate = LocalDate.parse(date);
-        Map<String, List<TimeSlotDTO>> timeSlots = timeSlotService.getTimeSlots(localDate);
-        return ResponseEntity.ok(timeSlots);
+    public ResponseEntity<Map<String, List<TimeSlotDTO>>> getTimeSlotsForDate(@RequestParam("date") String date) {
+        try {
+            LocalDate localDate = LocalDate.parse(date);
+            Map<String, List<TimeSlotDTO>> timeSlots = timeSlotService.getTimeSlotsForDate(localDate);
+            return ResponseEntity.ok(timeSlots);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
 }

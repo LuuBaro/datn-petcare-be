@@ -54,8 +54,7 @@ public class PetServiceService {
         petServiceRepository.save(petService);
     }
 
-    // Thêm phương thức mới để lấy dịch vụ theo petType
     public List<PetService> getServicesByPetType(PetType petType) {
-        return petServiceRepository.findByPetType(petType);
+        return petServiceRepository.findByPetTypeAndStatusType(petType, StatusType.ACTIVE);
     }
 }

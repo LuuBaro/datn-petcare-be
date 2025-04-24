@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Optional;
 
 @Service
 public class BookingEnabledService {
@@ -19,18 +21,18 @@ public class BookingEnabledService {
     private UserRepository userRepository;
 
     public BookingEnabled getBookingStatus() {
-        return bookingEnabledRepository.findTopByOrderByUpdatedAtDesc()
-                .orElseThrow(() -> new RuntimeException("Booking status not found"));
+        Optional<BookingEnabled> bookingEnabled = bookingEnabledRepository.findTopByOrderByUpdatedAtDesc();
+        return bookingEnabled.orElse(null);
     }
 
     public void updateBookingStatus(boolean status, Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("User không tồn tại"));
 
         BookingEnabled bookingEnabled = new BookingEnabled();
         bookingEnabled.setSettingName("booking_enabled");
         bookingEnabled.setSettingValue(status);
-        bookingEnabled.setUpdatedAt(LocalDateTime.now());
+        bookingEnabled.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         bookingEnabled.setUser(user);
 
         bookingEnabledRepository.save(bookingEnabled);
