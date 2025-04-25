@@ -14,7 +14,7 @@ public class Notification {
     @Column(nullable = false)
     private Long userId; // ID của người dùng nhận thông báo
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String message; // Nội dung thông báo
 
     @Column(nullable = false)

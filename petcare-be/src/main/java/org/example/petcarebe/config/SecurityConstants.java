@@ -15,6 +15,6 @@ public class SecurityConstants {
             "/css/**",
             "/js/**",
             "/ws/**",
-            "/**"
+            "/"
     };
 }

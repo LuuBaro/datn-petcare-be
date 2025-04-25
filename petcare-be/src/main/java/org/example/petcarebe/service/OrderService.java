@@ -99,7 +99,7 @@ public class OrderService {
         cartDetailsService.deleteCartDetails(cartDetailId);
     }
 
-    @Transactional
+
     public Orders checkout(CheckoutRequestDTO request) {
         // 1️⃣ Kiểm tra người dùng
         User user = userRepository.findById(request.getUserId())
@@ -125,17 +125,17 @@ public class OrderService {
         order.setType(request.getType());
         order.setPointEarned(0);
         order.setPointUsed(0);
-        
+
         // Lưu momoOrderId nếu có
         if (request.getMomoOrderId() != null && !request.getMomoOrderId().isEmpty()) {
             order.setMomoOrderId(request.getMomoOrderId());
         }
-        
+
         // Lưu momoTransId nếu có
         if (request.getMomoTransId() != null && !request.getMomoTransId().isEmpty()) {
             order.setMomoTransId(request.getMomoTransId());
         }
-        
+
         // Lưu momoAmount nếu có
         if (request.getMomoAmount() != null && !request.getMomoAmount().isEmpty()) {
             order.setMomoAmount(request.getMomoAmount());
@@ -204,7 +204,15 @@ public class OrderService {
         // 6️⃣ Lưu đơn hàng
         Orders savedOrder = orderRepository.save(order);
 
-        // 7️⃣ Trừ kho và clear giỏ hàng ngay lập tức cho COD
+        // 7️⃣ Gửi thông báo WebSocket tới admin
+        String message = "Đơn hàng mới #" + savedOrder.getOrderId() + " từ người dùng " + user.getFullName();
+        // Lưu thông báo vào database cho admin (dùng userId = 0 để đại diện cho admin)
+        Long adminUserId = 2L; // Giả định userId = 2 là admin
+        Notification notification = notificationService.saveNotification(adminUserId, message);
+        // Gửi thông báo qua WebSocket
+        webSocketService.sendToRole("ADMIN", "/notifications", notification.getId() + "|" + message);
+
+        // 8️⃣ Trừ kho và clear giỏ hàng ngay lập tức cho COD
         if ("COD".equals(request.getPaymentMethod())) {
             for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
                 int updated = productDetailsRepository.updateStock(
@@ -217,12 +225,11 @@ public class OrderService {
                 }
             }
             cartDetailsService.clearCartDetailsByUserId(request.getUserId());
-
             logger.info("Stock deducted and cart cleared for COD orderId: {}", savedOrder.getOrderId());
-        } 
+        }
         // Trừ kho và clear giỏ hàng cho VNPay/MoMo khi trạng thái là "Chờ xác nhận"
-        else if (("VNPay".equals(request.getPaymentMethod()) || "MoMo".equals(request.getPaymentMethod())) 
-                 && "Chờ xác nhận".equals(request.getPaymentStatus())) {
+        else if (("VNPay".equals(request.getPaymentMethod()) || "MoMo".equals(request.getPaymentMethod()))
+                && "Chờ xác nhận".equals(request.getPaymentStatus())) {
             logger.info("Processing inventory and cart for VNPay/MoMo order with 'Chờ xác nhận' status, orderId: {}", savedOrder.getOrderId());
             for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
                 int updated = productDetailsRepository.updateStock(
@@ -237,7 +244,6 @@ public class OrderService {
             cartDetailsService.clearCartDetailsByUserId(request.getUserId());
             logger.info("Stock deducted and cart cleared for VNPay/MoMo orderId: {}", savedOrder.getOrderId());
         }
-        // ❌ Không trừ kho cho VNPay/MoMo với trạng thái khác, chỉ trừ khi thanh toán thành công
 
         return savedOrder;
     }
@@ -947,6 +953,7 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
     }
 
+    @Transactional
     public Orders updateOrderStatusAndPayment(Long orderId, Long statusId, String paymentStatus) {
         Orders order = getOrderById(orderId);
         
@@ -985,7 +992,7 @@ public class OrderService {
             
             // Nếu chuyển sang trạng thái "Hoàn thành" (statusId = 4) và không có paymentStatus cụ thể
             if (statusId == 4L && paymentStatus == null) {
-                logger.info("Auto setting paymentStatus to 'Đã thanh toán' for completed order: {}", orderId);
+                logger.info("Auto setting paymentStatus to 'Đã thanh toán' for completed order: {}", statusOrder);
                 order.setPaymentStatus("Đã thanh toán");
             }
         }
@@ -1002,7 +1009,26 @@ public class OrderService {
         logger.info("Updated order: {} status from '{}' to '{}', paymentStatus from '{}' to '{}'", 
                 orderId, oldStatus, savedOrder.getStatusOrder().getStatusName(), 
                 oldPaymentStatus, savedOrder.getPaymentStatus());
-        
+
+        // Gửi thông báo qua WebSocket
+        // 11️⃣ Lưu và gửi thông báo qua WebSocket
+        Long userId = order.getUser().getUserId();
+        String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " +
+                savedOrder.getStatusOrder().getStatusName();
+
+        // Lưu thông báo vào database trước
+        Notification notification = notificationService.saveNotification(userId, message);
+
+        // Gửi thông báo qua WebSocket với ID thực tế
+        String webSocketMessage = "{\"id\": " + notification.getId() + ", \"message\": \"" + message + "\", \"orderId\": " + orderId + "}";
+        try {
+            webSocketService.sendToTopic("/topic/status", webSocketMessage); // Gửi broadcast với JSON
+            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + webSocketMessage);
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send WebSocket notification to /topic/status: " + e.getMessage());
+            logger.error("Failed to send WebSocket notification for orderId: " + orderId, e); // Ghi log chi tiết
+        }
+
         // Nếu trạng thái mới là "Đã hủy" (statusId = 5), khôi phục tồn kho
         if (statusId != null && statusId == 5L) {
             try {
