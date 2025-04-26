@@ -14,6 +14,8 @@ import java.util.List;
 @Repository
 public interface OrderRepository extends JpaRepository<Orders, Long> {
 
+    List<Orders> findByType(String type);
+
     // Tìm tất cả các đơn hàng liên quan đến một người dùng cụ thể dựa trên ID người dùng.
     List<Orders> findByUserUserId(Long userId);
 
