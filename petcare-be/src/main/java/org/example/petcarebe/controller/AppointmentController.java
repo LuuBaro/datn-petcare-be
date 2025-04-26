@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -71,6 +72,17 @@ public class AppointmentController {
             return ResponseEntity.ok(appointments);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
+        }
+    }
+    @PutMapping("/cancel")
+    public ResponseEntity<?> cancelAppointments(@RequestBody Map<String, Object> request) {
+        try {
+            List<Long> appointmentIds = (List<Long>) request.get("appointmentIds");
+            String reason = (String) request.get("reason");
+            List<Map<String, Object>> responses = appointmentService.cancelAppointments(appointmentIds, reason);
+            return ResponseEntity.ok(responses);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new AppointmentResponse(null, "FAILED", e.getMessage()));
         }
     }
 }

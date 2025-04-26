@@ -32,7 +32,8 @@ public class TimeSlotDTO {
     public void setTime(LocalTime time) {
         this.time = time;
         if (time != null) {
-            this.hour = time.toString();
+            // Định dạng hour thành HH:mm
+            this.hour = String.format("%02d:%02d", time.getHour(), time.getMinute());
         }
     }
 
