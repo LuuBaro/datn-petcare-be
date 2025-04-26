@@ -6,14 +6,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        System.out.println("Configuring CORS in WebConfig...");
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5173", "http://localhost:5174") // địa chỉ React app
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true);
-        System.out.println("CORS configuration complete in WebConfig");
+                .allowedOrigins("http://localhost:5173") // Địa chỉ React app
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS") // Added PATCH
+                .allowedHeaders("*") // Allow all headers for development
+                .allowCredentials(true) // Allow credentials (cookies, authorization headers)
+                .maxAge(3600); // Cache CORS preflight requests for 1 hour
     }
 }

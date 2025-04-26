@@ -17,4 +17,6 @@ public class StatusOrder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long statusId;
     private String statusName;
+
+
 }
