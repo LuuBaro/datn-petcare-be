@@ -3,11 +3,10 @@ package org.example.petcarebe.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.example.petcarebe.enums.PetType;
+import org.example.petcarebe.enums.StatusType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
-import org.example.petcarebe.enums.StatusType;
-
 import java.math.BigDecimal;
 
 @Data
@@ -27,7 +26,7 @@ public class PetService {
     @Column(nullable = false, length = 255)
     private String serviceName;
 
-    @Column(length = 255 , nullable = true)
+    @Column(length = 255)
     private String description;
 
     @NotNull(message = "Giá cơ bản không được để trống")

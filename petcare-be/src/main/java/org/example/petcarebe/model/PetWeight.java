@@ -30,5 +30,4 @@ public class PetWeight {
     @Enumerated(EnumType.STRING)
     @Column(name = "status_type", nullable = false)
     private StatusType statusType;
-
 }

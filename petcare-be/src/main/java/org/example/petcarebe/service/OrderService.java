@@ -324,7 +324,11 @@ public class OrderService {
         return savedOrder;
     }
 
-
+// Lấy tất cả đơn hàng có type là "ORDER ONLINE"
+    public List<OrderDTO> getAllOrders() {
+        List<Orders> danhSachDonHang = orderRepository.findByType("ORDER ONLINE");
+        return danhSachDonHang.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
+    }
 
     // Chuyển từ Orders sang OrderDTO
     private OrderDTO convertToOrderDTO(Orders order) {
@@ -1563,10 +1567,6 @@ public class OrderService {
         Orders order = getOrderById(orderId);
         return convertToOrderDTO(order);
     }
-    // Lấy tất cả đơn hàng có type là "ORDER ONLINE"
-    public List<OrderDTO> getAllOrders() {
-        List<Orders> danhSachDonHang = orderRepository.findByType("ORDER ONLINE");
-        return danhSachDonHang.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
-    }
+    
 
 }

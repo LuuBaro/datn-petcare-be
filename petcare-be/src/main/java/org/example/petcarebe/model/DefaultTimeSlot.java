@@ -2,30 +2,52 @@ package org.example.petcarebe.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalTime;
+import java.util.logging.Logger;
 
 @Entity
 @Table(name = "default_time_slots")
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class DefaultTimeSlot {
+    private static final Logger logger = Logger.getLogger(DefaultTimeSlot.class.getName());
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Khóa chính
+    private Long id;
 
     @Column(name = "time", nullable = false)
-    private LocalTime time; // Thời gian slot (VD: 09:00, 10:00, ...)
+    private LocalTime time;
 
     @Column(name = "slot_index", nullable = false)
-    private int slotIndex; // Thứ tự của slot trong ngày (VD: 1, 2, 3,...)
+    private int slotIndex;
 
     @Column(name = "default_slot_count", nullable = false)
-    private int defaultSlotCount; // Số lượng slot mặc định cho khung giờ này
+    private int defaultSlotCount;
+
+    @Column(name = "total_slots", nullable = false)
+    private int totalSlots = 0;
 
     @Column(name = "is_active", nullable = false)
-    private boolean isActive; // true: đang sử dụng, false: ngừng hoạt động
-}
+    private boolean isActive;
 
+    @Column(name = "is_morning", nullable = false)
+    private boolean isMorning;
+
+    public DefaultTimeSlot(Long id, LocalTime time, int slotIndex, int defaultSlotCount, boolean isActive, boolean isMorning) {
+        this.id = id;
+        this.time = time;
+        this.slotIndex = slotIndex;
+        this.defaultSlotCount = defaultSlotCount;
+        this.totalSlots = defaultSlotCount;
+        this.isActive = isActive;
+        this.isMorning = isMorning;
+    }
+
+    public int getDefaultSlotCount() {
+        logger.info("Truy xuất defaultSlotCount cho time=" + time + ", giá trị=" + defaultSlotCount);
+        return defaultSlotCount;
+    }
+}
