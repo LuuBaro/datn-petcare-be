@@ -276,12 +276,11 @@ public class OrderController {
         try {
             String momoOrderId = request.get("momoOrderId");
             String momoTransId = request.get("momoTransId");
-            String momoAmount = request.get("momoAmount");
             
-            logger.info("Updating MoMo info for orderId={}: momoOrderId={}, momoTransId={}, momoAmount={}", 
-                    orderId, momoOrderId, momoTransId, momoAmount);
+            logger.info("Updating MoMo info for orderId={}: momoOrderId={}, momoTransId={}", 
+                    orderId, momoOrderId, momoTransId);
             
-            Orders order = orderService.updateMomoInfo(orderId, momoOrderId, momoTransId, momoAmount);
+            Orders order = orderService.updateMomoInfo(orderId, momoOrderId, momoTransId);
             
             response.put("message", "Cập nhật thông tin thanh toán MoMo thành công");
             response.put("orderId", order.getOrderId());

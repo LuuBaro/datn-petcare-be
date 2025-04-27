@@ -324,8 +324,7 @@ public class OrderService {
         return savedOrder;
     }
 
-    // Lấy tất cả đơn hàng
-    // Lấy tất cả đơn hàng có type là "ORDER ONLINE"
+// Lấy tất cả đơn hàng có type là "ORDER ONLINE"
     public List<OrderDTO> getAllOrders() {
         List<Orders> danhSachDonHang = orderRepository.findByType("ORDER ONLINE");
         return danhSachDonHang.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
@@ -334,8 +333,6 @@ public class OrderService {
     // Chuyển từ Orders sang OrderDTO
     private OrderDTO convertToOrderDTO(Orders order) {
         List<OrderDetailDTO> orderDetailDTOList = order.getOrderDetails().stream().map(this::convertToOrderDetailDTO).collect(Collectors.toList());
-
-
 
         return OrderDTO.builder()
                 .orderId(order.getOrderId())
@@ -354,6 +351,9 @@ public class OrderService {
                 .statusId(order.getStatusOrder() != null ? order.getStatusOrder().getStatusId() : null)
                 .statusName(order.getStatusOrder() != null ? order.getStatusOrder().getStatusName() : null)
                 .voucherId(order.getVoucher() != null ? order.getVoucher().getVoucherId() : null)
+                // Thêm thông tin MoMo
+                .momoOrderId(order.getMomoOrderId())
+                .momoTransId(order.getMomoTransId())
                 .orderDetails(orderDetailDTOList)
                 .build();
     }
@@ -1499,61 +1499,45 @@ public class OrderService {
      * @param orderId ID đơn hàng
      * @param momoOrderId ID đơn hàng từ MoMo
      * @param momoTransId ID giao dịch từ MoMo
-     * @param momoAmount Số tiền thanh toán qua MoMo
      * @return Đối tượng đơn hàng đã cập nhật
      */
     @Transactional
-    public Orders updateMomoInfo(Long orderId, String momoOrderId, String momoTransId, String momoAmount) {
-        // Tìm đơn hàng
-        Orders order = getOrderById(orderId);
-        
-        // Kiểm tra phương thức thanh toán
-        if (!"MoMo".equals(order.getPaymentMethod())) {
-            logger.warn("Attempt to update MoMo info for non-MoMo payment method: {}", order.getPaymentMethod());
-            throw new RuntimeException("Không thể cập nhật thông tin MoMo cho đơn hàng không thanh toán qua MoMo");
-        }
-        
-        // Cập nhật thông tin MoMo
-        if (momoOrderId != null && !momoOrderId.isEmpty()) {
-            order.setMomoOrderId(momoOrderId);
-        }
-        
-        if (momoTransId != null && !momoTransId.isEmpty()) {
-            order.setMomoTransId(momoTransId);
-        }
-        
-        // Xử lý trường hợp momoAmount là undefined, NaN hoặc không hợp lệ
-        if (momoAmount != null && !momoAmount.isEmpty() && 
-            !"undefined".equals(momoAmount) && !"NaN".equals(momoAmount)) {
-            // Thử parse giá trị để xác nhận là số hợp lệ
-            try {
-                // Kiểm tra xem có phải là số hợp lệ không
-                double amount = Double.parseDouble(momoAmount);
-                if (Double.isNaN(amount)) {
-                    throw new NumberFormatException("Value is NaN");
+    public Orders updateMomoInfo(Long orderId, String momoOrderId, String momoTransId) {
+        try {
+            logger.info("Cập nhật thông tin MoMo cho đơn hàng {}: momoOrderId={}, momoTransId={}", 
+                    orderId, momoOrderId, momoTransId);
+            
+            Orders order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
+            
+            // Kiểm tra momoOrderId đã có trong hệ thống chưa
+            if (momoOrderId != null && !momoOrderId.isEmpty() && 
+                !momoOrderId.equals(order.getMomoOrderId())) {
+                
+                boolean exists = orderRepository.existsByMomoOrderId(momoOrderId);
+                if (exists) {
+                    throw new RuntimeException("MoMo orderId này đã tồn tại trong hệ thống: " + momoOrderId);
                 }
-                logger.info("Cập nhật momoAmount cho đơn hàng {}: {}", orderId, momoAmount);
-                order.setMomoAmount(momoAmount);
-            } catch (NumberFormatException e) {
-                // Nếu không phải số hợp lệ, sử dụng giá trị totalAmount thay thế
-                String totalAmountStr = String.valueOf(Math.round(order.getTotalAmount()));
-                order.setMomoAmount(totalAmountStr);
-                logger.info("momoAmount không phải là số hợp lệ ({}), thay thế bằng totalAmount cho đơn hàng {}: {}", 
-                        momoAmount, orderId, totalAmountStr);
+                
+                order.setMomoOrderId(momoOrderId);
+                logger.info("Đã cập nhật momoOrderId cho đơn hàng {}: {}", orderId, momoOrderId);
             }
-        } else {
-            // Sử dụng totalAmount nếu momoAmount không hợp lệ
-            String totalAmountStr = String.valueOf(Math.round(order.getTotalAmount()));
-            order.setMomoAmount(totalAmountStr);
-            logger.info("Thay thế momoAmount không hợp lệ ({}) bằng totalAmount cho đơn hàng {}: {}", 
-                    momoAmount, orderId, totalAmountStr);
+            
+            // Cập nhật momoTransId nếu không rỗng
+            if (momoTransId != null && !momoTransId.isEmpty()) {
+                order.setMomoTransId(momoTransId);
+                logger.info("Đã cập nhật momoTransId cho đơn hàng {}: {}", orderId, momoTransId);
+            }
+            
+            // Lưu đơn hàng
+            Orders updatedOrder = orderRepository.save(order);
+            logger.info("Đã lưu thông tin MoMo cho đơn hàng {}", orderId);
+            
+            return updatedOrder;
+        } catch (Exception e) {
+            logger.error("Lỗi khi cập nhật thông tin MoMo cho đơn hàng {}: {}", orderId, e.getMessage());
+            throw e;
         }
-        
-        logger.info("Updated MoMo info for orderId={}: momoOrderId={}, momoTransId={}, momoAmount={}", 
-                orderId, momoOrderId, momoTransId, order.getMomoAmount());
-        
-        // Lưu và trả về đơn hàng cập nhật
-        return orderRepository.save(order);
     }
 
     /**
@@ -1583,4 +1567,6 @@ public class OrderService {
         Orders order = getOrderById(orderId);
         return convertToOrderDTO(order);
     }
+    
+
 }

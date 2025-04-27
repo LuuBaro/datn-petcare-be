@@ -17,6 +17,8 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
 
     List<Orders> findByType(String type);
 
+    List<Orders> findByType(String type);
+
     // Tìm tất cả các đơn hàng liên quan đến một người dùng cụ thể dựa trên ID người dùng.
     List<Orders> findByUserUserId(Long userId);
 
@@ -275,6 +277,9 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
 
     // Kiểm tra xem một đơn hàng có tồn tại dựa trên ID đơn hàng.
     boolean existsByOrderId(Long orderId);
+
+    // Kiểm tra xem có tồn tại đơn hàng nào với momoOrderId cụ thể không
+    boolean existsByMomoOrderId(String momoOrderId);
 
     // Tìm các đơn hàng dựa trên ID đơn hàng của Momo.
     List<Orders> findByMomoOrderId(String momoOrderId);
