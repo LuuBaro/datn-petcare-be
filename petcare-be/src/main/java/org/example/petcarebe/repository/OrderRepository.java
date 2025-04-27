@@ -13,6 +13,7 @@ import java.util.List;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Orders, Long> {
+    List<Orders> findByUserUserIdAndType(Long userId, String type);
 
     List<Orders> findByType(String type);
 
@@ -343,4 +344,6 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             "ORDER BY favorite_count DESC " +
             "LIMIT 5", nativeQuery = true)
     List<Object[]> getTopFiveFavoriteProducts();
+
+
 }
