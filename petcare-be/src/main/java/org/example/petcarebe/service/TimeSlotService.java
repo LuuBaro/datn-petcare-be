@@ -8,8 +8,6 @@ import org.example.petcarebe.repository.AppointmentSlotRepository;
 import org.example.petcarebe.repository.DefaultTimeSlotRepository;
 import org.example.petcarebe.repository.SlotAdjustmentRepository;
 import org.example.petcarebe.enums.AdjustmentType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,8 +22,6 @@ import java.util.stream.Collectors;
 @Service
 public class TimeSlotService {
 
-    private static final Logger logger = LoggerFactory.getLogger(TimeSlotService.class);
-
     @Autowired
     private DefaultTimeSlotRepository defaultTimeSlotRepo;
 
@@ -36,26 +32,17 @@ public class TimeSlotService {
     private AppointmentSlotRepository appointmentSlotRepo;
 
     public Map<String, List<TimeSlotDTO>> getTimeSlotsForDate(LocalDate date) {
-        logger.info("Bắt đầu lấy khung giờ cho ngày: {}", date);
-
         // Lấy danh sách DefaultTimeSlot
         List<DefaultTimeSlot> defaultSlots = defaultTimeSlotRepo.findAll();
-        logger.info("Số khung giờ mặc định từ DB: {}", defaultSlots.size());
-        logger.info("Danh sách khung giờ mặc định từ DB: {}", defaultSlots);
-
-        // Kiểm tra từng slot
-        for (DefaultTimeSlot slot : defaultSlots) {
-            LocalTime time = slot.getTime();
-            logger.info("Slot: time={}, hour={}, isMorning={}", time, time.getHour(), slot.isMorning());
-        }
+        System.out.println("Default slots from DB: " + defaultSlots);
 
         // Lấy danh sách SlotAdjustment cho ngày cụ thể
         List<SlotAdjustment> adjustments = slotAdjustmentRepo.findByDate(date);
-        logger.info("Điều chỉnh slot cho ngày {}: {}", date, adjustments);
+        System.out.println("Adjustments for date " + date + ": " + adjustments);
 
         // Lấy danh sách AppointmentSlot cho ngày cụ thể
         List<AppointmentSlot> appointmentSlots = appointmentSlotRepo.findByDate(date);
-        logger.info("Slot đã đặt cho ngày {}: {}", date, appointmentSlots);
+        System.out.println("Appointment slots for date " + date + ": " + appointmentSlots);
 
         // Tạo map để lưu số slot điều chỉnh theo thời gian
         Map<LocalTime, Integer> adjustmentMap = adjustments.stream()
@@ -70,7 +57,7 @@ public class TimeSlotService {
                 .collect(Collectors.toMap(
                         AppointmentSlot::getTime,
                         slot -> slot,
-                        (s1, s2) -> s1
+                        (s1, s2) -> s1 // Nếu có trùng thời gian, lấy slot đầu tiên
                 ));
 
         // Chia slot thành morning và afternoon
@@ -82,19 +69,17 @@ public class TimeSlotService {
             dto.setTime(slot.getTime());
             dto.setHour(slot.getTime().toString());
             dto.setActive(slot.isActive());
+            dto.setMorning(slot.isMorning()); // Sử dụng lại logic cũ, dựa trên cột is_morning
 
-            LocalTime time = slot.getTime();
-            boolean isMorning = time.getHour() >= 9 && time.getHour() < 14;
-            logger.info("Phân loại slot: time={}, hour={}, isMorning={}", time, time.getHour(), isMorning);
-            dto.setMorning(isMorning);
-
+            // Tính totalSlots: defaultSlotCount + adjustment (nếu có)
             int totalSlots = slot.getDefaultSlotCount();
             if (adjustmentMap.containsKey(slot.getTime())) {
                 totalSlots += adjustmentMap.get(slot.getTime());
-                totalSlots = Math.max(0, totalSlots);
+                totalSlots = Math.max(0, totalSlots); // Đảm bảo không âm
             }
             dto.setTotalSlots(totalSlots);
 
+            // Lấy bookedSlots từ AppointmentSlot
             int bookedSlots = 0;
             if (appointmentSlotMap.containsKey(slot.getTime())) {
                 AppointmentSlot appointmentSlot = appointmentSlotMap.get(slot.getTime());
@@ -103,18 +88,19 @@ public class TimeSlotService {
             dto.setBookedSlots(bookedSlots);
             dto.setAvailableSlots(Math.max(0, totalSlots - bookedSlots));
 
-            if (isMorning) {
+            // Chia slot theo buổi dựa trên is_morning
+            if (slot.isMorning()) {
                 morningSlots.add(dto);
             } else {
                 afternoonSlots.add(dto);
             }
         }
 
-        logger.info("Số khung giờ buổi sáng trước khi trả về: {}", morningSlots.size());
-        logger.info("Danh sách khung giờ buổi sáng: {}", morningSlots);
-        logger.info("Số khung giờ buổi chiều trước khi trả về: {}", afternoonSlots.size());
-        logger.info("Danh sách khung giờ buổi chiều: {}", afternoonSlots);
+        // Log để kiểm tra dữ liệu trước khi trả về
+        System.out.println("Morning slots before return: " + morningSlots);
+        System.out.println("Afternoon slots before return: " + afternoonSlots);
 
+        // Trả về map với morning và afternoon
         Map<String, List<TimeSlotDTO>> result = new HashMap<>();
         result.put("morning", morningSlots);
         result.put("afternoon", afternoonSlots);

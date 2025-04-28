@@ -17,14 +17,18 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/time-slots")
 public class TimeSlotController {
+    
+    private static final Logger logger = Logger.getLogger(TimeSlotController.class.getName());
 
     @Autowired
     private AppointmentSlotRepository appointmentSlotRepository;
@@ -38,9 +42,16 @@ public class TimeSlotController {
     @GetMapping
     public ResponseEntity<?> getAvailableSlots(@RequestParam("date") String date) {
         try {
+            logger.info("Received date parameter: " + date);
             LocalDate localDate = LocalDate.parse(date);
+            logger.info("Parsed LocalDate: " + localDate);
+            
+            // Force save all slot data for the requested date
+            forceCreateOrUpdateSlotsForDate(localDate);
+            
             return ResponseEntity.ok(getSlotsForDate(localDate, true));
         } catch (Exception e) {
+            logger.severe("Error processing date: " + date + " - " + e.getMessage());
             return ResponseEntity.badRequest().body(null);
         }
     }
@@ -54,14 +65,84 @@ public class TimeSlotController {
             return ResponseEntity.badRequest().body(null);
         }
     }
+    
+    @GetMapping("/default-config")
+    public ResponseEntity<?> getDefaultTimeSlotsConfig() {
+        List<DefaultTimeSlot> defaultSlots = defaultTimeSlotRepository.findAll();
+        List<Map<String, Object>> result = new ArrayList<>();
+        
+        for (DefaultTimeSlot slot : defaultSlots) {
+            Map<String, Object> slotInfo = new HashMap<>();
+            slotInfo.put("id", slot.getId());
+            slotInfo.put("time", slot.getTime().format(DateTimeFormatter.ofPattern("HH:mm")));
+            slotInfo.put("slotIndex", slot.getSlotIndex());
+            slotInfo.put("defaultSlotCount", slot.getDefaultSlotCount());
+            slotInfo.put("totalSlots", slot.getTotalSlots());
+            slotInfo.put("isActive", slot.isActive());
+            slotInfo.put("isMorning", slot.isMorning());
+            result.add(slotInfo);
+        }
+        
+        return ResponseEntity.ok(result);
+    }
+    
+    /**
+     * Tạo mới hoặc cập nhật tất cả các slot cho một ngày
+     */
+    private void forceCreateOrUpdateSlotsForDate(LocalDate date) {
+        List<DefaultTimeSlot> defaultSlots = defaultTimeSlotRepository.findAll();
+        
+        for (DefaultTimeSlot defaultSlot : defaultSlots) {
+            LocalTime time = defaultSlot.getTime();
+            
+            // Get or create AppointmentSlot
+            AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
+                    .orElseGet(() -> {
+                        AppointmentSlot newSlot = new AppointmentSlot();
+                        newSlot.setDate(date);
+                        newSlot.setTime(time);
+                        newSlot.setTotalSlots(defaultSlot.getTotalSlots());
+                        newSlot.setBookedSlots(0);
+                        newSlot.setAvailableSlots(defaultSlot.getTotalSlots());
+                        newSlot.setIsActive(true);
+                        newSlot.setDefaultTimeSlot(defaultSlot);
+                        return appointmentSlotRepository.save(newSlot);
+                    });
+            
+            // Re-calculate booked slots
+            int bookedCount = 0;
+            for (AppointmentStatus status : List.of(AppointmentStatus.PAID, AppointmentStatus.CONFIRMED)) {
+                List<Appointment> appointments = appointmentRepository.findByDateAndTimeAndStatus(date, time, status);
+                int statusBookedSlots = appointments.stream()
+                        .mapToInt(appointment -> appointment.getPets().size())
+                        .sum();
+                bookedCount += statusBookedSlots;
+            }
+            
+            // Update slot data
+            slot.setTotalSlots(defaultSlot.getTotalSlots());
+            slot.setBookedSlots(bookedCount);
+            slot.setAvailableSlots(defaultSlot.getTotalSlots() - bookedCount);
+            appointmentSlotRepository.save(slot);
+            
+            logger.info("Updated slot " + time + " on " + date + ": total=" + 
+                      slot.getTotalSlots() + ", booked=" + slot.getBookedSlots() + 
+                      ", available=" + slot.getAvailableSlots());
+        }
+    }
 
     private Map<String, List<TimeSlotDTO>> getSlotsForDate(LocalDate date, boolean includePaid) {
         List<DefaultTimeSlot> defaultSlots = defaultTimeSlotRepository.findAll();
         List<TimeSlotDTO> morningSlots = new ArrayList<>();
         List<TimeSlotDTO> afternoonSlots = new ArrayList<>();
 
+        // Định dạng để đảm bảo hour chỉ có HH:mm
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
         for (DefaultTimeSlot defaultSlot : defaultSlots) {
             LocalTime time = defaultSlot.getTime();
+            logger.info("Processing time slot: " + time.format(timeFormatter) + " for date: " + date);
+            
             AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
                     .orElseGet(() -> {
                         AppointmentSlot newSlot = new AppointmentSlot();
@@ -82,24 +163,35 @@ public class TimeSlotController {
             int bookedSlots = 0;
             for (AppointmentStatus status : statuses) {
                 List<Appointment> appointments = appointmentRepository.findByDateAndTimeAndStatus(date, time, status);
-                bookedSlots += appointments.stream()
+                int statusBookedSlots = appointments.stream()
                         .mapToInt(appointment -> appointment.getPets().size())
                         .sum();
+                logger.info("Slot " + time.format(timeFormatter) + " has " + statusBookedSlots + 
+                            " pets booked with status " + status);
+                bookedSlots += statusBookedSlots;
             }
 
+            // Đảm bảo slot data là chính xác
             slot.setBookedSlots(bookedSlots);
             slot.setAvailableSlots(slot.getTotalSlots() - bookedSlots);
+            
+            // Đảm bảo availableSlots không bao giờ âm
+            if (slot.getAvailableSlots() < 0) {
+                slot.setAvailableSlots(0);
+            }
+            
+            logger.info("Slot " + time.format(timeFormatter) + " total: " + slot.getTotalSlots() + 
+                        ", booked: " + slot.getBookedSlots() + ", available: " + slot.getAvailableSlots());
 
             TimeSlotDTO slotDTO = new TimeSlotDTO();
-            slotDTO.setHour(time.toString());
-            slotDTO.setTime(time);
+            slotDTO.setTime(time); // Sử dụng setTime sẽ tự động format hour theo chuẩn HH:mm
             slotDTO.setTotalSlots(slot.getTotalSlots());
             slotDTO.setBookedSlots(slot.getBookedSlots());
             slotDTO.setAvailableSlots(slot.getAvailableSlots());
             slotDTO.setActive(slot.getIsActive());
-            slotDTO.setMorning(time.isBefore(LocalTime.of(12, 0)));
+            slotDTO.setMorning(defaultSlot.isMorning());
 
-            if (time.isBefore(LocalTime.of(12, 0))) {
+            if (defaultSlot.isMorning()) {
                 morningSlots.add(slotDTO);
             } else {
                 afternoonSlots.add(slotDTO);

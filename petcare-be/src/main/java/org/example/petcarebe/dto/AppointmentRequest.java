@@ -14,9 +14,13 @@ public class AppointmentRequest {
     private String time;
     private String customerName;
     private String phone;
-    private float depositAmount;
-    private double totalAmount;
+    private double depositAmount; 
+    private double totalAmount;   
+    private double paidAmount;    
+    private String paymentType;
     private List<PetRequest> pets;
+    private String paymentMethod;
+    private String paymentChannel;
 
     @Data
     @NoArgsConstructor
@@ -27,6 +31,6 @@ public class AppointmentRequest {
         private Long petServiceId;
         private Long petWeightId;
         private String note;
-        private float price;
+        private double price; // Chuyển sang double
     }
 }

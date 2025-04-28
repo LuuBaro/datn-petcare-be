@@ -2,16 +2,28 @@ package org.example.petcarebe.dto;
 
 import lombok.Data;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Data
 public class TimeSlotDTO {
+    // Chuỗi thời gian với định dạng "HH:mm" cho frontend
     private String hour;
+    
+    // Đối tượng LocalTime cho backend, không gửi đến frontend
+    @JsonIgnore
     private LocalTime time;
+    
     private int totalSlots;
     private int bookedSlots;
     private int availableSlots;
     private boolean active = true;
-    private boolean morning; // Changed from isMorning to morning to follow Java bean convention
+
+    @JsonProperty("isMorning")
+    private boolean morning;
+
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     public String getHour() {
         return hour;
@@ -19,21 +31,18 @@ public class TimeSlotDTO {
 
     public void setHour(String hour) {
         this.hour = hour;
-        // Nếu time là null, convert từ hour
-        if (this.time == null && hour != null) {
-            try {
-                this.time = LocalTime.parse(hour);
-            } catch (Exception e) {
-                // Ignore parsing errors
-            }
-        }
+        // Không tự động set time từ hour nữa
+    }
+
+    public LocalTime getTime() {
+        return time;
     }
 
     public void setTime(LocalTime time) {
         this.time = time;
+        // Nếu time được set, cập nhật hour theo định dạng chuẩn
         if (time != null) {
-            // Định dạng hour thành HH:mm
-            this.hour = String.format("%02d:%02d", time.getHour(), time.getMinute());
+            this.hour = time.format(TIME_FORMATTER);
         }
     }
 

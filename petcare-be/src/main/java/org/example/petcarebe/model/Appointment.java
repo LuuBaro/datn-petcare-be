@@ -5,6 +5,7 @@ import lombok.*;
 import org.example.petcarebe.enums.AppointmentStatus;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -45,23 +46,23 @@ public class Appointment {
     private List<AppointmentSlot> appointmentSlots = new ArrayList<>();
 
     @Column(name = "deposit_amount")
-    private float depositAmount;
+    private double depositAmount; // Chuyển sang double
 
     @Column(name = "total_amount")
     private double totalAmount;
 
     @Column(name = "paid_amount")
-    private float paidAmount; // Thêm trường paid_amount
+    private double paidAmount; // Chuyển sang double
 
     @Column(name = "cancel_reason", length = 255)
-    private String cancelReason; // Thêm trường cancel_reason
+    private String cancelReason;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
     }
 
     public void addPet(Pet pet) {

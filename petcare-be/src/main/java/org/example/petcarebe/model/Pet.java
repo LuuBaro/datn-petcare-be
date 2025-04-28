@@ -39,7 +39,7 @@ public class Pet {
     @Column(columnDefinition = "TEXT")
     private String note;
 
-    private float price;
+    private double price; 
 
     @Column(name = "name_pet", columnDefinition = "NVARCHAR(255)")
     private String namePet;
@@ -53,11 +53,11 @@ public class Pet {
     private String nameBoss;
 
     @Column(name = "deleted")
-    private Boolean deleted; // Thêm trường deleted
+    private Boolean deleted;
 
     @Column(name = "deposit_amount")
-    private Float depositAmount; // Thêm trường deposit_amount
+    private double depositAmount; 
 
     @Column(name = "paid_amount")
-    private Float paidAmount; // Thêm trường paid_amount
+    private double paidAmount; 
 }

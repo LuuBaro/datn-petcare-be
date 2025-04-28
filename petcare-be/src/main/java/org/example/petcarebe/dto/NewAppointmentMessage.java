@@ -8,9 +8,9 @@ public class NewAppointmentMessage {
     private String customerName;
     private String date;
     private String time;
-    private float paidAmount;
+    private double paidAmount;
 
-    public NewAppointmentMessage(Long appointmentId, String customerName, String date, String time, float paidAmount) {
+    public NewAppointmentMessage(Long appointmentId, String customerName, String date, String time, double paidAmount) {
         this.appointmentId = appointmentId;
         this.customerName = customerName;
         this.date = date;
