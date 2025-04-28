@@ -1,17 +1,17 @@
-
-        package org.example.petcarebe.service;
+package org.example.petcarebe.service;
 
 import lombok.RequiredArgsConstructor;
-import org.example.petcarebe.dto.MedicalRecordDTO;
-import org.example.petcarebe.dto.VetPetDTO;
+import org.example.petcarebe.dto.*;
 import org.example.petcarebe.model.*;
 import org.example.petcarebe.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +26,12 @@ public class VetOrderService {
     private final VaccineRepository vaccineRepository;
     private final StatusOrderRepository statusOrderRepository;
     private final VetPetRepository petRepository;
+
+    @Transactional
+    public User getUserNameByUserId(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
 
     @Transactional
     public Orders createVetOrder(Long userId, List<MedicalRecordDTO> medicalRecordDTOs, String paymentMethod) {
@@ -208,8 +214,116 @@ public class VetOrderService {
         return totalPrice;
     }
 
-    // Lấy thông tin order
+    // Lấy thông tin order theo orderId
     public Optional<Orders> getOrderById(Long orderId) {
         return ordersRepository.findById(orderId);
+    }
+
+    // Lấy danh sách orders theo userId
+    public List<Orders> getOrdersByUserId(Long userId) {
+        return ordersRepository.findByUserUserId(userId);
+    }
+
+    // Lấy danh sách VetOrderDTO theo userId, chỉ lấy orders có type = "VET_SERVICE"
+    public List<VetOrderDTO> getVetOrderDTOsByUserId(Long userId) {
+        List<Orders> orders = ordersRepository.findByUserUserIdAndType(userId, "VET_SERVICE");
+        return orders.stream().map(this::convertToVetOrderDTO).collect(Collectors.toList());
+    }
+
+    // Lấy tất cả danh sách VetOrderDTO với type = "VET_SERVICE"
+    public List<VetOrderDTO> getAllVetOrdersByTypeVetService() {
+        List<Orders> orders = ordersRepository.findByType("VET_SERVICE");
+        return orders.stream()
+                .map(this::convertToVetOrderDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Chuyển đổi Orders thành VetOrderDTO
+    private VetOrderDTO convertToVetOrderDTO(Orders order) {
+        VetOrderDTO vetOrderDTO = new VetOrderDTO();
+        vetOrderDTO.setId(order.getOrderId());
+        vetOrderDTO.setUserId(order.getUser().getUserId());
+        vetOrderDTO.setOrderDate(order.getOrderDate());
+        vetOrderDTO.setPaymentMethod(order.getPaymentMethod());
+        vetOrderDTO.setPaymentStatus(order.getPaymentStatus());
+        vetOrderDTO.setType(order.getType());
+        vetOrderDTO.setTotalAmount(order.getTotalAmount());
+
+        // Lấy danh sách OrderVetDetail và chuyển đổi thành OrderVetDetailDTO
+        List<OrderVetDetail> orderVetDetails = orderVetDetailRepository.findByOrderId_OrderId(order.getOrderId());
+        List<OrderVetDetailDTO> orderVetDetailDTOs = orderVetDetails.stream()
+                .map(this::convertToOrderVetDetailDTO)
+                .collect(Collectors.toList());
+        vetOrderDTO.setOrderVetDetails(orderVetDetailDTOs);
+
+        return vetOrderDTO;
+    }
+
+    // Chuyển đổi OrderVetDetail thành OrderVetDetailDTO
+    private OrderVetDetailDTO convertToOrderVetDetailDTO(OrderVetDetail orderVetDetail) {
+        OrderVetDetailDTO orderVetDetailDTO = new OrderVetDetailDTO();
+        orderVetDetailDTO.setId(orderVetDetail.getId());
+        orderVetDetailDTO.setOrderId(orderVetDetail.getOrderId().getOrderId());
+        orderVetDetailDTO.setQuantity(orderVetDetail.getQuantity());
+        orderVetDetailDTO.setPrice(orderVetDetail.getPrice());
+
+        // Chuyển đổi MedicalRecord thành MedicalRecordDTO
+        MedicalRecord medicalRecord = orderVetDetail.getMedicalRecord();
+        MedicalRecordDTO medicalRecordDTO = convertToMedicalRecordDTO(medicalRecord);
+        orderVetDetailDTO.setMedicalRecord(medicalRecordDTO);
+
+        return orderVetDetailDTO;
+    }
+
+    // Chuyển đổi MedicalRecord thành MedicalRecordDTO
+    private MedicalRecordDTO convertToMedicalRecordDTO(MedicalRecord medicalRecord) {
+        MedicalRecordDTO medicalRecordDTO = new MedicalRecordDTO();
+        medicalRecordDTO.setId(medicalRecord.getId());
+        medicalRecordDTO.setExamDate(medicalRecord.getExamDate());
+        medicalRecordDTO.setSymptoms(medicalRecord.getSymptoms());
+        medicalRecordDTO.setDiagnosis(medicalRecord.getDiagnosis());
+        medicalRecordDTO.setTreatment(medicalRecord.getTreatment());
+        medicalRecordDTO.setNote(medicalRecord.getNote());
+        medicalRecordDTO.setCreatedAt(medicalRecord.getCreatedAt());
+        medicalRecordDTO.setUpdatedAt(medicalRecord.getUpdatedAt());
+
+        // Gán VetServiceId nếu có
+        if (medicalRecord.getVetService() != null) {
+            medicalRecordDTO.setVetServiceId(medicalRecord.getVetService().getId());
+        }
+
+        // Gán VaccineId nếu có
+        if (medicalRecord.getVaccine() != null) {
+            medicalRecordDTO.setVaccineId(medicalRecord.getVaccine().getId());
+        }
+
+        // Chuyển đổi Pet thành VetPetDTO
+        Pet pet = medicalRecord.getPet();
+        if (pet != null) {
+            VetPetDTO vetPetDTO = new VetPetDTO();
+            vetPetDTO.setId(pet.getId());
+            vetPetDTO.setNamePet(pet.getNamePet());
+            vetPetDTO.setAge(pet.getAge());
+            vetPetDTO.setNote(pet.getNote());
+            vetPetDTO.setPhoneBoss(pet.getPhoneBoss());
+            vetPetDTO.setNameBoss(pet.getNameBoss());
+            vetPetDTO.setPetType(pet.getPetType());
+            vetPetDTO.setDeleted(pet.isDeleted());
+
+            // Chuyển đổi PetWeight nếu có
+            if (pet.getPetWeight() != null) {
+                VetPetWeightDTO vetPetWeightDTO = new VetPetWeightDTO();
+                vetPetWeightDTO.setPetWeightId(pet.getPetWeight().getPetWeightId());
+                vetPetWeightDTO.setPetType(pet.getPetWeight().getPetType());
+                vetPetWeightDTO.setWeightRange(pet.getPetWeight().getWeightRange());
+                vetPetWeightDTO.setPriceMultiplier(pet.getPetWeight().getPriceMultiplier());
+                vetPetWeightDTO.setStatusType(pet.getPetWeight().getStatusType());
+                vetPetDTO.setPetWeight(vetPetWeightDTO);
+            }
+
+            medicalRecordDTO.setVetPetDTO(vetPetDTO);
+        }
+
+        return medicalRecordDTO;
     }
 }

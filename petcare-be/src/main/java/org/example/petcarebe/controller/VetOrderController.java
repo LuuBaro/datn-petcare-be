@@ -2,7 +2,9 @@ package org.example.petcarebe.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.petcarebe.dto.MedicalRecordDTO;
+import org.example.petcarebe.dto.VetOrderDTO;
 import org.example.petcarebe.model.Orders;
+import org.example.petcarebe.model.User;
 import org.example.petcarebe.service.VetOrderService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -51,5 +53,41 @@ public class VetOrderController {
         Optional<Orders> order = vetOrderService.getOrderById(orderId);
         return order.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
                 .orElseGet(() -> new ResponseEntity<>(null, HttpStatus.NOT_FOUND));
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Orders>> getOrdersByUserId(@PathVariable Long userId) {
+        List<Orders> orders = vetOrderService.getOrdersByUserId(userId);
+        return new ResponseEntity<>(orders, HttpStatus.OK);
+    }
+
+    @GetMapping("/userDTO/{userId}")
+    public ResponseEntity<?> getVetOrdersByUserId(@PathVariable Long userId) {
+        try {
+            List<VetOrderDTO> vetOrderDTOs = vetOrderService.getVetOrderDTOsByUserId(userId);
+            if (vetOrderDTOs.isEmpty()) {
+                return ResponseEntity.status(404).body("Không tìm thấy hóa đơn");
+            }
+            return ResponseEntity.ok(vetOrderDTOs);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        }
+    }
+
+    // Lấy tất cả VetOrderDTO với type = "VET_SERVICE"
+    @GetMapping("/all-vet-service")
+    public ResponseEntity<List<VetOrderDTO>> getAllVetOrdersByTypeVetService() {
+        List<VetOrderDTO> vetOrders = vetOrderService.getAllVetOrdersByTypeVetService();
+        return new ResponseEntity<>(vetOrders, HttpStatus.OK);
+    }
+
+    @GetMapping("/getUserName/{userId}")
+    public ResponseEntity<User> getUserById(@PathVariable Long userId) {
+        try {
+            User user = vetOrderService.getUserNameByUserId(userId);
+            return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
 }

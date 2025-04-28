@@ -19,5 +19,4 @@ public class VetOrderDTO {
     private String type; // Loại đơn hàng (VET_SERVICE)
     private Float totalAmount; // Tổng tiền
     private List<OrderVetDetailDTO> orderVetDetails; // Danh sách chi tiết đơn hàng
-    private List<MedicalRecordDTO> medicalRecordDTOS;
 }
