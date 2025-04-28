@@ -8,6 +8,7 @@ import org.example.petcarebe.enums.PaymentMethod;
 import org.example.petcarebe.enums.PaymentChannel;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "transactions")
@@ -49,6 +50,6 @@ public class Transaction {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
     }
 }
