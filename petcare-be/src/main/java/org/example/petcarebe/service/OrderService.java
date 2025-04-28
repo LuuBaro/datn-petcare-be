@@ -325,10 +325,9 @@ public class OrderService {
     }
 
     // Lấy tất cả đơn hàng
-    // Lấy tất cả đơn hàng có type là "ORDER ONLINE"
     public List<OrderDTO> getAllOrders() {
-        List<Orders> danhSachDonHang = orderRepository.findByType("ORDER ONLINE");
-        return danhSachDonHang.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
+        List<Orders> ordersList = orderRepository.findAll();
+        return ordersList.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
     }
 
     // Chuyển từ Orders sang OrderDTO
@@ -1131,6 +1130,234 @@ public class OrderService {
         }
 
         return favoriteProducts;
+    }
+
+    // Tính tổng doanh thu OFFLINE hôm nay theo phương thức thanh toán CASH và MOMO
+    public Map<String, BigDecimal> getOfflineRevenueTodayByPaymentMethod() {
+        Map<String, BigDecimal> revenueByPaymentMethod = new HashMap<>();
+        revenueByPaymentMethod.put("cashRevenue", orderRepository.getOfflineRevenueTodayByCash());
+        revenueByPaymentMethod.put("momoRevenue", orderRepository.getOfflineRevenueTodayByMomo());
+        return revenueByPaymentMethod;
+    }
+
+    // Tính tổng doanh thu OFFLINE tháng hiện tại theo phương thức thanh toán CASH và MOMO
+    public Map<String, BigDecimal> getOfflineRevenueThisMonthByPaymentMethod() {
+        Map<String, BigDecimal> revenueByPaymentMethod = new HashMap<>();
+        revenueByPaymentMethod.put("cashRevenue", orderRepository.getOfflineRevenueThisMonthByCash());
+        revenueByPaymentMethod.put("momoRevenue", orderRepository.getOfflineRevenueThisMonthByMomo());
+        return revenueByPaymentMethod;
+    }
+
+    // Tính tổng doanh thu OFFLINE trong khoảng thời gian xác định theo phương thức thanh toán CASH và MOMO
+    public Map<String, BigDecimal> getOfflineRevenueByDateRangeAndPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        Map<String, BigDecimal> revenueByPaymentMethod = new HashMap<>();
+        revenueByPaymentMethod.put("cashRevenue", orderRepository.getOfflineRevenueByDateRangeAndCash(startDateInclusive, endDateInclusive));
+        revenueByPaymentMethod.put("momoRevenue", orderRepository.getOfflineRevenueByDateRangeAndMomo(startDateInclusive, endDateInclusive));
+        return revenueByPaymentMethod;
+    }
+
+    // Lấy doanh thu hàng ngày của đơn hàng OFFLINE theo phương thức thanh toán CASH và MOMO trong khoảng thời gian xác định
+    public Map<Date, Map<String, BigDecimal>> getDailyOfflineRevenueByPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        List<Object[]> results = orderRepository.getDailyOfflineRevenueByPaymentMethod(startDateInclusive, endDateInclusive);
+        Map<Date, Map<String, BigDecimal>> dailyRevenueByPaymentMethod = new LinkedHashMap<>();
+
+        // Khởi tạo dữ liệu cho tất cả các ngày trong khoảng
+        LocalDate startLocalDate = startDateInclusive.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate endLocalDate = endDateInclusive.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate current = startLocalDate;
+        while (!current.isAfter(endLocalDate)) {
+            Date date = Date.from(current.atStartOfDay(ZoneId.systemDefault()).toInstant());
+            dailyRevenueByPaymentMethod.put(date, new HashMap<>(Map.of(
+                    "cashRevenue", BigDecimal.ZERO,
+                    "momoRevenue", BigDecimal.ZERO
+            )));
+            current = current.plusDays(1);
+        }
+
+        // Gán dữ liệu từ kết quả truy vấn
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            BigDecimal cashRevenue = convertToBigDecimal(row[1]);
+            BigDecimal momoRevenue = convertToBigDecimal(row[2]);
+
+            Map<String, BigDecimal> revenueMap = dailyRevenueByPaymentMethod.computeIfAbsent(date, k -> new HashMap<>(Map.of(
+                    "cashRevenue", BigDecimal.ZERO,
+                    "momoRevenue", BigDecimal.ZERO
+            )));
+
+            revenueMap.put("cashRevenue", cashRevenue);
+            revenueMap.put("momoRevenue", momoRevenue);
+        }
+
+        return dailyRevenueByPaymentMethod;
+    }
+
+    // Lấy doanh thu hàng tuần của đơn hàng OFFLINE theo phương thức thanh toán CASH và MOMO trong khoảng thời gian xác định
+    public List<Map<String, Object>> getWeeklyOfflineRevenueByPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        List<Object[]> results = orderRepository.getWeeklyOfflineRevenueByPaymentMethod(startDateInclusive, endDateInclusive);
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+
+        for (Object[] row : results) {
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("week", row[0]); // YEARWEEK (e.g., 202510)
+            revenueMap.put("cashRevenue", convertToBigDecimal(row[1]));
+            revenueMap.put("momoRevenue", convertToBigDecimal(row[2]));
+            revenueList.add(revenueMap);
+        }
+
+        return revenueList;
+    }
+
+    // Lấy doanh thu hàng tháng của đơn hàng OFFLINE theo phương thức thanh toán CASH và MOMO trong khoảng thời gian xác định
+    public List<Map<String, Object>> getMonthlyOfflineRevenueByPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        List<Object[]> results = orderRepository.getMonthlyOfflineRevenueByPaymentMethod(startDateInclusive, endDateInclusive);
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+
+        // Tạo danh sách tháng đầy đủ
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            String monthKey = String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("month", monthKey);
+            revenueMap.put("cashRevenue", BigDecimal.ZERO);
+            revenueMap.put("momoRevenue", BigDecimal.ZERO);
+            revenueList.add(revenueMap);
+            cal.add(Calendar.MONTH, 1);
+        }
+
+        // Gán dữ liệu từ kết quả truy vấn
+        for (Object[] row : results) {
+            String month = (String) row[0]; // yyyy-MM
+            BigDecimal cashRevenue = convertToBigDecimal(row[1]);
+            BigDecimal momoRevenue = convertToBigDecimal(row[2]);
+
+            for (Map<String, Object> revenueMap : revenueList) {
+                if (month.equals(revenueMap.get("month"))) {
+                    revenueMap.put("cashRevenue", cashRevenue);
+                    revenueMap.put("momoRevenue", momoRevenue);
+                    break;
+                }
+            }
+        }
+
+        return revenueList;
+    }
+
+    // Đếm số lượng đơn hàng OFFLINE hôm nay theo phương thức thanh toán CASH và MOMO
+    public Map<String, Long> getOfflineOrderCountTodayByPaymentMethod() {
+        Object[] results = orderRepository.getOfflineOrderCountTodayByPaymentMethod();
+        Map<String, Long> orderCountByPaymentMethod = new HashMap<>();
+        orderCountByPaymentMethod.put("cashOrders", results[0] != null ? ((Number) results[0]).longValue() : 0L);
+        orderCountByPaymentMethod.put("momoOrders", results[1] != null ? ((Number) results[1]).longValue() : 0L);
+        return orderCountByPaymentMethod;
+    }
+
+    // Đếm số lượng đơn hàng OFFLINE tháng hiện tại theo phương thức thanh toán CASH và MOMO
+    public Map<String, Long> getOfflineOrderCountThisMonthByPaymentMethod() {
+        Object[] results = orderRepository.getOfflineOrderCountThisMonthByPaymentMethod();
+        Map<String, Long> orderCountByPaymentMethod = new HashMap<>();
+        orderCountByPaymentMethod.put("cashOrders", results[0] != null ? ((Number) results[0]).longValue() : 0L);
+        orderCountByPaymentMethod.put("momoOrders", results[1] != null ? ((Number) results[1]).longValue() : 0L);
+        return orderCountByPaymentMethod;
+    }
+
+    // Đếm số lượng đơn hàng OFFLINE trong khoảng thời gian xác định theo phương thức thanh toán CASH và MOMO
+    public Map<String, Long> getOfflineOrderCountByDateRangeAndPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        Object[] results = orderRepository.getOfflineOrderCountByDateRangeAndPaymentMethod(startDateInclusive, endDateInclusive);
+        Map<String, Long> orderCountByPaymentMethod = new HashMap<>();
+        orderCountByPaymentMethod.put("cashOrders", results[0] != null ? ((Number) results[0]).longValue() : 0L);
+        orderCountByPaymentMethod.put("momoOrders", results[1] != null ? ((Number) results[1]).longValue() : 0L);
+        return orderCountByPaymentMethod;
     }
 
     //
