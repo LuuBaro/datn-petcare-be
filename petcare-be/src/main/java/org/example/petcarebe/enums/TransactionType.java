@@ -4,5 +4,6 @@ public enum TransactionType {
     DEPOSIT,
     PAYMENT,
     REFUNDED,
-    NON_REFUNDED_DEPOSIT
+    NON_REFUNDED_DEPOSIT,
+    ADDITIONAL_FEE
 }

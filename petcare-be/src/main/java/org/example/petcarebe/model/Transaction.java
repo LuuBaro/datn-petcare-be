@@ -26,6 +26,10 @@ public class Transaction {
     @JoinColumn(name = "appointment_id", nullable = false)
     private Appointment appointment;
 
+    @ManyToOne
+    @JoinColumn(name = "pet_id") 
+    private Pet pet;
+
     @Column(name = "amount", nullable = false)
     private double amount;
 
