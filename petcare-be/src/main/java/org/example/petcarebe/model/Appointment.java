@@ -3,6 +3,7 @@ package org.example.petcarebe.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.example.petcarebe.enums.AppointmentStatus;
+import org.example.petcarebe.enums.RefundMethod;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -59,6 +60,17 @@ public class Appointment {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "refund_status")
+    private String refundStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "refund_method")
+    private RefundMethod refundMethod;
+
+    @Column(name = "refund_note")
+    private String refundNote;
+
 
     @PrePersist
     protected void onCreate() {

@@ -11,9 +11,14 @@ import java.util.List;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
+
     List<Appointment> findByStatus(AppointmentStatus status);
 
     List<Appointment> findByDateAndTimeAndStatus(LocalDate date, LocalTime time, AppointmentStatus status);
 
     List<Appointment> findByDateAndStatus(LocalDate date, AppointmentStatus status);
+
+    List<Appointment> findByStatusAndRefundStatusIsNotNull(AppointmentStatus status);
+
+    long countByStatusAndRefundStatus(AppointmentStatus status, String refundStatus);
 }
