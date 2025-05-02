@@ -47,13 +47,13 @@ public class Appointment {
     private List<AppointmentSlot> appointmentSlots = new ArrayList<>();
 
     @Column(name = "deposit_amount")
-    private double depositAmount; // Chuyển sang double
+    private double depositAmount;
 
     @Column(name = "total_amount")
     private double totalAmount;
 
     @Column(name = "paid_amount")
-    private double paidAmount; // Chuyển sang double
+    private double paidAmount;
 
     @Column(name = "cancel_reason", length = 255)
     private String cancelReason;

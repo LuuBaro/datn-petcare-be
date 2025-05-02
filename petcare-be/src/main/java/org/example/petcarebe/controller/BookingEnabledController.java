@@ -25,9 +25,8 @@ public class BookingEnabledController {
         try {
             BookingEnabled bookingEnabled = bookingEnabledService.getBookingStatus();
             if (bookingEnabled == null) {
-                // Nếu bảng trống, trả về trạng thái mặc định và yêu cầu admin thiết lập
                 return ResponseEntity.status(HttpStatus.OK)
-                        .body(true); // Mặc định bật, admin cần bật/tắt thủ công
+                        .body(true);
             }
             return ResponseEntity.ok(bookingEnabled.isSettingValue());
         } catch (Exception e) {
@@ -59,7 +58,6 @@ public class BookingEnabledController {
         }
     }
 
-    // DTO cho phản hồi lỗi
     public static class ErrorResponse {
         private final String message;
 
@@ -72,7 +70,6 @@ public class BookingEnabledController {
         }
     }
 
-    // DTO cho phản hồi thành công
     public static class SuccessResponse {
         private final String message;
 

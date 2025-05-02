@@ -8,10 +8,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Data
 public class TimeSlotDTO {
-    // Chuỗi thời gian với định dạng "HH:mm" cho frontend
+
     private String hour;
-    
-    // Đối tượng LocalTime cho backend, không gửi đến frontend
+
     @JsonIgnore
     private LocalTime time;
     
@@ -31,7 +30,7 @@ public class TimeSlotDTO {
 
     public void setHour(String hour) {
         this.hour = hour;
-        // Không tự động set time từ hour nữa
+
     }
 
     public LocalTime getTime() {
@@ -40,7 +39,7 @@ public class TimeSlotDTO {
 
     public void setTime(LocalTime time) {
         this.time = time;
-        // Nếu time được set, cập nhật hour theo định dạng chuẩn
+
         if (time != null) {
             this.hour = time.format(TIME_FORMATTER);
         }

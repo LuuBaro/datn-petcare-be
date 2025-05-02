@@ -29,8 +29,7 @@ public class TransactionController {
             System.out.println("  Amount: " + request.getAmount());
             System.out.println("  Reason: " + request.getReason());
             System.out.println("  User ID: " + request.getUserId());
-            
-            // Tạo giao dịch ADDITIONAL_FEE
+
             Transaction transaction = transactionService.createAdditionalFee(
                     appointmentId,
                     request.getPetId(),
@@ -43,7 +42,6 @@ public class TransactionController {
             System.out.println("  Transaction Amount: " + transaction.getAmount());
             System.out.println("  Transaction Type: " + transaction.getType());
 
-            // Lưu lịch sử hành động CREATE_ADDITIONAL_FEE
             appointmentHistoryService.logAction(
                     appointmentId,
                     request.getUserId(),

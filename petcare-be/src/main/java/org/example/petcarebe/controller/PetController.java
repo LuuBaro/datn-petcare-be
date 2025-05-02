@@ -31,7 +31,7 @@ public class PetController {
             System.out.println("  User ID: " + request.getUserId());
             System.out.println("  Reason: " + request.getReason());
             
-            // Cập nhật cân nặng và giá
+
             Pet updatedPet = petService.updatePetWeight(
                     petId,
                     request.getPetWeightId(),
@@ -44,7 +44,7 @@ public class PetController {
             System.out.println("  New Weight Range: " + updatedPet.getPetWeight().getWeightRange());
             System.out.println("  New Price: " + updatedPet.getPrice());
             
-            // Lưu lịch sử hành động UPDATE_WEIGHT
+
             appointmentHistoryService.logAction(
                     request.getAppointmentId(),
                     request.getUserId(),

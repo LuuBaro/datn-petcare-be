@@ -4,8 +4,10 @@ import org.example.petcarebe.dto.AppointmentRequest;
 import org.example.petcarebe.dto.AppointmentResponse;
 import org.example.petcarebe.dto.CancelAppointmentsRequest;
 import org.example.petcarebe.dto.PetResponse;
+import org.example.petcarebe.dto.AppointmentHistoryDTO;
 import org.example.petcarebe.model.Appointment;
 import org.example.petcarebe.service.AppointmentService;
+import org.example.petcarebe.service.AppointmentHistoryService;
 import org.example.petcarebe.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +28,9 @@ public class AppointmentController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private AppointmentHistoryService appointmentHistoryService;
 
     @PostMapping
     public ResponseEntity<?> createAppointment(@RequestBody AppointmentRequest request) {
@@ -172,7 +177,6 @@ public class AppointmentController {
         }
     }
 
-    // Thêm endpoint để hủy lịch hẹn trạng thái PAID
     @PutMapping("/cancel/paid")
     public ResponseEntity<?> cancelPaidAppointments(@RequestBody CancelAppointmentsRequest request) {
         try {
@@ -203,7 +207,6 @@ public class AppointmentController {
         }
     }
 
-    // Thêm endpoint để hủy lịch hẹn trạng thái CONFIRMED
     @PutMapping("/cancel/confirmed")
     public ResponseEntity<?> cancelConfirmedAppointments(@RequestBody CancelAppointmentsRequest request) {
         try {
@@ -284,11 +287,21 @@ public class AppointmentController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<List<Map<String, Object>>> getAppointmentHistory() {
+    public ResponseEntity<List<AppointmentHistoryDTO>> getAppointmentHistory() {
         try {
-            List<Map<String, Object>> history = appointmentService.getAppointmentHistory();
+            List<AppointmentHistoryDTO> history = appointmentHistoryService.findAllHistory();
             return ResponseEntity.ok(history);
         } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/history/search")
+    public ResponseEntity<List<AppointmentHistoryDTO>> searchHistoryByPhone(@RequestParam("phone") String phone) {
+        try {
+            List<AppointmentHistoryDTO> history = appointmentHistoryService.findHistoryByPhone(phone);
+            return ResponseEntity.ok(history);
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(null);
         }
     }

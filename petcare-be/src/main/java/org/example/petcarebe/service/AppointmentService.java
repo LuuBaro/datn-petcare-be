@@ -718,10 +718,10 @@ public class AppointmentService {
                 System.out.println("Đã ghi lịch sử hành động thành công");
             } catch (Exception e) {
                 System.err.println("Error logging action for appointment #" + appointmentId + ": " + e.getMessage());
-                // Không ném ngoại lệ để tránh ảnh hưởng giao dịch chính
+
             }
 
-            // Bước 6: Chuẩn bị thông báo WebSocket
+
             SlotUpdateMessage slotMessage = new SlotUpdateMessage(
                     date.toString(),
                     time.toString(),
@@ -744,10 +744,10 @@ public class AppointmentService {
                 System.err.println("Error sending WebSocket message: " + e.getMessage());
             }
 
-            // Bước 7: Lưu giao dịch NON_REFUNDED_DEPOSIT và REFUNDED trong giao dịch riêng
+
             saveCancellationTransactions(appointment, nonRefundedDeposit, refundAmount);
 
-            // Trả về phản hồi
+
             AppointmentResponse response = new AppointmentResponse(
                     appointmentId,
                     appointment.getCustomerName(),
@@ -756,9 +756,9 @@ public class AppointmentService {
                     appointment.getTime() != null ? appointment.getTime().toString() : null,
                     refundAmount,
                     nonRefundedDeposit,
-                    null, // Không cập nhật refundStatus
-                    null, // Không cập nhập refundMethod
-                    null, // Không cập nhật refundNote
+                    null,
+                    null,
+                    null,
                     appointment.getCancelReason()
             );
             response.setStatus("CANCELLED");
@@ -770,13 +770,13 @@ public class AppointmentService {
         }
     }
 
-    // Phương thức hủy lịch hẹn cho trạng thái PAID
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AppointmentResponse> cancelPaidAppointments(List<Long> appointmentIds, String reason, Long userId) {
         List<AppointmentResponse> responses = new ArrayList<>();
         for (Long appointmentId : appointmentIds) {
             try {
-                // Kiểm tra sự tồn tại của lịch hẹn
+
                 Appointment appointment = appointmentRepository.findById(appointmentId)
                         .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
 
@@ -791,13 +791,13 @@ public class AppointmentService {
         return responses;
     }
 
-    // Phương thức hủy lịch hẹn cho trạng thái CONFIRMED
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AppointmentResponse> cancelConfirmedAppointments(List<Long> appointmentIds, String reason, Long userId) {
         List<AppointmentResponse> responses = new ArrayList<>();
         for (Long appointmentId : appointmentIds) {
             try {
-                // Kiểm tra sự tồn tại của lịch hẹn
+
                 Appointment appointment = appointmentRepository.findById(appointmentId)
                         .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
 
@@ -812,7 +812,7 @@ public class AppointmentService {
         return responses;
     }
 
-    // Phương thức hủy cũ (giữ lại để tương thích với các API khác nếu cần)
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AppointmentResponse> cancelAppointments(List<Long> appointmentIds, String reason, Long userId) {
         List<AppointmentResponse> responses = new ArrayList<>();
@@ -847,11 +847,11 @@ public class AppointmentService {
         return responses;
     }
 
-    // Phương thức xử lý xóa pet cho trạng thái PAID
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     private AppointmentResponse removePetForPaid(Long appointmentId, Long petId, Long userId, Appointment appointment, Pet petToRemove) {
         try {
-            // Tính toán hoàn tiền cho pet bị xóa
+
             LocalDateTime appointmentTime = LocalDateTime.of(
                     appointment.getDate() != null ? appointment.getDate() : LocalDate.now(),
                     appointment.getTime() != null ? appointment.getTime() : LocalTime.now()
@@ -862,27 +862,27 @@ public class AppointmentService {
 
             double petRefundAmount = 0;
             double petNonRefundedDeposit = 0;
-            double petDeposit = 50000; // Tiền cọc mỗi pet
+            double petDeposit = 50000;
             double petPrice = petToRemove.getPrice();
 
             if (isBefore12Hours) {
-                petRefundAmount = petPrice; // Hoàn toàn bộ tiền của pet
+                petRefundAmount = petPrice;
             } else {
-                petNonRefundedDeposit = petDeposit; // Không hoàn tiền cọc
+                petNonRefundedDeposit = petDeposit;
                 if (petPrice > petDeposit) {
-                    petRefundAmount = petPrice - petDeposit; // Hoàn phần còn lại
+                    petRefundAmount = petPrice - petDeposit;
                 }
             }
 
-            // Cập nhật số tiền của lịch hẹn
+
             appointment.setDepositAmount(appointment.getDepositAmount() - petDeposit);
             appointment.setTotalAmount(appointment.getTotalAmount() - petPrice);
 
-            // Xóa pet
+
             appointment.getPets().remove(petToRemove);
             appointmentRepository.save(appointment);
 
-            // Cập nhật slot
+
             LocalDate date = appointment.getDate();
             LocalTime time = appointment.getTime();
             AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
@@ -891,7 +891,6 @@ public class AppointmentService {
             slot.setAvailableSlots(slot.getAvailableSlots() + 1);
             appointmentSlotRepository.save(slot);
 
-            // Tra cứu tên nhân viên
             String employeeName = "Quản trị viên";
             try {
                 User employee = userRepository.findById(userId)
@@ -901,7 +900,6 @@ public class AppointmentService {
                 System.err.println("Error fetching employee name for userId " + userId + ": " + e.getMessage());
             }
 
-            // Ghi lịch sử hành động
             String historyReason = "Xóa thú cưng #" + petId + " khỏi lịch hẹn bởi " + employeeName;
             try {
                 appointmentHistoryService.logAction(
@@ -914,7 +912,6 @@ public class AppointmentService {
                 );
             } catch (Exception e) {
                 System.err.println("Error logging action for appointment #" + appointmentId + ": " + e.getMessage());
-                // Không ném ngoại lệ để tránh ảnh hưởng giao dịch chính
             }
 
             // Gửi thông báo WebSocket
@@ -939,7 +936,6 @@ public class AppointmentService {
                 System.err.println("Error sending WebSocket message: " + e.getMessage());
             }
 
-            // Lưu giao dịch NON_REFUNDED_DEPOSIT và REFUNDED trong giao dịch riêng
             saveCancellationTransactions(appointment, petNonRefundedDeposit, petRefundAmount);
 
             return new AppointmentResponse(
@@ -950,9 +946,9 @@ public class AppointmentService {
                     appointment.getTime() != null ? appointment.getTime().toString() : null,
                     petRefundAmount,
                     petNonRefundedDeposit,
-                    null, // Không cập nhật refundStatus
-                    null, // Không cập nhật refundMethod
-                    null, // Không cập nhật refundNote
+                    null,
+                    null,
+                    null,
                     appointment.getCancelReason()
             );
         } catch (Exception e) {
@@ -961,11 +957,9 @@ public class AppointmentService {
         }
     }
 
-    // Phương thức xử lý xóa pet cho trạng thái CONFIRMED
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     private AppointmentResponse removePetForConfirmed(Long appointmentId, Long petId, Long userId, Appointment appointment, Pet petToRemove) {
         try {
-            // Tính toán hoàn tiền cho pet bị xóa
             LocalDateTime appointmentTime = LocalDateTime.of(
                     appointment.getDate() != null ? appointment.getDate() : LocalDate.now(),
                     appointment.getTime() != null ? appointment.getTime() : LocalTime.now()
@@ -976,27 +970,27 @@ public class AppointmentService {
 
             double petRefundAmount = 0;
             double petNonRefundedDeposit = 0;
-            double petDeposit = 50000; // Tiền cọc mỗi pet
+            double petDeposit = 50000;
             double petPrice = petToRemove.getPrice();
 
             if (isBefore12Hours) {
-                petRefundAmount = petPrice; // Hoàn toàn bộ tiền của pet
+                petRefundAmount = petPrice;
             } else {
-                petNonRefundedDeposit = petDeposit; // Không hoàn tiền cọc
+                petNonRefundedDeposit = petDeposit;
                 if (petPrice > petDeposit) {
-                    petRefundAmount = petPrice - petDeposit; // Hoàn phần còn lại
+                    petRefundAmount = petPrice - petDeposit;
                 }
             }
 
-            // Cập nhật số tiền của lịch hẹn
+
             appointment.setDepositAmount(appointment.getDepositAmount() - petDeposit);
             appointment.setTotalAmount(appointment.getTotalAmount() - petPrice);
 
-            // Xóa pet
+
             appointment.getPets().remove(petToRemove);
             appointmentRepository.save(appointment);
 
-            // Cập nhật slot
+
             LocalDate date = appointment.getDate();
             LocalTime time = appointment.getTime();
             AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
@@ -1005,7 +999,6 @@ public class AppointmentService {
             slot.setAvailableSlots(slot.getAvailableSlots() + 1);
             appointmentSlotRepository.save(slot);
 
-            // Tra cứu tên nhân viên
             String employeeName = "Quản trị viên";
             try {
                 User employee = userRepository.findById(userId)
@@ -1015,7 +1008,6 @@ public class AppointmentService {
                 System.err.println("Error fetching employee name for userId " + userId + ": " + e.getMessage());
             }
 
-            // Ghi lịch sử hành động
             String historyReason = "Xóa thú cưng #" + petId + " khỏi lịch hẹn bởi " + employeeName + ", lý do: Xóa bởi quản trị viên";
             try {
                 appointmentHistoryService.logAction(
@@ -1028,7 +1020,6 @@ public class AppointmentService {
                 );
             } catch (Exception e) {
                 System.err.println("Error logging action for appointment #" + appointmentId + ": " + e.getMessage());
-                // Không ném ngoại lệ để tránh ảnh hưởng giao dịch chính
             }
 
             // Gửi thông báo WebSocket
@@ -1053,7 +1044,6 @@ public class AppointmentService {
                 System.err.println("Error sending WebSocket message: " + e.getMessage());
             }
 
-            // Lưu giao dịch NON_REFUNDED_DEPOSIT và REFUNDED trong giao dịch riêng
             saveCancellationTransactions(appointment, petNonRefundedDeposit, petRefundAmount);
 
             return new AppointmentResponse(
@@ -1064,9 +1054,9 @@ public class AppointmentService {
                     appointment.getTime() != null ? appointment.getTime().toString() : null,
                     petRefundAmount,
                     petNonRefundedDeposit,
-                    null, // Không cập nhật refundStatus
-                    null, // Không cập nhập refundMethod
-                    null, // Không cập nhật refundNote
+                    null,
+                    null,
+                    null,
                     appointment.getCancelReason()
             );
         } catch (Exception e) {
@@ -1093,7 +1083,6 @@ public class AppointmentService {
                     .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Thú cưng #" + petId + " không thuộc lịch hẹn #" + appointmentId));
 
-            // Nếu chỉ còn 1 pet, hủy lịch hẹn
             if (appointment.getPets().size() == 1) {
                 List<AppointmentResponse> responses;
                 if (appointment.getStatus() == AppointmentStatus.PAID) {
@@ -1104,7 +1093,6 @@ public class AppointmentService {
                 return responses.get(0);
             }
 
-            // Gọi phương thức tương ứng dựa trên trạng thái
             if (appointment.getStatus() == AppointmentStatus.PAID) {
                 return removePetForPaid(appointmentId, petId, userId, appointment, petToRemove);
             } else {
