@@ -6,7 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="f30310c1-7733-4c0e-bce6-0da4e7e1c370" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/AiService.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/service/AiService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/config/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/CartDetailsController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/CartDetailsController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/FavoritesController.java" beforeDir="false" afterPath="$PROJECT_DIR$/petcare-be/src/main/java/org/example/petcarebe/controller/FavoritesController.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

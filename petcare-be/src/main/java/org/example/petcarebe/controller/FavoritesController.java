@@ -5,6 +5,7 @@ import org.example.petcarebe.model.Favorites;
 import org.example.petcarebe.model.Products;
 import org.example.petcarebe.service.FavoritesService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class FavoritesController {
 
     // API: Toggle yêu thích (Thêm vào yêu thích hoặc bỏ yêu thích)
     @PostMapping("/toggle")
+    @PreAuthorize("hasAuthority('USER')")
     public ResponseEntity<FavoriteDTO> toggleFavorite(@RequestParam Long userId, @RequestParam Long productId) {
         FavoriteDTO favoriteDTO = favoritesService.toggleFavorite(userId, productId);
         return ResponseEntity.ok(favoriteDTO);
