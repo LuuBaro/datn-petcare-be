@@ -46,7 +46,7 @@ public class MedicalRecordService {
         dto.setNote(pet.getNote());
         dto.setPhoneBoss(pet.getPhoneBoss());
         dto.setNameBoss(pet.getNameBoss());
-        dto.setDeleted(pet.isDeleted());
+        dto.setDeleted(pet.getDeleted());
         dto.setPetType(pet.getPetType());
 
         if (pet.getPetWeight() != null) {

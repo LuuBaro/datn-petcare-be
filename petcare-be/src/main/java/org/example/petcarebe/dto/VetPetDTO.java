@@ -35,7 +35,7 @@ public class VetPetDTO {
     @NotNull(message = "Loại thú cưng không được để trống")
     private PetType petType;
 
-    private boolean deleted;
+    private Boolean deleted;
 
     @NotNull(message = "Loại cân nặng không được để trống")
     private VetPetWeightDTO petWeight;

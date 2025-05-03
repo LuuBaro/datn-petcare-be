@@ -80,7 +80,7 @@ public class VetOrderService {
                     pet.setPhoneBoss(vetPetDTO.getPhoneBoss());
                     pet.setNameBoss(vetPetDTO.getNameBoss());
                     pet.setPetType(vetPetDTO.getPetType());
-                    pet.setDeleted(vetPetDTO.isDeleted());
+                    pet.setDeleted(vetPetDTO.getDeleted());
 
                     // Chuyển đổi VetPetWeightDTO thành PetWeight
                     if (vetPetDTO.getPetWeight() != null) {
@@ -308,7 +308,7 @@ public class VetOrderService {
             vetPetDTO.setPhoneBoss(pet.getPhoneBoss());
             vetPetDTO.setNameBoss(pet.getNameBoss());
             vetPetDTO.setPetType(pet.getPetType());
-            vetPetDTO.setDeleted(pet.isDeleted());
+            vetPetDTO.setDeleted(pet.getDeleted());
 
             // Chuyển đổi PetWeight nếu có
             if (pet.getPetWeight() != null) {
