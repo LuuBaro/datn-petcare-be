@@ -440,21 +440,6 @@ public class AppointmentService {
             appointment.setStatus(AppointmentStatus.CONFIRMED);
             appointmentRepository.save(appointment);
 
-            LocalDate date = appointment.getDate();
-            LocalTime time = appointment.getTime();
-            AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
-                    .orElseThrow(() -> new IllegalStateException("Không tìm thấy slot cho lịch hẹn #" + appointmentId));
-            int bookedSlots = 0;
-            for (AppointmentStatus status : List.of(AppointmentStatus.PAID, AppointmentStatus.CONFIRMED)) {
-                List<Appointment> appointments = appointmentRepository.findByDateAndTimeAndStatus(date, time, status);
-                for (Appointment appt : appointments) {
-                    bookedSlots += appt.getPets() != null ? appt.getPets().size() : 0;
-                }
-            }
-            slot.setBookedSlots(bookedSlots);
-            slot.setAvailableSlots(slot.getTotalSlots() - slot.getBookedSlots());
-            appointmentSlotRepository.save(slot);
-
             appointmentHistoryService.logAction(
                     appointmentId,
                     userId,
@@ -464,14 +449,8 @@ public class AppointmentService {
                     "Xác nhận lịch hẹn"
             );
 
-            SlotUpdateMessage message = new SlotUpdateMessage(
-                    appointment.getDate() != null ? appointment.getDate().toString() : null,
-                    appointment.getTime() != null ? appointment.getTime().toString() : null,
-                    appointment.getPets() != null ? appointment.getPets().size() : 0
-            );
-            webSocketService.sendToTopic("/topic/slots", message.toString());
-
-            Map<String, Object> confirmMessage = new HashMap<String, Object>();
+            // Gửi thông báo WebSocket
+            Map<String, Object> confirmMessage = new HashMap<>();
             confirmMessage.put("type", "APPOINTMENT_CONFIRMED");
             confirmMessage.put("appointmentId", appointmentId);
             confirmMessage.put("date", appointment.getDate() != null ? appointment.getDate().toString() : null);
@@ -866,6 +845,43 @@ public class AppointmentService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public List<AppointmentResponse> cancelAppointments(List<Long> appointmentIds, String reason, Long userId) {
+        List<AppointmentResponse> responses = new ArrayList<>();
+        for (Long appointmentId : appointmentIds) {
+            try {
+                Appointment appointment = appointmentRepository.findById(appointmentId)
+                        .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
+
+                if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
+                    throw new IllegalStateException("Lịch hẹn #" + appointmentId + " đã bị hủy trước đó");
+                }
+                if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
+                    throw new IllegalStateException("Lịch hẹn #" + appointmentId + " đã hoàn thành, không thể hủy");
+                }
+                if (appointment.getStatus() == AppointmentStatus.IN_PROGRESS) {
+                    throw new IllegalStateException("Lịch hẹn #" + appointmentId + " đang thực hiện, không thể hủy");
+                }
+                if (appointment.getStatus() != AppointmentStatus.PAID && appointment.getStatus() != AppointmentStatus.CONFIRMED) {
+                    throw new IllegalStateException("Lịch hẹn #" + appointmentId + " phải ở trạng thái PAID hoặc CONFIRMED để hủy");
+                }
+
+                AppointmentResponse response;
+                if (appointment.getStatus() == AppointmentStatus.PAID) {
+                    response = cancelAppointmentsForPaid(appointmentId, reason, userId, appointment);
+                } else {
+                    response = cancelAppointmentsForConfirmed(appointmentId, reason, userId, appointment);
+                }
+                responses.add(response);
+            } catch (Exception e) {
+                System.err.println("Error canceling appointment #" + appointmentId + ": " + e.getMessage());
+                AppointmentResponse response = new AppointmentResponse(appointmentId, "FAILED", e.getMessage());
+                responses.add(response);
+            }
+        }
+        return responses;
+    }
+    
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AppointmentResponse> cancelPaidAppointments(List<Long> appointmentIds, String reason, Long userId) {
         List<AppointmentResponse> responses = new ArrayList<>();
         for (Long appointmentId : appointmentIds) {
@@ -894,40 +910,6 @@ public class AppointmentService {
                 responses.add(response);
             } catch (Exception e) {
                 System.err.println("Error canceling CONFIRMED appointment #" + appointmentId + ": " + e.getMessage());
-                AppointmentResponse response = new AppointmentResponse(appointmentId, "FAILED", e.getMessage());
-                responses.add(response);
-            }
-        }
-        return responses;
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<AppointmentResponse> cancelAppointments(List<Long> appointmentIds, String reason, Long userId) {
-        List<AppointmentResponse> responses = new ArrayList<>();
-        for (Long appointmentId : appointmentIds) {
-            try {
-                Appointment appointment = appointmentRepository.findById(appointmentId)
-                        .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
-
-                if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
-                    throw new IllegalStateException("Lịch hẹn #" + appointmentId + " đã bị hủy trước đó");
-                }
-                if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
-                    throw new IllegalStateException("Lịch hẹn #" + appointmentId + " đã hoàn thành, không thể hủy");
-                }
-                if (appointment.getStatus() != AppointmentStatus.PAID && appointment.getStatus() != AppointmentStatus.CONFIRMED && appointment.getStatus() != AppointmentStatus.IN_PROGRESS) {
-                    throw new IllegalStateException("Lịch hẹn #" + appointmentId + " phải ở trạng thái PAID, CONFIRMED hoặc IN_PROGRESS để hủy");
-                }
-
-                AppointmentResponse response;
-                if (appointment.getStatus() == AppointmentStatus.PAID) {
-                    response = cancelAppointmentsForPaid(appointmentId, reason, userId, appointment);
-                } else {
-                    response = cancelAppointmentsForConfirmed(appointmentId, reason, userId, appointment);
-                }
-                responses.add(response);
-            } catch (Exception e) {
-                System.err.println("Error canceling appointment #" + appointmentId + ": " + e.getMessage());
                 AppointmentResponse response = new AppointmentResponse(appointmentId, "FAILED", e.getMessage());
                 responses.add(response);
             }
@@ -1162,13 +1144,13 @@ public class AppointmentService {
                     .orElseThrow(() -> new IllegalArgumentException("Thú cưng #" + petId + " không thuộc lịch hẹn #" + appointmentId));
 
             if (appointment.getPets().size() == 1) {
-                List<AppointmentResponse> responses;
+                List<AppointmentResponse> cancellationResults;
                 if (appointment.getStatus() == AppointmentStatus.PAID) {
-                    responses = cancelPaidAppointments(Collections.singletonList(appointmentId), "Hủy vì xóa hết thú cưng", userId);
+                    cancellationResults = cancelAppointments(Collections.singletonList(appointmentId), "Hủy vì xóa hết thú cưng", userId);
                 } else {
-                    responses = cancelConfirmedAppointments(Collections.singletonList(appointmentId), "Hủy vì xóa hết thú cưng", userId);
+                    cancellationResults = cancelAppointments(Collections.singletonList(appointmentId), "Hủy vì xóa hết thú cưng", userId);
                 }
-                return responses.get(0);
+                return cancellationResults.get(0);
             }
 
             if (appointment.getStatus() == AppointmentStatus.PAID) {
@@ -1382,6 +1364,83 @@ public class AppointmentService {
         } catch (Exception e) {
             System.err.println("Error fetching appointment history: " + e.getMessage());
             throw new RuntimeException("Không thể tải lịch sử lịch hẹn: " + e.getMessage());
+        }
+    }
+
+    public List<AppointmentResponse> getActiveAppointmentsByDate(String date) {
+        try {
+            LocalDate localDate = LocalDate.parse(date);
+            List<AppointmentStatus> statuses = Arrays.asList(
+                AppointmentStatus.CONFIRMED,
+                AppointmentStatus.IN_PROGRESS,
+                AppointmentStatus.COMPLETED
+            );
+            List<Appointment> appointments = new ArrayList<>();
+            for (AppointmentStatus status : statuses) {
+                appointments.addAll(appointmentRepository.findByDateAndStatus(localDate, status));
+            }
+            List<AppointmentResponse> responses = new ArrayList<>();
+            for (Appointment appointment : appointments) {
+                if (appointment == null) {
+                    System.err.println("Found null appointment in date: " + date);
+                    continue;
+                }
+                AppointmentResponse response = new AppointmentResponse(
+                    appointment.getAppointmentId(),
+                    appointment.getCustomerName(),
+                    appointment.getPhone(),
+                    appointment.getDate() != null ? appointment.getDate().toString() : null,
+                    appointment.getTime() != null ? appointment.getTime().toString() : null,
+                    appointment.getPaidAmount(),
+                    appointment.getTotalAmount(),
+                    appointment.getDepositAmount(),
+                    appointment.getPets() != null ? appointment.getPets().size() : 0
+                );
+                response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
+                responses.add(response);
+            }
+            return responses;
+        } catch (Exception e) {
+            System.err.println("Error fetching active appointments by date '" + date + "': " + e.getMessage());
+            throw new RuntimeException("Không thể tải danh sách lịch hẹn hoạt động: " + e.getMessage());
+        }
+    }
+
+    public List<AppointmentResponse> getActiveAppointmentsByDateAndTime(LocalDate date, LocalTime time) {
+        try {
+            List<AppointmentStatus> statuses = Arrays.asList(
+                AppointmentStatus.CONFIRMED,
+                AppointmentStatus.IN_PROGRESS,
+                AppointmentStatus.COMPLETED
+            );
+            List<Appointment> appointments = new ArrayList<>();
+            for (AppointmentStatus status : statuses) {
+                appointments.addAll(appointmentRepository.findByDateAndTimeAndStatus(date, time, status));
+            }
+            List<AppointmentResponse> responses = new ArrayList<>();
+            for (Appointment appointment : appointments) {
+                if (appointment == null) {
+                    System.err.println("Found null appointment in date: " + date + ", time: " + time);
+                    continue;
+                }
+                AppointmentResponse response = new AppointmentResponse(
+                    appointment.getAppointmentId(),
+                    appointment.getCustomerName(),
+                    appointment.getPhone(),
+                    appointment.getDate() != null ? appointment.getDate().toString() : null,
+                    appointment.getTime() != null ? appointment.getTime().toString() : null,
+                    appointment.getPaidAmount(),
+                    appointment.getTotalAmount(),
+                    appointment.getDepositAmount(),
+                    appointment.getPets() != null ? appointment.getPets().size() : 0
+                );
+                response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
+                responses.add(response);
+            }
+            return responses;
+        } catch (Exception e) {
+            System.err.println("Error fetching active appointments by date and time: date=" + date + ", time=" + time + ", error: " + e.getMessage());
+            throw new RuntimeException("Không thể tải danh sách lịch hẹn hoạt động: " + e.getMessage());
         }
     }
 }

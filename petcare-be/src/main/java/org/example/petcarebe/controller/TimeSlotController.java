@@ -8,6 +8,7 @@ import org.example.petcarebe.model.DefaultTimeSlot;
 import org.example.petcarebe.repository.AppointmentRepository;
 import org.example.petcarebe.repository.AppointmentSlotRepository;
 import org.example.petcarebe.repository.DefaultTimeSlotRepository;
+import org.example.petcarebe.service.TimeSlotService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +40,9 @@ public class TimeSlotController {
     @Autowired
     private AppointmentRepository appointmentRepository;
 
+    @Autowired
+    private TimeSlotService timeSlotService;
+
     @GetMapping
     public ResponseEntity<?> getAvailableSlots(@RequestParam("date") String date) {
         try {
@@ -59,7 +63,27 @@ public class TimeSlotController {
     public ResponseEntity<?> getConfirmedSlots(@RequestParam("date") String date) {
         try {
             LocalDate localDate = LocalDate.parse(date);
-            return ResponseEntity.ok(getSlotsForDate(localDate, false));
+            return ResponseEntity.ok(timeSlotService.getConfirmedSlots(localDate));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/in-progress")
+    public ResponseEntity<?> getInProgressSlots(@RequestParam("date") String date) {
+        try {
+            LocalDate localDate = LocalDate.parse(date);
+            return ResponseEntity.ok(timeSlotService.getInProgressSlots(localDate));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/completed")
+    public ResponseEntity<?> getCompletedSlots(@RequestParam("date") String date) {
+        try {
+            LocalDate localDate = LocalDate.parse(date);
+            return ResponseEntity.ok(timeSlotService.getCompletedSlots(localDate));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
         }
@@ -85,7 +109,6 @@ public class TimeSlotController {
         return ResponseEntity.ok(result);
     }
 
-
     private void forceCreateOrUpdateSlotsForDate(LocalDate date) {
         List<DefaultTimeSlot> defaultSlots = defaultTimeSlotRepository.findAll();
 
@@ -106,7 +129,7 @@ public class TimeSlotController {
                     });
 
             int bookedCount = 0;
-            for (AppointmentStatus status : List.of(AppointmentStatus.PAID, AppointmentStatus.CONFIRMED)) {
+            for (AppointmentStatus status : List.of(AppointmentStatus.PAID, AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS, AppointmentStatus.COMPLETED)) {
                 List<Appointment> appointments = appointmentRepository.findByDateAndTimeAndStatus(date, time, status);
                 int statusBookedSlots = appointments.stream()
                         .mapToInt(appointment -> appointment.getPets().size())
@@ -150,8 +173,8 @@ public class TimeSlotController {
                     });
 
             List<AppointmentStatus> statuses = includePaid
-                    ? List.of(AppointmentStatus.PAID, AppointmentStatus.CONFIRMED)
-                    : List.of(AppointmentStatus.CONFIRMED);
+                    ? List.of(AppointmentStatus.PAID, AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS, AppointmentStatus.COMPLETED)
+                    : List.of(AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS, AppointmentStatus.COMPLETED);
             int bookedSlots = 0;
             for (AppointmentStatus status : statuses) {
                 List<Appointment> appointments = appointmentRepository.findByDateAndTimeAndStatus(date, time, status);

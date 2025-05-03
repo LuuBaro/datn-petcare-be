@@ -229,6 +229,48 @@ public class AppointmentController {
         }
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<List<AppointmentResponse>> getActiveAppointmentsByDate(
+            @RequestParam("date") String date) {
+        try {
+            List<AppointmentResponse> appointments = appointmentService.getActiveAppointmentsByDate(date);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/active-by-date-and-time")
+    public ResponseEntity<List<AppointmentResponse>> getActiveAppointmentsByDateAndTime(
+            @RequestParam("date") String date,
+            @RequestParam("time") String time) {
+        try {
+            LocalDate localDate = LocalDate.parse(date);
+            LocalTime localTime;
+            try {
+                localTime = LocalTime.parse(time);
+            } catch (Exception e) {
+                if (!time.contains(":")) {
+                    try {
+                        localTime = LocalTime.parse(time + ":00");
+                    } catch (Exception e2) {
+                        if (time.length() == 1) {
+                            localTime = LocalTime.parse("0" + time + ":00");
+                        } else {
+                            throw new IllegalArgumentException("Invalid time format: " + time);
+                        }
+                    }
+                } else {
+                    throw new IllegalArgumentException("Invalid time format: " + time);
+                }
+            }
+            List<AppointmentResponse> appointments = appointmentService.getActiveAppointmentsByDateAndTime(localDate, localTime);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
     @PutMapping("/cancel")
     public ResponseEntity<?> cancelAppointments(@RequestBody CancelAppointmentsRequest request) {
         try {
