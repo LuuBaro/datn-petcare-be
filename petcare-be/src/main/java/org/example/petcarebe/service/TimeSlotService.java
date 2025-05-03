@@ -34,12 +34,15 @@ public class TimeSlotService {
     public Map<String, List<TimeSlotDTO>> getTimeSlotsForDate(LocalDate date) {
         // Lấy danh sách DefaultTimeSlot
         List<DefaultTimeSlot> defaultSlots = defaultTimeSlotRepo.findAll();
+        System.out.println("Default slots from DB: " + defaultSlots);
 
         // Lấy danh sách SlotAdjustment cho ngày cụ thể
         List<SlotAdjustment> adjustments = slotAdjustmentRepo.findByDate(date);
+        System.out.println("Adjustments for date " + date + ": " + adjustments);
 
         // Lấy danh sách AppointmentSlot cho ngày cụ thể
         List<AppointmentSlot> appointmentSlots = appointmentSlotRepo.findByDate(date);
+        System.out.println("Appointment slots for date " + date + ": " + appointmentSlots);
 
         // Tạo map để lưu số slot điều chỉnh theo thời gian
         Map<LocalTime, Integer> adjustmentMap = adjustments.stream()
@@ -66,7 +69,7 @@ public class TimeSlotService {
             dto.setTime(slot.getTime());
             dto.setHour(slot.getTime().toString());
             dto.setActive(slot.isActive());
-            dto.setMorning(slot.isMorning());
+            dto.setMorning(slot.isMorning()); // Sử dụng lại logic cũ, dựa trên cột is_morning
 
             // Tính totalSlots: defaultSlotCount + adjustment (nếu có)
             int totalSlots = slot.getDefaultSlotCount();
@@ -85,7 +88,7 @@ public class TimeSlotService {
             dto.setBookedSlots(bookedSlots);
             dto.setAvailableSlots(Math.max(0, totalSlots - bookedSlots));
 
-            // Chia slot theo buổi
+            // Chia slot theo buổi dựa trên is_morning
             if (slot.isMorning()) {
                 morningSlots.add(dto);
             } else {
@@ -93,14 +96,18 @@ public class TimeSlotService {
             }
         }
 
-        // Sắp xếp theo thời gian
-        morningSlots.sort((a, b) -> a.getTime().compareTo(b.getTime()));
-        afternoonSlots.sort((a, b) -> a.getTime().compareTo(b.getTime()));
+        // Log để kiểm tra dữ liệu trước khi trả về
+        System.out.println("Morning slots before return: " + morningSlots);
+        System.out.println("Afternoon slots before return: " + afternoonSlots);
 
         // Trả về map với morning và afternoon
         Map<String, List<TimeSlotDTO>> result = new HashMap<>();
         result.put("morning", morningSlots);
         result.put("afternoon", afternoonSlots);
         return result;
+    }
+
+    public boolean getBookingStatus() {
+        return true;
     }
 }

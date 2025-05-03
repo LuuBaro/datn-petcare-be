@@ -43,7 +43,7 @@ public class AppointmentSlot {
     private DefaultTimeSlot defaultTimeSlot;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "appointment_id")
+    @JoinColumn(name = "appointment_id", unique = true)
     private Appointment appointment;
 
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)

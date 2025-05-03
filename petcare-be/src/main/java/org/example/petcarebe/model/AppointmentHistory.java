@@ -5,6 +5,7 @@ import lombok.*;
 import org.example.petcarebe.enums.AppointmentStatus;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Data
 @Setter
@@ -46,6 +47,6 @@ public class AppointmentHistory {
 
     @PrePersist
     protected void onCreate() {
-        this.timestamp = LocalDateTime.now();
+        this.timestamp = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
     }
 }

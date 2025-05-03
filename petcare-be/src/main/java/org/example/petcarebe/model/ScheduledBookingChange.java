@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "scheduled_booking_changes")
@@ -43,7 +44,7 @@ public class ScheduledBookingChange {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
     }
 
     public boolean isExecuted() {

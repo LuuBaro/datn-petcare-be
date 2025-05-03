@@ -3,8 +3,10 @@ package org.example.petcarebe.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.example.petcarebe.enums.AppointmentStatus;
+import org.example.petcarebe.enums.RefundMethod;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -45,23 +47,34 @@ public class Appointment {
     private List<AppointmentSlot> appointmentSlots = new ArrayList<>();
 
     @Column(name = "deposit_amount")
-    private float depositAmount;
+    private double depositAmount;
 
     @Column(name = "total_amount")
     private double totalAmount;
 
     @Column(name = "paid_amount")
-    private float paidAmount; // Thêm trường paid_amount
+    private double paidAmount;
 
     @Column(name = "cancel_reason", length = 255)
-    private String cancelReason; // Thêm trường cancel_reason
+    private String cancelReason;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "refund_status")
+    private String refundStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "refund_method")
+    private RefundMethod refundMethod;
+
+    @Column(name = "refund_note")
+    private String refundNote;
+
+
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
     }
 
     public void addPet(Pet pet) {
