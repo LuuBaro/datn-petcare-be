@@ -324,7 +324,7 @@ public class OrderService {
         return savedOrder;
     }
 
-// Lấy tất cả đơn hàng có type là "ORDER ONLINE"
+
     public List<OrderDTO> getAllOrders() {
         List<Orders> ordersList = orderRepository.findAll();
         return ordersList.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
