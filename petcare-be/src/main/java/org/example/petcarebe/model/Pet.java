@@ -21,7 +21,7 @@ public class Pet {
     private PetWeight petWeight;
 
     @ManyToOne
-    @JoinColumn(name = "service_id", nullable = false)
+    @JoinColumn(name = "service_id", nullable = true)
     private PetService petService;
 
     @ManyToOne
@@ -29,7 +29,7 @@ public class Pet {
     private Employee employee;
 
     @ManyToOne
-    @JoinColumn(name = "appointment_id", nullable = false)
+    @JoinColumn(name = "appointment_id", nullable = true)
     private Appointment appointment;
 
     @Enumerated(EnumType.STRING)
@@ -51,6 +51,7 @@ public class Pet {
 
     @Column(name = "name_boss", columnDefinition = "NVARCHAR(255)")
     private String nameBoss;
+
 
     @Column(name = "deleted")
     private Boolean deleted;

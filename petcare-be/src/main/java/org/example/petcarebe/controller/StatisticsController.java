@@ -257,7 +257,6 @@ public class StatisticsController {
         return ResponseEntity.ok(orderService.getMonthlyRevenueByOrderType(startDate, endDate));
     }
 
-
     // Lấy doanh thu hàng tuần theo loại (ONLINE và OFFLINE) trong khoảng thời gian xác định
     @GetMapping("/revenue/weekly-by-type")
     public ResponseEntity<List<Map<String, Object>>> getWeeklyRevenueByType(
@@ -265,5 +264,78 @@ public class StatisticsController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
         List<Map<String, Object>> weeklyRevenueByType = orderService.getWeeklyRevenueByTypeAndDateRange(startDate, endDate);
         return ResponseEntity.ok(weeklyRevenueByType);
+    }
+
+    // Endpoint mới: Lấy tổng doanh thu OFFLINE hôm nay theo phương thức thanh toán CASH và MOMO
+    @GetMapping("/revenue/offline/today/by-payment-method")
+    public ResponseEntity<Map<String, BigDecimal>> getOfflineRevenueTodayByPaymentMethod() {
+        Map<String, BigDecimal> revenueByPaymentMethod = orderService.getOfflineRevenueTodayByPaymentMethod();
+        return ResponseEntity.ok(revenueByPaymentMethod);
+    }
+
+    // Endpoint mới: Lấy tổng doanh thu OFFLINE tháng hiện tại theo phương thức thanh toán CASH và MOMO
+    @GetMapping("/revenue/offline/this-month/by-payment-method")
+    public ResponseEntity<Map<String, BigDecimal>> getOfflineRevenueThisMonthByPaymentMethod() {
+        Map<String, BigDecimal> revenueByPaymentMethod = orderService.getOfflineRevenueThisMonthByPaymentMethod();
+        return ResponseEntity.ok(revenueByPaymentMethod);
+    }
+
+    // Endpoint mới: Lấy tổng doanh thu OFFLINE trong khoảng thời gian xác định theo phương thức thanh toán CASH và MOMO
+    @GetMapping("/revenue/offline/range/by-payment-method")
+    public ResponseEntity<Map<String, BigDecimal>> getOfflineRevenueByDateRangeAndPaymentMethod(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        Map<String, BigDecimal> revenueByPaymentMethod = orderService.getOfflineRevenueByDateRangeAndPaymentMethod(startDate, endDate);
+        return ResponseEntity.ok(revenueByPaymentMethod);
+    }
+
+    // Endpoint mới: Lấy doanh thu hàng ngày của đơn hàng OFFLINE theo phương thức thanh toán CASH và MOMO
+    @GetMapping("/revenue/offline/daily/by-payment-method")
+    public ResponseEntity<Map<Date, Map<String, BigDecimal>>> getDailyOfflineRevenueByPaymentMethod(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        Map<Date, Map<String, BigDecimal>> dailyRevenueByPaymentMethod = orderService.getDailyOfflineRevenueByPaymentMethod(startDate, endDate);
+        return ResponseEntity.ok(dailyRevenueByPaymentMethod);
+    }
+
+    // Endpoint mới: Lấy doanh thu hàng tuần của đơn hàng OFFLINE theo phương thức thanh toán CASH và MOMO
+    @GetMapping("/revenue/offline/weekly/by-payment-method")
+    public ResponseEntity<List<Map<String, Object>>> getWeeklyOfflineRevenueByPaymentMethod(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        List<Map<String, Object>> weeklyRevenueByPaymentMethod = orderService.getWeeklyOfflineRevenueByPaymentMethod(startDate, endDate);
+        return ResponseEntity.ok(weeklyRevenueByPaymentMethod);
+    }
+
+    // Endpoint mới: Lấy doanh thu hàng tháng của đơn hàng OFFLINE theo phương thức thanh toán CASH và MOMO
+    @GetMapping("/revenue/offline/monthly/by-payment-method")
+    public ResponseEntity<List<Map<String, Object>>> getMonthlyOfflineRevenueByPaymentMethod(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        List<Map<String, Object>> monthlyRevenueByPaymentMethod = orderService.getMonthlyOfflineRevenueByPaymentMethod(startDate, endDate);
+        return ResponseEntity.ok(monthlyRevenueByPaymentMethod);
+    }
+
+    // Endpoint mới: Lấy số lượng đơn hàng OFFLINE hôm nay theo phương thức thanh toán CASH và MOMO
+    @GetMapping("/orders/offline/today/by-payment-method")
+    public ResponseEntity<Map<String, Long>> getOfflineOrderCountTodayByPaymentMethod() {
+        Map<String, Long> orderCountByPaymentMethod = orderService.getOfflineOrderCountTodayByPaymentMethod();
+        return ResponseEntity.ok(orderCountByPaymentMethod);
+    }
+
+    // Endpoint mới: Lấy số lượng đơn hàng OFFLINE tháng hiện tại theo phương thức thanh toán CASH và MOMO
+    @GetMapping("/orders/offline/this-month/by-payment-method")
+    public ResponseEntity<Map<String, Long>> getOfflineOrderCountThisMonthByPaymentMethod() {
+        Map<String, Long> orderCountByPaymentMethod = orderService.getOfflineOrderCountThisMonthByPaymentMethod();
+        return ResponseEntity.ok(orderCountByPaymentMethod);
+    }
+
+    // Endpoint mới: Lấy số lượng đơn hàng OFFLINE trong khoảng thời gian xác định theo phương thức thanh toán CASH và MOMO
+    @GetMapping("/orders/offline/range/by-payment-method")
+    public ResponseEntity<Map<String, Long>> getOfflineOrderCountByDateRangeAndPaymentMethod(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        Map<String, Long> orderCountByPaymentMethod = orderService.getOfflineOrderCountByDateRangeAndPaymentMethod(startDate, endDate);
+        return ResponseEntity.ok(orderCountByPaymentMethod);
     }
 }

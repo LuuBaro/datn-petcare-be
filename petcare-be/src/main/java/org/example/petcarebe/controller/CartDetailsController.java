@@ -74,21 +74,12 @@ public class CartDetailsController {
 
     // API lấy giỏ hàng theo userId
     @GetMapping("/findByCart/{userId}")
-    public ResponseEntity<?> getCartDetails(@PathVariable Long userId) {
+    public ResponseEntity<List<CartDetailsDTO>> getCartDetails(@PathVariable Long userId) {
         System.out.println("Received userId: " + userId);
 
         List<CartDetailsDTO> cartDetails = cartDetailsService.getCartDetailsByUserId(userId);
 
-        if (cartDetails.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No cart details found for userId: " + userId);
-        }
 
         return ResponseEntity.ok(cartDetails);
     }
-
-
-
-
-
-
 }

@@ -13,6 +13,9 @@ import java.util.List;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Orders, Long> {
+    List<Orders> findByUserUserIdAndType(Long userId, String type);
+
+    List<Orders> findByType(String type);
 
     // Tìm tất cả các đơn hàng liên quan đến một người dùng cụ thể dựa trên ID người dùng.
     List<Orders> findByUserUserId(Long userId);
@@ -273,6 +276,9 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     // Kiểm tra xem một đơn hàng có tồn tại dựa trên ID đơn hàng.
     boolean existsByOrderId(Long orderId);
 
+    // Kiểm tra xem có tồn tại đơn hàng nào với momoOrderId cụ thể không
+    boolean existsByMomoOrderId(String momoOrderId);
+
     // Tìm các đơn hàng dựa trên ID đơn hàng của Momo.
     List<Orders> findByMomoOrderId(String momoOrderId);
 
@@ -341,4 +347,186 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
             "ORDER BY favorite_count DESC " +
             "LIMIT 5", nativeQuery = true)
     List<Object[]> getTopFiveFavoriteProducts();
+
+
+    // Đếm tổng số đơn hàng OFFLINE trong ngày hôm nay với trạng thái "Đã thanh toán" và phương thức thanh toán CASH
+    @Query("SELECT COUNT(o) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'CASH' " +
+            "AND DATE(o.orderDate) = CURRENT_DATE")
+    Long getTotalOfflineOrdersTodayByCash();
+
+    // Đếm tổng số đơn hàng OFFLINE trong ngày hôm nay với trạng thái "Đã thanh toán" và phương thức thanh toán MOMO
+    @Query("SELECT COUNT(o) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'MOMO' " +
+            "AND DATE(o.orderDate) = CURRENT_DATE")
+    Long getTotalOfflineOrdersTodayByMomo();
+
+    // Đếm tổng số đơn hàng OFFLINE trong tháng hiện tại với trạng thái "Đã thanh toán" và phương thức thanh toán CASH
+    @Query("SELECT COUNT(o) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'CASH' " +
+            "AND YEAR(o.orderDate) = YEAR(CURRENT_DATE) " +
+            "AND MONTH(o.orderDate) = MONTH(CURRENT_DATE)")
+    Long getTotalOfflineOrdersThisMonthByCash();
+
+    // Đếm tổng số đơn hàng OFFLINE trong tháng hiện tại với trạng thái "Đã thanh toán" và phương thức thanh toán MOMO
+    @Query("SELECT COUNT(o) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'MOMO' " +
+            "AND YEAR(o.orderDate) = YEAR(CURRENT_DATE) " +
+            "AND MONTH(o.orderDate) = MONTH(CURRENT_DATE)")
+    Long getTotalOfflineOrdersThisMonthByMomo();
+
+    // Đếm tổng số đơn hàng OFFLINE trong khoảng thời gian xác định với trạng thái "Đã thanh toán" và phương thức thanh toán CASH
+    @Query("SELECT COUNT(o) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'CASH' " +
+            "AND o.orderDate BETWEEN :startDate AND :endDate")
+    Long getTotalOfflineOrdersByDateRangeAndCash(@Param("startDate") Date startDate,
+                                                 @Param("endDate") Date endDate);
+
+    // Đếm tổng số đơn hàng OFFLINE trong khoảng thời gian xác định với trạng thái "Đã thanh toán" và phương thức thanh toán MOMO
+    @Query("SELECT COUNT(o) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'MOMO' " +
+            "AND o.orderDate BETWEEN :startDate AND :endDate")
+    Long getTotalOfflineOrdersByDateRangeAndMomo(@Param("startDate") Date startDate,
+                                                 @Param("endDate") Date endDate);
+
+    // 2. Tính tổng doanh thu đơn hàng OFFLINE theo phương thức thanh toán
+
+    // Tổng doanh thu đơn hàng OFFLINE trong ngày hôm nay với trạng thái "Đã thanh toán" và phương thức thanh toán CASH
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'CASH' " +
+            "AND DATE(o.orderDate) = CURRENT_DATE")
+    BigDecimal getOfflineRevenueTodayByCash();
+
+    // Tổng doanh thu đơn hàng OFFLINE trong ngày hôm nay với trạng thái "Đã thanh toán" và phương thức thanh toán MOMO
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'MOMO' " +
+            "AND DATE(o.orderDate) = CURRENT_DATE")
+    BigDecimal getOfflineRevenueTodayByMomo();
+
+    // Tổng doanh thu đơn hàng OFFLINE trong tháng hiện tại với trạng thái "Đã thanh toán" và phương thức thanh toán CASH
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'CASH' " +
+            "AND YEAR(o.orderDate) = YEAR(CURRENT_DATE) " +
+            "AND MONTH(o.orderDate) = MONTH(CURRENT_DATE)")
+    BigDecimal getOfflineRevenueThisMonthByCash();
+
+    // Tổng doanh thu đơn hàng OFFLINE trong tháng hiện tại với trạng thái "Đã thanh toán" và phương thức thanh toán MOMO
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'MOMO' " +
+            "AND YEAR(o.orderDate) = YEAR(CURRENT_DATE) " +
+            "AND MONTH(o.orderDate) = MONTH(CURRENT_DATE)")
+    BigDecimal getOfflineRevenueThisMonthByMomo();
+
+    // Tổng doanh thu đơn hàng OFFLINE trong khoảng thời gian xác định với trạng thái "Đã thanh toán" và phương thức thanh toán CASH
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'CASH' " +
+            "AND o.orderDate BETWEEN :startDate AND :endDate")
+    BigDecimal getOfflineRevenueByDateRangeAndCash(@Param("startDate") Date startDate,
+                                                   @Param("endDate") Date endDate);
+
+    // Tổng doanh thu đơn hàng OFFLINE trong khoảng thời gian xác định với trạng thái "Đã thanh toán" và phương thức thanh toán MOMO
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.paymentMethod = 'MOMO' " +
+            "AND o.orderDate BETWEEN :startDate AND :endDate")
+    BigDecimal getOfflineRevenueByDateRangeAndMomo(@Param("startDate") Date startDate,
+                                                   @Param("endDate") Date endDate);
+
+    // 3. Cập nhật các truy vấn thống kê doanh thu hàng ngày, hàng tuần, hàng tháng để bao gồm payment_method
+
+    // Lấy doanh thu hàng ngày đơn hàng OFFLINE theo phương thức thanh toán (CASH và MOMO) trong khoảng thời gian xác định
+    @Query("SELECT DATE(o.orderDate) AS date, " +
+            "SUM(CASE WHEN o.paymentMethod = 'CASH' THEN o.totalAmount ELSE 0 END) AS cash_revenue, " +
+            "SUM(CASE WHEN o.paymentMethod = 'MOMO' THEN o.totalAmount ELSE 0 END) AS momo_revenue " +
+            "FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.orderDate BETWEEN :startDate AND :endDate " +
+            "GROUP BY DATE(o.orderDate) " +
+            "ORDER BY date ASC")
+    List<Object[]> getDailyOfflineRevenueByPaymentMethod(@Param("startDate") Date startDate,
+                                                         @Param("endDate") Date endDate);
+
+    // Lấy doanh thu hàng tuần đơn hàng OFFLINE theo phương thức thanh toán (CASH và MOMO) trong khoảng thời gian xác định (sử dụng native SQL)
+    @Query(value = "SELECT YEARWEEK(o.order_date) AS week, " +
+            "SUM(CASE WHEN o.payment_method = 'CASH' THEN o.total_amount ELSE 0 END) AS cash_revenue, " +
+            "SUM(CASE WHEN o.payment_method = 'MOMO' THEN o.total_amount ELSE 0 END) AS momo_revenue " +
+            "FROM orders o " +
+            "WHERE o.payment_status = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.order_date BETWEEN :startDate AND :endDate " +
+            "GROUP BY YEARWEEK(o.order_date) " +
+            "ORDER BY week ASC",
+            nativeQuery = true)
+    List<Object[]> getWeeklyOfflineRevenueByPaymentMethod(@Param("startDate") Date startDate,
+                                                          @Param("endDate") Date endDate);
+
+    // Lấy doanh thu hàng tháng đơn hàng OFFLINE theo phương thức thanh toán (CASH và MOMO) trong khoảng thời gian xác định (sử dụng native SQL)
+    @Query(value = "SELECT CONCAT(YEAR(o.order_date), '-', LPAD(MONTH(o.order_date), 2, '0')) AS month, " +
+            "SUM(CASE WHEN o.payment_method = 'CASH' THEN o.total_amount ELSE 0 END) AS cash_revenue, " +
+            "SUM(CASE WHEN o.payment_method = 'MOMO' THEN o.total_amount ELSE 0 END) AS momo_revenue " +
+            "FROM orders o " +
+            "WHERE o.payment_status = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.order_date BETWEEN :startDate AND :endDate " +
+            "GROUP BY CONCAT(YEAR(o.order_date), '-', LPAD(MONTH(o.order_date), 2, '0')) " +
+            "ORDER BY month",
+            nativeQuery = true)
+    List<Object[]> getMonthlyOfflineRevenueByPaymentMethod(@Param("startDate") Date startDate,
+                                                           @Param("endDate") Date endDate);
+
+    // 4. Đếm số lượng đơn hàng OFFLINE theo phương thức thanh toán
+
+    // Đếm số lượng đơn hàng OFFLINE theo phương thức thanh toán (CASH và MOMO) trong ngày hôm nay
+    @Query("SELECT SUM(CASE WHEN o.paymentMethod = 'CASH' THEN 1 ELSE 0 END) AS cash_orders, " +
+            "SUM(CASE WHEN o.paymentMethod = 'MOMO' THEN 1 ELSE 0 END) AS momo_orders " +
+            "FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND DATE(o.orderDate) = CURRENT_DATE")
+    Object[] getOfflineOrderCountTodayByPaymentMethod();
+
+    // Đếm số lượng đơn hàng OFFLINE theo phương thức thanh toán (CASH và MOMO) trong tháng hiện tại
+    @Query("SELECT SUM(CASE WHEN o.paymentMethod = 'CASH' THEN 1 ELSE 0 END) AS cash_orders, " +
+            "SUM(CASE WHEN o.paymentMethod = 'MOMO' THEN 1 ELSE 0 END) AS momo_orders " +
+            "FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND YEAR(o.orderDate) = YEAR(CURRENT_DATE) " +
+            "AND MONTH(o.orderDate) = MONTH(CURRENT_DATE)")
+    Object[] getOfflineOrderCountThisMonthByPaymentMethod();
+
+    // Đếm số lượng đơn hàng OFFLINE theo phương thức thanh toán (CASH và MOMO) trong khoảng thời gian xác định
+    @Query("SELECT SUM(CASE WHEN o.paymentMethod = 'CASH' THEN 1 ELSE 0 END) AS cash_orders, " +
+            "SUM(CASE WHEN o.paymentMethod = 'MOMO' THEN 1 ELSE 0 END) AS momo_orders " +
+            "FROM Orders o " +
+            "WHERE o.paymentStatus = 'Đã thanh toán' " +
+            "AND o.type = 'OFFLINE' " +
+            "AND o.orderDate BETWEEN :startDate AND :endDate")
+    Object[] getOfflineOrderCountByDateRangeAndPaymentMethod(@Param("startDate") Date startDate,
+                                                             @Param("endDate") Date endDate);
+
 }
