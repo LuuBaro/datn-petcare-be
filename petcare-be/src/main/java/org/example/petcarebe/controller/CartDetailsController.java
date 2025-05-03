@@ -1,11 +1,16 @@
 package org.example.petcarebe.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.example.petcarebe.dto.CartDetailsDTO;
 import org.example.petcarebe.model.CartDetails;
 import org.example.petcarebe.service.CartDetailsService;
+import org.example.petcarebe.service.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +22,12 @@ public class CartDetailsController {
 
     @Autowired
     private CartDetailsService cartDetailsService;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private HttpServletRequest request;
 
     @GetMapping("/all")
     public List<CartDetails> getAllCartDetails() {
@@ -33,23 +44,54 @@ public class CartDetailsController {
     }
 
     @PostMapping("/add")
+    @PreAuthorize("hasAuthority('USER')")
     public ResponseEntity<?> addCartDetails(@RequestBody Map<String, Object> payload) {
         try {
-            Long userId = Long.parseLong(payload.get("userId").toString());
+            // Lấy thông tin người dùng từ SecurityContextHolder
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
+
+            // Lấy token từ header Authorization
+            String token = getTokenFromRequest();
+            if (token == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Token không được cung cấp."));
+            }
+
+            // Trích xuất userId từ token
+            Long userIdFromToken = jwtService.extractUserId(token);
+
+            // Lấy userId từ body
+            Long userIdFromBody = Long.parseLong(payload.get("userId").toString());
+
+            // Kiểm tra xem userId trong body có khớp với userId trong token hay không
+            if (!userIdFromToken.equals(userIdFromBody)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("message", "userId trong request không khớp với người dùng đã xác thực."));
+            }
+
             Long productDetailId = Long.parseLong(payload.get("productDetailId").toString());
             int quantityItem = (int) payload.get("quantityItem");
 
             // Gọi service để thêm chi tiết giỏ hàng
-            CartDetails savedCartDetails = cartDetailsService.addCartDetails(userId, productDetailId, quantityItem);
+            CartDetails savedCartDetails = cartDetailsService.addCartDetails(userIdFromBody, productDetailId, quantityItem);
             return ResponseEntity.ok(savedCartDetails);
 
         } catch (IllegalArgumentException e) {
-            // Nếu có lỗi logic từ Service (ví dụ: vượt quá tồn kho), trả về lỗi 400 cùng thông báo
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
-            // Nếu có lỗi khác, trả về lỗi 500 cùng thông báo
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "An unexpected error occurred."));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Đã xảy ra lỗi không mong muốn."));
         }
+    }
+
+    // Hàm lấy token từ header Authorization
+    private String getTokenFromRequest() {
+        String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        return null;
     }
 
 
