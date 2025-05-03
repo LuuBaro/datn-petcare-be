@@ -24,7 +24,7 @@ public class TransactionService {
     @Autowired
     private PetRepository petRepository;
 
-    public Transaction createAdditionalFee(Long appointmentId, Long petId, double amount, String reason) {
+    public Transaction createAdditionalFee(Long appointmentId, Long petId, double amount, String reason, String transactionType) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new RuntimeException("Lịch hẹn không tồn tại với ID: " + appointmentId));
 
@@ -35,9 +35,16 @@ public class TransactionService {
         transaction.setAppointment(appointment);
         transaction.setPet(pet);
         transaction.setAmount(amount);
-        transaction.setType(TransactionType.ADDITIONAL_FEE);
+
+        // Xác định type dựa trên transactionType
+        if ("REFUNDED".equalsIgnoreCase(transactionType)) {
+            transaction.setType(TransactionType.REFUNDED);
+        } else {
+            transaction.setType(TransactionType.PAYMENT);
+        }
+
         transaction.setStatus(TransactionStatus.PENDING);
-        transaction.setPaymentMethod(PaymentMethod.CASH);
+        transaction.setPaymentMethod(PaymentMethod.ONLINE); // Mặc định ONLINE
         transaction.setPaymentChannel(null);
 
         return transactionRepository.save(transaction);

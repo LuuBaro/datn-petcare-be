@@ -6,6 +6,7 @@ public class UpdatePetWeightRequest {
     private Long appointmentId;
     private String reason;
     private Long userId;
+    private Float actualWeight; // Thêm trường actualWeight
 
     public Long getPetWeightId() {
         return petWeightId;
@@ -45,5 +46,13 @@ public class UpdatePetWeightRequest {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public Float getActualWeight() {
+        return actualWeight;
+    }
+
+    public void setActualWeight(Float actualWeight) {
+        this.actualWeight = actualWeight;
     }
 }

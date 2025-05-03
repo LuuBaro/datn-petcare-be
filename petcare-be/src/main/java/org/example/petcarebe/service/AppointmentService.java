@@ -15,6 +15,7 @@ import org.example.petcarebe.model.PetService;
 import org.example.petcarebe.model.PetWeight;
 import org.example.petcarebe.model.Transaction;
 import org.example.petcarebe.model.User;
+import org.example.petcarebe.model.Employee;
 import org.example.petcarebe.repository.AppointmentRepository;
 import org.example.petcarebe.repository.AppointmentSlotRepository;
 import org.example.petcarebe.repository.AppointmentHistoryRepository;
@@ -23,6 +24,7 @@ import org.example.petcarebe.repository.PetServiceRepository;
 import org.example.petcarebe.repository.PetWeightRepository;
 import org.example.petcarebe.repository.TransactionRepository;
 import org.example.petcarebe.repository.UserRepository;
+import org.example.petcarebe.repository.EmployeeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +33,6 @@ import org.springframework.transaction.annotation.Propagation;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -67,6 +68,12 @@ public class AppointmentService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private PetManagementService petService;
 
     @Transactional
     public Appointment createAppointment(AppointmentRequest request) {
@@ -277,6 +284,17 @@ public class AppointmentService {
                     return slot;
                 });
 
+        int newSlotBookedSlots = 0;
+        for (AppointmentStatus status : List.of(AppointmentStatus.PAID, AppointmentStatus.CONFIRMED)) {
+            List<Appointment> appointments = appointmentRepository.findByDateAndTimeAndStatus(newDate, newTime, status);
+            for (Appointment appt : appointments) {
+                newSlotBookedSlots += appt.getPets() != null ? appt.getPets().size() : 0;
+            }
+        }
+        newSlot.setBookedSlots(newSlotBookedSlots);
+        newSlot.setAvailableSlots(newSlot.getTotalSlots() - newSlotBookedSlots);
+        appointmentSlotRepository.save(newSlot);
+
         if (newSlot.getAvailableSlots() < requiredSlots) {
             throw new IllegalArgumentException("Không đủ slot trống cho khung giờ mới");
         }
@@ -285,7 +303,7 @@ public class AppointmentService {
                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy slot cũ cho lịch hẹn #" + appointmentId));
 
         oldSlot.setBookedSlots(oldSlot.getBookedSlots() - requiredSlots);
-        oldSlot.setAvailableSlots(oldSlot.getAvailableSlots() + requiredSlots);
+        oldSlot.setAvailableSlots(oldSlot.getTotalSlots() - oldSlot.getBookedSlots());
         oldSlot.setAppointment(null);
         appointmentSlotRepository.save(oldSlot);
         appointmentSlotRepository.flush();
@@ -296,7 +314,7 @@ public class AppointmentService {
             appointmentSlotRepository.flush();
         }
         newSlot.setBookedSlots(newSlot.getBookedSlots() + requiredSlots);
-        newSlot.setAvailableSlots(newSlot.getAvailableSlots() - requiredSlots);
+        newSlot.setAvailableSlots(newSlot.getTotalSlots() - newSlot.getBookedSlots());
         newSlot.setAppointment(appointment);
         appointmentSlotRepository.save(newSlot);
 
@@ -366,6 +384,7 @@ public class AppointmentService {
                         appointment.getDepositAmount(),
                         appointment.getPets() != null ? appointment.getPets().size() : 0
                 );
+                response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
                 responses.add(response);
             }
             return responses;
@@ -393,7 +412,9 @@ public class AppointmentService {
                         pet.getAge(),
                         pet.getPetWeight() != null ? pet.getPetWeight().getWeightRange() : "Không xác định",
                         pet.getPetService() != null ? pet.getPetService().getServiceName() : "Không có dịch vụ",
-                        pet.getPrice()
+                        pet.getPetService() != null ? pet.getPetService().getId() : null,
+                        pet.getPrice(),
+                        pet.getWeightUpdateCount()
                 );
                 responses.add(response);
             }
@@ -418,6 +439,21 @@ public class AppointmentService {
             AppointmentStatus oldStatus = appointment.getStatus();
             appointment.setStatus(AppointmentStatus.CONFIRMED);
             appointmentRepository.save(appointment);
+
+            LocalDate date = appointment.getDate();
+            LocalTime time = appointment.getTime();
+            AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
+                    .orElseThrow(() -> new IllegalStateException("Không tìm thấy slot cho lịch hẹn #" + appointmentId));
+            int bookedSlots = 0;
+            for (AppointmentStatus status : List.of(AppointmentStatus.PAID, AppointmentStatus.CONFIRMED)) {
+                List<Appointment> appointments = appointmentRepository.findByDateAndTimeAndStatus(date, time, status);
+                for (Appointment appt : appointments) {
+                    bookedSlots += appt.getPets() != null ? appt.getPets().size() : 0;
+                }
+            }
+            slot.setBookedSlots(bookedSlots);
+            slot.setAvailableSlots(slot.getTotalSlots() - slot.getBookedSlots());
+            appointmentSlotRepository.save(slot);
 
             appointmentHistoryService.logAction(
                     appointmentId,
@@ -444,6 +480,92 @@ public class AppointmentService {
         }
     }
 
+    @Transactional
+    public void startService(Long appointmentId, Long userId, Map<Long, Long> petAssignments) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
+
+        if (appointment.getStatus() != AppointmentStatus.CONFIRMED) {
+            throw new IllegalStateException("Lịch hẹn #" + appointmentId + " không ở trạng thái CONFIRMED");
+        }
+
+        AppointmentStatus oldStatus = appointment.getStatus();
+        appointment.setStatus(AppointmentStatus.IN_PROGRESS);
+        appointmentRepository.save(appointment);
+
+        List<Pet> pets = appointment.getPets();
+        for (Pet pet : pets) {
+            Long staffId = petAssignments.get(pet.getId());
+            if (staffId == null) {
+                throw new IllegalArgumentException("Chưa gán nhân viên cho thú cưng #" + pet.getId());
+            }
+            Employee employee = employeeRepository.findById(staffId)
+                    .orElseThrow(() -> new IllegalArgumentException("Nhân viên không tồn tại: " + staffId));
+            pet.setEmployee(employee);
+        }
+        appointmentRepository.save(appointment);
+
+        appointmentHistoryService.logAction(
+                appointmentId,
+                userId,
+                "START_SERVICE",
+                oldStatus,
+                AppointmentStatus.IN_PROGRESS,
+                "Bắt đầu dịch vụ"
+        );
+
+        Map<String, Object> startMessage = new HashMap<>();
+        startMessage.put("type", "APPOINTMENT_STARTED");
+        startMessage.put("appointmentId", appointmentId);
+        startMessage.put("status", AppointmentStatus.IN_PROGRESS.toString());
+        webSocketService.sendToTopic("/topic/appointments", startMessage.toString());
+    }
+
+    @Transactional
+    public void completeService(Long appointmentId, Long userId) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
+
+        if (appointment.getStatus() != AppointmentStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Lịch hẹn #" + appointmentId + " không ở trạng thái IN_PROGRESS");
+        }
+
+        AppointmentStatus oldStatus = appointment.getStatus();
+        appointment.setStatus(AppointmentStatus.COMPLETED);
+        appointmentRepository.save(appointment);
+
+        LocalDate date = appointment.getDate();
+        LocalTime time = appointment.getTime();
+        AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy slot cho lịch hẹn #" + appointmentId));
+        int slotsToFree = appointment.getPets() != null ? appointment.getPets().size() : 0;
+        slot.setBookedSlots(slot.getBookedSlots() - slotsToFree);
+        slot.setAvailableSlots(slot.getTotalSlots() - slot.getBookedSlots());
+        appointmentSlotRepository.save(slot);
+
+        appointmentHistoryService.logAction(
+                appointmentId,
+                userId,
+                "COMPLETE_SERVICE",
+                oldStatus,
+                AppointmentStatus.COMPLETED,
+                "Hoàn thành dịch vụ"
+        );
+
+        Map<String, Object> completeMessage = new HashMap<>();
+        completeMessage.put("type", "APPOINTMENT_COMPLETED");
+        completeMessage.put("appointmentId", appointmentId);
+        completeMessage.put("status", AppointmentStatus.COMPLETED.toString());
+        webSocketService.sendToTopic("/topic/appointments", completeMessage.toString());
+
+        SlotUpdateMessage slotMessage = new SlotUpdateMessage(
+                date.toString(),
+                time.toString(),
+                -slotsToFree
+        );
+        webSocketService.sendToTopic("/topic/slots", slotMessage.toString());
+    }
+
     public AppointmentResponse getAppointmentById(Long appointmentId) {
         try {
             Appointment appointment = appointmentRepository.findById(appointmentId)
@@ -459,7 +581,7 @@ public class AppointmentService {
                     appointment.getDepositAmount(),
                     appointment.getPets() != null ? appointment.getPets().size() : 0
             );
-            response.setStatus(appointment.getStatus().toString());
+            response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
             return response;
         } catch (IllegalArgumentException e) {
             System.err.println("Error fetching appointment by ID " + appointmentId + ": " + e.getMessage());
@@ -470,7 +592,6 @@ public class AppointmentService {
         }
     }
 
-    // Phương thức lấy payment_method từ giao dịch DEPOSIT
     private PaymentMethod getPaymentMethodFromDepositTransaction(Appointment appointment) {
         List<Transaction> transactions = transactionRepository.findByAppointmentAppointmentId(appointment.getAppointmentId());
         for (Transaction transaction : transactions) {
@@ -478,20 +599,16 @@ public class AppointmentService {
                 return transaction.getPaymentMethod();
             }
         }
-        // Nếu không tìm thấy giao dịch DEPOSIT, mặc định là ONLINE
         return PaymentMethod.ONLINE;
     }
 
-    // Phương thức lưu giao dịch NON_REFUNDED_DEPOSIT và REFUNDED vào bảng Transaction
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     private void saveCancellationTransactions(Appointment appointment, double nonRefundedDeposit, double refundAmount) {
         try {
             System.out.println("Saving cancellation transactions for appointment #" + appointment.getAppointmentId());
 
-            // Lấy payment_method từ giao dịch DEPOSIT
             PaymentMethod paymentMethod = getPaymentMethodFromDepositTransaction(appointment);
 
-            // Lưu giao dịch NON_REFUNDED_DEPOSIT nếu có tiền cọc không hoàn
             if (nonRefundedDeposit > 0) {
                 Transaction nonRefundedTransaction = new Transaction();
                 nonRefundedTransaction.setAppointment(appointment);
@@ -504,7 +621,6 @@ public class AppointmentService {
                 System.out.println("Đã lưu giao dịch không hoàn cọc: " + nonRefundedDeposit);
             }
 
-            // Lưu giao dịch REFUNDED nếu có tiền hoàn lại
             if (refundAmount > 0) {
                 Transaction refundTransaction = new Transaction();
                 refundTransaction.setAppointment(appointment);
@@ -518,17 +634,14 @@ public class AppointmentService {
             }
         } catch (Exception e) {
             System.err.println("Error saving cancellation transactions for appointment #" + appointment.getAppointmentId() + ": " + e.getMessage());
-            // Ghi log lỗi, không ném ngoại lệ để tránh ảnh hưởng giao dịch chính
         }
     }
 
-    // Phương thức xử lý hủy lịch hẹn cho trạng thái PAID
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     private AppointmentResponse cancelAppointmentsForPaid(Long appointmentId, String reason, Long userId, Appointment appointment) {
         try {
             System.out.println("Bắt đầu hủy lịch hẹn PAID #" + appointmentId);
 
-            // Bước 1: Tính toán hoàn tiền
             LocalDateTime appointmentTime = LocalDateTime.of(
                     appointment.getDate() != null ? appointment.getDate() : LocalDate.now(),
                     appointment.getTime() != null ? appointment.getTime() : LocalTime.now()
@@ -549,26 +662,23 @@ public class AppointmentService {
             }
             System.out.println("Hoàn tiền: " + refundAmount + ", Không hoàn cọc: " + nonRefundedDeposit);
 
-            // Bước 2: Cập nhật trạng thái lịch hẹn
             AppointmentStatus oldStatus = appointment.getStatus();
             appointment.setStatus(AppointmentStatus.CANCELLED);
             appointment.setCancelReason(reason);
             appointmentRepository.save(appointment);
             System.out.println("Đã cập nhật trạng thái lịch hẹn thành CANCELLED");
 
-            // Bước 3: Cập nhật slot
             LocalDate date = appointment.getDate();
             LocalTime time = appointment.getTime();
             AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
                     .orElseThrow(() -> new IllegalStateException("Không tìm thấy slot cho lịch hẹn #" + appointmentId));
             int slotsToFree = appointment.getPets() != null ? appointment.getPets().size() : 0;
             slot.setBookedSlots(slot.getBookedSlots() - slotsToFree);
-            slot.setAvailableSlots(slot.getAvailableSlots() + slotsToFree);
+            slot.setAvailableSlots(slot.getTotalSlots() - slot.getBookedSlots());
             slot.setAppointment(null);
             appointmentSlotRepository.save(slot);
             System.out.println("Đã cập nhật slot: bookedSlots = " + slot.getBookedSlots() + ", availableSlots = " + slot.getAvailableSlots());
 
-            // Bước 4: Tra cứu tên nhân viên
             String employeeName = "Quản trị viên";
             try {
                 User employee = userRepository.findById(userId)
@@ -579,7 +689,6 @@ public class AppointmentService {
                 System.err.println("Error fetching employee name for userId " + userId + ": " + e.getMessage());
             }
 
-            // Bước 5: Ghi lịch sử hành động
             String historyReason = "Hủy bởi " + employeeName;
             try {
                 System.out.println("Bắt đầu ghi lịch sử hành động...");
@@ -594,14 +703,12 @@ public class AppointmentService {
                 System.out.println("Đã ghi lịch sử hành động thành công");
             } catch (Exception e) {
                 System.err.println("Error logging action for appointment #" + appointmentId + ": " + e.getMessage());
-                // Không ném ngoại lệ để tránh ảnh hưởng giao dịch chính
             }
 
-            // Bước 6: Chuẩn bị thông báo WebSocket
             SlotUpdateMessage slotMessage = new SlotUpdateMessage(
                     date.toString(),
                     time.toString(),
-                    slotsToFree
+                    -slotsToFree
             );
             Map<String, Object> cancelMessage = new HashMap<>();
             cancelMessage.put("type", "APPOINTMENT_CANCELLED");
@@ -620,10 +727,8 @@ public class AppointmentService {
                 System.err.println("Error sending WebSocket message: " + e.getMessage());
             }
 
-            // Bước 7: Lưu giao dịch NON_REFUNDED_DEPOSIT và REFUNDED trong giao dịch riêng
             saveCancellationTransactions(appointment, nonRefundedDeposit, refundAmount);
 
-            // Trả về phản hồi
             AppointmentResponse response = new AppointmentResponse(
                     appointmentId,
                     appointment.getCustomerName(),
@@ -632,9 +737,9 @@ public class AppointmentService {
                     appointment.getTime() != null ? appointment.getTime().toString() : null,
                     refundAmount,
                     nonRefundedDeposit,
-                    null, // Không cập nhật refundStatus
-                    null, // Không cập nhật refundMethod
-                    null, // Không cập nhật refundNote
+                    null,
+                    null,
+                    null,
                     appointment.getCancelReason()
             );
             response.setStatus("CANCELLED");
@@ -646,13 +751,11 @@ public class AppointmentService {
         }
     }
 
-    // Phương thức xử lý hủy lịch hẹn cho trạng thái CONFIRMED
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     private AppointmentResponse cancelAppointmentsForConfirmed(Long appointmentId, String reason, Long userId, Appointment appointment) {
         try {
             System.out.println("Bắt đầu hủy lịch hẹn CONFIRMED #" + appointmentId);
 
-            // Bước 1: Tính toán hoàn tiền
             LocalDateTime appointmentTime = LocalDateTime.of(
                     appointment.getDate() != null ? appointment.getDate() : LocalDate.now(),
                     appointment.getTime() != null ? appointment.getTime() : LocalTime.now()
@@ -673,26 +776,23 @@ public class AppointmentService {
             }
             System.out.println("Hoàn tiền: " + refundAmount + ", Không hoàn cọc: " + nonRefundedDeposit);
 
-            // Bước 2: Cập nhật trạng thái lịch hẹn
             AppointmentStatus oldStatus = appointment.getStatus();
             appointment.setStatus(AppointmentStatus.CANCELLED);
             appointment.setCancelReason(reason);
             appointmentRepository.save(appointment);
             System.out.println("Đã cập nhật trạng thái lịch hẹn thành CANCELLED");
 
-            // Bước 3: Cập nhật slot
             LocalDate date = appointment.getDate();
             LocalTime time = appointment.getTime();
             AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
                     .orElseThrow(() -> new IllegalStateException("Không tìm thấy slot cho lịch hẹn #" + appointmentId));
             int slotsToFree = appointment.getPets() != null ? appointment.getPets().size() : 0;
             slot.setBookedSlots(slot.getBookedSlots() - slotsToFree);
-            slot.setAvailableSlots(slot.getAvailableSlots() + slotsToFree);
+            slot.setAvailableSlots(slot.getTotalSlots() - slot.getBookedSlots());
             slot.setAppointment(null);
             appointmentSlotRepository.save(slot);
             System.out.println("Đã cập nhật slot: bookedSlots = " + slot.getBookedSlots() + ", availableSlots = " + slot.getAvailableSlots());
 
-            // Bước 4: Tra cứu tên nhân viên
             String employeeName = "Quản trị viên";
             try {
                 User employee = userRepository.findById(userId)
@@ -703,7 +803,6 @@ public class AppointmentService {
                 System.err.println("Error fetching employee name for userId " + userId + ": " + e.getMessage());
             }
 
-            // Bước 5: Ghi lịch sử hành động
             String historyReason = "Hủy bởi " + employeeName + ", lý do: Hủy bởi quản trị viên";
             try {
                 System.out.println("Bắt đầu ghi lịch sử hành động...");
@@ -718,14 +817,12 @@ public class AppointmentService {
                 System.out.println("Đã ghi lịch sử hành động thành công");
             } catch (Exception e) {
                 System.err.println("Error logging action for appointment #" + appointmentId + ": " + e.getMessage());
-
             }
-
 
             SlotUpdateMessage slotMessage = new SlotUpdateMessage(
                     date.toString(),
                     time.toString(),
-                    slotsToFree
+                    -slotsToFree
             );
             Map<String, Object> cancelMessage = new HashMap<>();
             cancelMessage.put("type", "APPOINTMENT_CANCELLED");
@@ -744,9 +841,7 @@ public class AppointmentService {
                 System.err.println("Error sending WebSocket message: " + e.getMessage());
             }
 
-
             saveCancellationTransactions(appointment, nonRefundedDeposit, refundAmount);
-
 
             AppointmentResponse response = new AppointmentResponse(
                     appointmentId,
@@ -770,16 +865,13 @@ public class AppointmentService {
         }
     }
 
-
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AppointmentResponse> cancelPaidAppointments(List<Long> appointmentIds, String reason, Long userId) {
         List<AppointmentResponse> responses = new ArrayList<>();
         for (Long appointmentId : appointmentIds) {
             try {
-
                 Appointment appointment = appointmentRepository.findById(appointmentId)
                         .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
-
                 AppointmentResponse response = cancelAppointmentsForPaid(appointmentId, reason, userId, appointment);
                 responses.add(response);
             } catch (Exception e) {
@@ -791,16 +883,13 @@ public class AppointmentService {
         return responses;
     }
 
-
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AppointmentResponse> cancelConfirmedAppointments(List<Long> appointmentIds, String reason, Long userId) {
         List<AppointmentResponse> responses = new ArrayList<>();
         for (Long appointmentId : appointmentIds) {
             try {
-
                 Appointment appointment = appointmentRepository.findById(appointmentId)
                         .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
-
                 AppointmentResponse response = cancelAppointmentsForConfirmed(appointmentId, reason, userId, appointment);
                 responses.add(response);
             } catch (Exception e) {
@@ -811,7 +900,6 @@ public class AppointmentService {
         }
         return responses;
     }
-
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AppointmentResponse> cancelAppointments(List<Long> appointmentIds, String reason, Long userId) {
@@ -827,8 +915,8 @@ public class AppointmentService {
                 if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
                     throw new IllegalStateException("Lịch hẹn #" + appointmentId + " đã hoàn thành, không thể hủy");
                 }
-                if (appointment.getStatus() != AppointmentStatus.PAID && appointment.getStatus() != AppointmentStatus.CONFIRMED) {
-                    throw new IllegalStateException("Lịch hẹn #" + appointmentId + " phải ở trạng thái PAID hoặc CONFIRMED để hủy");
+                if (appointment.getStatus() != AppointmentStatus.PAID && appointment.getStatus() != AppointmentStatus.CONFIRMED && appointment.getStatus() != AppointmentStatus.IN_PROGRESS) {
+                    throw new IllegalStateException("Lịch hẹn #" + appointmentId + " phải ở trạng thái PAID, CONFIRMED hoặc IN_PROGRESS để hủy");
                 }
 
                 AppointmentResponse response;
@@ -847,11 +935,9 @@ public class AppointmentService {
         return responses;
     }
 
-
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     private AppointmentResponse removePetForPaid(Long appointmentId, Long petId, Long userId, Appointment appointment, Pet petToRemove) {
         try {
-
             LocalDateTime appointmentTime = LocalDateTime.of(
                     appointment.getDate() != null ? appointment.getDate() : LocalDate.now(),
                     appointment.getTime() != null ? appointment.getTime() : LocalTime.now()
@@ -874,21 +960,18 @@ public class AppointmentService {
                 }
             }
 
-
             appointment.setDepositAmount(appointment.getDepositAmount() - petDeposit);
             appointment.setTotalAmount(appointment.getTotalAmount() - petPrice);
 
-
             appointment.getPets().remove(petToRemove);
             appointmentRepository.save(appointment);
-
 
             LocalDate date = appointment.getDate();
             LocalTime time = appointment.getTime();
             AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
                     .orElseThrow(() -> new IllegalStateException("Không tìm thấy slot cho lịch hẹn #" + appointmentId));
             slot.setBookedSlots(slot.getBookedSlots() - 1);
-            slot.setAvailableSlots(slot.getAvailableSlots() + 1);
+            slot.setAvailableSlots(slot.getTotalSlots() - slot.getBookedSlots());
             appointmentSlotRepository.save(slot);
 
             String employeeName = "Quản trị viên";
@@ -914,7 +997,6 @@ public class AppointmentService {
                 System.err.println("Error logging action for appointment #" + appointmentId + ": " + e.getMessage());
             }
 
-            // Gửi thông báo WebSocket
             SlotUpdateMessage slotMessage = new SlotUpdateMessage(
                     date.toString(),
                     time.toString(),
@@ -982,21 +1064,18 @@ public class AppointmentService {
                 }
             }
 
-
             appointment.setDepositAmount(appointment.getDepositAmount() - petDeposit);
             appointment.setTotalAmount(appointment.getTotalAmount() - petPrice);
 
-
             appointment.getPets().remove(petToRemove);
             appointmentRepository.save(appointment);
-
 
             LocalDate date = appointment.getDate();
             LocalTime time = appointment.getTime();
             AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
                     .orElseThrow(() -> new IllegalStateException("Không tìm thấy slot cho lịch hẹn #" + appointmentId));
             slot.setBookedSlots(slot.getBookedSlots() - 1);
-            slot.setAvailableSlots(slot.getAvailableSlots() + 1);
+            slot.setAvailableSlots(slot.getTotalSlots() - slot.getBookedSlots());
             appointmentSlotRepository.save(slot);
 
             String employeeName = "Quản trị viên";
@@ -1022,7 +1101,6 @@ public class AppointmentService {
                 System.err.println("Error logging action for appointment #" + appointmentId + ": " + e.getMessage());
             }
 
-            // Gửi thông báo WebSocket
             SlotUpdateMessage slotMessage = new SlotUpdateMessage(
                     date.toString(),
                     time.toString(),
@@ -1140,6 +1218,7 @@ public class AppointmentService {
                         appointment.getRefundNote(),
                         appointment.getCancelReason()
                 );
+                response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
                 responses.add(response);
             }
             return responses;
@@ -1221,6 +1300,7 @@ public class AppointmentService {
                         appointment.getDepositAmount(),
                         appointment.getPets() != null ? appointment.getPets().size() : 0
                 );
+                response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
                 responses.add(response);
             }
             return responses;
@@ -1251,12 +1331,10 @@ public class AppointmentService {
                         appointment.getDepositAmount(),
                         appointment.getPets() != null ? appointment.getPets().size() : 0
                 );
+                response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
                 responses.add(response);
             }
             return responses;
-        } catch (DateTimeParseException e) {
-            System.err.println("Error parsing date '" + date + "': " + e.getMessage());
-            throw new IllegalArgumentException("Định dạng ngày không hợp lệ: " + date);
         } catch (Exception e) {
             System.err.println("Error fetching confirmed appointments by date '" + date + "': " + e.getMessage());
             throw new RuntimeException("Không thể tải danh sách lịch hẹn đã xác nhận: " + e.getMessage());

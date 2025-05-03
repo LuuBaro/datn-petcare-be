@@ -27,7 +27,7 @@ import java.util.logging.Logger;
 @RestController
 @RequestMapping("/api/time-slots")
 public class TimeSlotController {
-    
+
     private static final Logger logger = Logger.getLogger(TimeSlotController.class.getName());
 
     @Autowired
@@ -47,7 +47,7 @@ public class TimeSlotController {
             logger.info("Parsed LocalDate: " + localDate);
 
             forceCreateOrUpdateSlotsForDate(localDate);
-            
+
             return ResponseEntity.ok(getSlotsForDate(localDate, true));
         } catch (Exception e) {
             logger.severe("Error processing date: " + date + " - " + e.getMessage());
@@ -64,12 +64,12 @@ public class TimeSlotController {
             return ResponseEntity.badRequest().body(null);
         }
     }
-    
+
     @GetMapping("/default-config")
     public ResponseEntity<?> getDefaultTimeSlotsConfig() {
         List<DefaultTimeSlot> defaultSlots = defaultTimeSlotRepository.findAll();
         List<Map<String, Object>> result = new ArrayList<>();
-        
+
         for (DefaultTimeSlot slot : defaultSlots) {
             Map<String, Object> slotInfo = new HashMap<>();
             slotInfo.put("id", slot.getId());
@@ -81,14 +81,14 @@ public class TimeSlotController {
             slotInfo.put("isMorning", slot.isMorning());
             result.add(slotInfo);
         }
-        
+
         return ResponseEntity.ok(result);
     }
-    
+
 
     private void forceCreateOrUpdateSlotsForDate(LocalDate date) {
         List<DefaultTimeSlot> defaultSlots = defaultTimeSlotRepository.findAll();
-        
+
         for (DefaultTimeSlot defaultSlot : defaultSlots) {
             LocalTime time = defaultSlot.getTime();
 
@@ -118,10 +118,10 @@ public class TimeSlotController {
             slot.setBookedSlots(bookedCount);
             slot.setAvailableSlots(defaultSlot.getTotalSlots() - bookedCount);
             appointmentSlotRepository.save(slot);
-            
-            logger.info("Updated slot " + time + " on " + date + ": total=" + 
-                      slot.getTotalSlots() + ", booked=" + slot.getBookedSlots() + 
-                      ", available=" + slot.getAvailableSlots());
+
+            logger.info("Updated slot " + time + " on " + date + ": total=" +
+                    slot.getTotalSlots() + ", booked=" + slot.getBookedSlots() +
+                    ", available=" + slot.getAvailableSlots());
         }
     }
 
@@ -135,7 +135,7 @@ public class TimeSlotController {
         for (DefaultTimeSlot defaultSlot : defaultSlots) {
             LocalTime time = defaultSlot.getTime();
             logger.info("Processing time slot: " + time.format(timeFormatter) + " for date: " + date);
-            
+
             AppointmentSlot slot = appointmentSlotRepository.findByDateAndTime(date, time)
                     .orElseGet(() -> {
                         AppointmentSlot newSlot = new AppointmentSlot();
@@ -158,8 +158,8 @@ public class TimeSlotController {
                 int statusBookedSlots = appointments.stream()
                         .mapToInt(appointment -> appointment.getPets().size())
                         .sum();
-                logger.info("Slot " + time.format(timeFormatter) + " has " + statusBookedSlots + 
-                            " pets booked with status " + status);
+                logger.info("Slot " + time.format(timeFormatter) + " has " + statusBookedSlots +
+                        " pets booked with status " + status);
                 bookedSlots += statusBookedSlots;
             }
 
@@ -169,9 +169,9 @@ public class TimeSlotController {
             if (slot.getAvailableSlots() < 0) {
                 slot.setAvailableSlots(0);
             }
-            
-            logger.info("Slot " + time.format(timeFormatter) + " total: " + slot.getTotalSlots() + 
-                        ", booked: " + slot.getBookedSlots() + ", available: " + slot.getAvailableSlots());
+
+            logger.info("Slot " + time.format(timeFormatter) + " total: " + slot.getTotalSlots() +
+                    ", booked: " + slot.getBookedSlots() + ", available: " + slot.getAvailableSlots());
 
             TimeSlotDTO slotDTO = new TimeSlotDTO();
             slotDTO.setTime(time);

@@ -4,10 +4,12 @@ public class PetResponse {
     private Long id;
     private String name;
     private String petType;
-    private Float age; // Thay đổi từ Integer thành Float
+    private Float age;
     private String weightRange;
     private String serviceName;
-    private double price; // Thay đổi từ Double thành double
+    private Long petServiceId;
+    private double price;
+    private Integer weightUpdateCount; // Thêm trường weightUpdateCount
 
     public PetResponse(Long id, String name, String petType, Float age, String weightRange, String serviceName, double price) {
         this.id = id;
@@ -17,6 +19,29 @@ public class PetResponse {
         this.weightRange = weightRange;
         this.serviceName = serviceName;
         this.price = price;
+    }
+
+    public PetResponse(Long id, String name, String petType, Float age, String weightRange, String serviceName, Long petServiceId, double price) {
+        this.id = id;
+        this.name = name;
+        this.petType = petType;
+        this.age = age;
+        this.weightRange = weightRange;
+        this.serviceName = serviceName;
+        this.petServiceId = petServiceId;
+        this.price = price;
+    }
+
+    public PetResponse(Long id, String name, String petType, Float age, String weightRange, String serviceName, Long petServiceId, double price, Integer weightUpdateCount) {
+        this.id = id;
+        this.name = name;
+        this.petType = petType;
+        this.age = age;
+        this.weightRange = weightRange;
+        this.serviceName = serviceName;
+        this.petServiceId = petServiceId;
+        this.price = price;
+        this.weightUpdateCount = weightUpdateCount;
     }
 
     // Getters và setters
@@ -68,11 +93,27 @@ public class PetResponse {
         this.serviceName = serviceName;
     }
 
+    public Long getPetServiceId() {
+        return petServiceId;
+    }
+
+    public void setPetServiceId(Long petServiceId) {
+        this.petServiceId = petServiceId;
+    }
+
     public double getPrice() {
         return price;
     }
 
     public void setPrice(double price) {
         this.price = price;
+    }
+
+    public Integer getWeightUpdateCount() {
+        return weightUpdateCount;
+    }
+
+    public void setWeightUpdateCount(Integer weightUpdateCount) {
+        this.weightUpdateCount = weightUpdateCount;
     }
 }

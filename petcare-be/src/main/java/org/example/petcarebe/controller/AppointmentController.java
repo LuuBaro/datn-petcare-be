@@ -114,6 +114,77 @@ public class AppointmentController {
         }
     }
 
+    @PostMapping("/{appointmentId}/start")
+    public ResponseEntity<?> startService(
+            @PathVariable Long appointmentId,
+            @RequestBody Map<Long, Long> petAssignments,
+            @RequestParam(value = "userId") Object userIdObj) {
+        try {
+            Long userId = null;
+            if (userIdObj != null) {
+                if (userIdObj instanceof Number) {
+                    userId = ((Number) userIdObj).longValue();
+                } else if (userIdObj instanceof String) {
+                    try {
+                        userId = Long.parseLong((String) userIdObj);
+                    } catch (NumberFormatException e) {
+                        userId = userService.findByEmail((String) userIdObj).getUserId();
+                    }
+                } else {
+                    throw new IllegalArgumentException("userId phải là số hoặc email");
+                }
+            }
+            if (userId == null) {
+                throw new IllegalArgumentException("userId hoặc email không hợp lệ");
+            }
+
+            appointmentService.startService(appointmentId, userId, petAssignments);
+            return ResponseEntity.ok(new AppointmentResponse(appointmentId, "IN_PROGRESS", "Bắt đầu dịch vụ thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new AppointmentResponse(appointmentId, "FAILED", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{appointmentId}/complete")
+    public ResponseEntity<?> completeService(
+            @PathVariable Long appointmentId,
+            @RequestParam(value = "userId") Object userIdObj) {
+        try {
+            Long userId = null;
+            if (userIdObj != null) {
+                if (userIdObj instanceof Number) {
+                    userId = ((Number) userIdObj).longValue();
+                } else if (userIdObj instanceof String) {
+                    try {
+                        userId = Long.parseLong((String) userIdObj);
+                    } catch (NumberFormatException e) {
+                        userId = userService.findByEmail((String) userIdObj).getUserId();
+                    }
+                } else {
+                    throw new IllegalArgumentException("userId phải là số hoặc email");
+                }
+            }
+            if (userId == null) {
+                throw new IllegalArgumentException("userId hoặc email không hợp lệ");
+            }
+
+            appointmentService.completeService(appointmentId, userId);
+            return ResponseEntity.ok(new AppointmentResponse(appointmentId, "COMPLETED", "Hoàn thành dịch vụ thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new AppointmentResponse(appointmentId, "FAILED", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{appointmentId}")
+    public ResponseEntity<AppointmentResponse> getAppointmentById(@PathVariable Long appointmentId) {
+        try {
+            AppointmentResponse appointment = appointmentService.getAppointmentById(appointmentId);
+            return ResponseEntity.ok(appointment);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
     @GetMapping("/confirmed-by-date-and-time")
     public ResponseEntity<List<AppointmentResponse>> getConfirmedAppointmentsByDateAndTime(
             @RequestParam("date") String date,
@@ -141,6 +212,17 @@ public class AppointmentController {
             }
 
             List<AppointmentResponse> appointments = appointmentService.getConfirmedAppointmentsByDateAndTime(localDate, localTime);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/confirmed")
+    public ResponseEntity<List<AppointmentResponse>> getConfirmedAppointmentsByDate(
+            @RequestParam("date") String date) {
+        try {
+            List<AppointmentResponse> appointments = appointmentService.getConfirmedAppointmentsByDate(date);
             return ResponseEntity.ok(appointments);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
