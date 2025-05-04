@@ -1361,7 +1361,21 @@ public class OrderService {
         return orderCountByPaymentMethod;
     }
 
-    //
+
+    // ********* SPA ******* //
+
+    /**
+     * Lấy doanh thu hàng ngày của đơn hàng loại SPA trong khoảng thời gian xác định.
+     *
+     * @param startDate Ngày bắt đầu của khoảng thời gian
+     * @param endDate   Ngày kết thúc của khoảng thời gian
+     * @return Danh sách các Object[] chứa ngày và doanh thu tương ứng
+     */
+    public List<Object[]> getDailySpaRevenue(Date startDate, Date endDate) {
+        return orderRepository.getDailySpaRevenueByDateRange(startDate, endDate);
+    }
+
+
     public List<OrderDTO> getOrdersByUserId(Long userId) {
         List<Orders> userOrders = orderRepository.findByUserUserId(userId);
         return userOrders.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
