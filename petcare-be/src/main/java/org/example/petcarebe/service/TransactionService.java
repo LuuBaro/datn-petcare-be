@@ -44,7 +44,7 @@ public class TransactionService {
         }
 
         transaction.setStatus(TransactionStatus.PENDING);
-        transaction.setPaymentMethod(PaymentMethod.ONLINE); // Mặc định ONLINE
+        transaction.setPaymentMethod(PaymentMethod.ONLINE);
         transaction.setPaymentChannel(null);
 
         return transactionRepository.save(transaction);

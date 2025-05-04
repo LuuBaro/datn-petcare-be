@@ -75,6 +75,9 @@ public class AppointmentService {
     @Autowired
     private PetManagementService petService;
 
+    @Autowired
+    private OrderSpaService orderSpaService;
+
     @Transactional
     public Appointment createAppointment(AppointmentRequest request) {
         if (request.getPets() == null || request.getPets().isEmpty()) {
@@ -398,14 +401,15 @@ public class AppointmentService {
         try {
             Appointment appointment = appointmentRepository.findById(appointmentId)
                     .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
-            List<PetResponse> responses = new ArrayList<PetResponse>();
+
+            List<PetResponse> responses = new ArrayList<>();
             List<Pet> pets = appointment.getPets() != null ? appointment.getPets() : new ArrayList<>();
             for (Pet pet : pets) {
                 if (pet == null) {
                     System.err.println("Found null pet in appointment ID: " + appointmentId);
                     continue;
                 }
-                PetResponse response = new PetResponse(
+                PetResponse petResponse = new PetResponse(
                         pet.getId(),
                         pet.getNamePet() != null ? pet.getNamePet() : "Không có tên",
                         pet.getPetType() != null ? pet.getPetType().toString() : "Không xác định",
@@ -414,9 +418,12 @@ public class AppointmentService {
                         pet.getPetService() != null ? pet.getPetService().getServiceName() : "Không có dịch vụ",
                         pet.getPetService() != null ? pet.getPetService().getId() : null,
                         pet.getPrice(),
-                        pet.getWeightUpdateCount()
+                        pet.getWeightUpdateCount(),
+                        pet.getEmployee() != null ? pet.getEmployee().getEmployeeId() : null,
+                        pet.getEmployee() != null ? pet.getEmployee().getFullName() : null,
+                        pet.getPaidAmount()
                 );
-                responses.add(response);
+                responses.add(petResponse);
             }
             return responses;
         } catch (IllegalArgumentException e) {
@@ -449,7 +456,6 @@ public class AppointmentService {
                     "Xác nhận lịch hẹn"
             );
 
-            // Gửi thông báo WebSocket
             Map<String, Object> confirmMessage = new HashMap<>();
             confirmMessage.put("type", "APPOINTMENT_CONFIRMED");
             confirmMessage.put("appointmentId", appointmentId);
@@ -501,13 +507,11 @@ public class AppointmentService {
     }
 
     @Transactional
-    public void completeService(Long appointmentId, Long userId) {
+    public void completeService(Long appointmentId, Long userId, Map<String, Object> payload) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
 
-        if (appointment.getStatus() != AppointmentStatus.IN_PROGRESS) {
-            throw new IllegalStateException("Lịch hẹn #" + appointmentId + " không ở trạng thái IN_PROGRESS");
-        }
+        System.out.println("Processing payment for appointment #" + appointmentId + ", current status: " + appointment.getStatus());
 
         AppointmentStatus oldStatus = appointment.getStatus();
         appointment.setStatus(AppointmentStatus.COMPLETED);
@@ -522,13 +526,15 @@ public class AppointmentService {
         slot.setAvailableSlots(slot.getTotalSlots() - slot.getBookedSlots());
         appointmentSlotRepository.save(slot);
 
+        processPaymentAndOrder(appointmentId, userId, payload);
+
         appointmentHistoryService.logAction(
                 appointmentId,
                 userId,
                 "COMPLETE_SERVICE",
                 oldStatus,
                 AppointmentStatus.COMPLETED,
-                "Hoàn thành dịch vụ"
+                "Hoàn thành dịch vụ và thanh toán"
         );
 
         Map<String, Object> completeMessage = new HashMap<>();
@@ -543,6 +549,62 @@ public class AppointmentService {
                 -slotsToFree
         );
         webSocketService.sendToTopic("/topic/slots", slotMessage.toString());
+    }
+
+    @Transactional
+    private void processPaymentAndOrder(Long appointmentId, Long userId, Map<String, Object> payload) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
+
+        // Kiểm tra dữ liệu appointment
+        if (appointment.getTotalAmount() <= 0) {
+            throw new IllegalStateException("Tổng số tiền của lịch hẹn #" + appointmentId + " không hợp lệ: " + appointment.getTotalAmount());
+        }
+
+        List<Pet> pets = appointment.getPets();
+        if (pets == null || pets.isEmpty()) {
+            throw new IllegalStateException("Lịch hẹn #" + appointmentId + " không có thú cưng nào để tạo hóa đơn");
+        }
+
+        double amountToRecord = ((Number) payload.get("amount")).doubleValue();
+        String requestedPaymentMethod = (String) payload.get("paymentMethod");
+        String paymentChannel = (String) payload.get("paymentChannel");
+
+        // Xác định paymentMethod
+        String finalPaymentMethod;
+        if (amountToRecord > 0) {
+            // Trường hợp có số tiền còn lại cần thanh toán
+            if ("CASH".equalsIgnoreCase(requestedPaymentMethod)) {
+                finalPaymentMethod = "MIXED"; // Vì cọc là ONLINE, thanh toán còn lại bằng CASH
+            } else {
+                finalPaymentMethod = "ONLINE"; // Chuyển khoản, MoMo, VNPay
+            }
+        } else {
+            // Trường hợp đã thanh toán toàn bộ trước đó
+            finalPaymentMethod = "ONLINE"; // Thanh toán toàn bộ ở bước đặt lịch là ONLINE
+        }
+
+        // Tạo Transaction chỉ khi có chênh lệch
+        if (amountToRecord > 0) {
+            Transaction paymentTransaction = new Transaction();
+            paymentTransaction.setAppointment(appointment);
+            paymentTransaction.setAmount(amountToRecord);
+            paymentTransaction.setType(TransactionType.PAYMENT);
+            paymentTransaction.setStatus(TransactionStatus.COMPLETED);
+            paymentTransaction.setPaymentMethod(PaymentMethod.valueOf(finalPaymentMethod));
+            if (paymentChannel != null) {
+                paymentTransaction.setPaymentChannel(PaymentChannel.valueOf(paymentChannel));
+            }
+            transactionRepository.save(paymentTransaction);
+        }
+
+        // Tạo Orders và OrderSpa
+        orderSpaService.createSpaOrder(appointmentId, userId, finalPaymentMethod, paymentChannel);
+    }
+
+    @Transactional
+    public void completeService(Long appointmentId, Long userId) {
+        throw new UnsupportedOperationException("Phương thức này không được sử dụng. Vui lòng sử dụng completeService với payload.");
     }
 
     public AppointmentResponse getAppointmentById(Long appointmentId) {
@@ -880,7 +942,7 @@ public class AppointmentService {
         }
         return responses;
     }
-    
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<AppointmentResponse> cancelPaidAppointments(List<Long> appointmentIds, String reason, Long userId) {
         List<AppointmentResponse> responses = new ArrayList<>();
@@ -994,7 +1056,7 @@ public class AppointmentService {
             petRemovedMessage.put("nonRefundedDeposit", petNonRefundedDeposit);
 
             try {
-                webSocketService.sendToTopic("/topic/slot", slotMessage.toString());
+                webSocketService.sendToTopic("/topic/slots", slotMessage.toString());
                 webSocketService.sendToTopic("/topic/appointments", petRemovedMessage.toString());
             } catch (Exception e) {
                 System.err.println("Error sending WebSocket message: " + e.getMessage());
@@ -1069,7 +1131,7 @@ public class AppointmentService {
                 System.err.println("Error fetching employee name for userId " + userId + ": " + e.getMessage());
             }
 
-            String historyReason = "Xóa thú cưng #" + petId + " khỏi lịch hẹn bởi " + employeeName + ", lý do: Xóa bởi quản trị viên";
+            String historyReason = "Xóa thú cưng #" + petId + " khỏi lịch hẹn bởi " + employeeName;
             try {
                 appointmentHistoryService.logAction(
                         appointmentId,
@@ -1098,7 +1160,7 @@ public class AppointmentService {
             petRemovedMessage.put("nonRefundedDeposit", petNonRefundedDeposit);
 
             try {
-                webSocketService.sendToTopic("/topic/slot", slotMessage.toString());
+                webSocketService.sendToTopic("/topic/slots", slotMessage.toString());
                 webSocketService.sendToTopic("/topic/appointments", petRemovedMessage.toString());
             } catch (Exception e) {
                 System.err.println("Error sending WebSocket message: " + e.getMessage());
@@ -1165,26 +1227,40 @@ public class AppointmentService {
     }
 
     @Transactional
-    public List<AppointmentResponse> getRefundedAppointments() {
+    public List<AppointmentResponse> getRefundedAppointments(String filter) {
         try {
             List<Appointment> refundedAppointments = appointmentRepository.findByStatusAndRefundStatusIsNotNull(AppointmentStatus.CANCELLED);
+            System.out.println("Found " + refundedAppointments.size() + " CANCELLED appointments with refundStatus not null");
             List<AppointmentResponse> responses = new ArrayList<>();
+
             for (Appointment appointment : refundedAppointments) {
                 if (appointment == null) {
                     System.err.println("Found null appointment in refunded appointments");
                     continue;
                 }
+
                 double refundAmount = 0;
                 double nonRefundedDeposit = 0;
+                boolean hasPendingRefundedTransaction = false;
 
                 List<Transaction> transactions = transactionRepository.findByAppointmentAppointmentId(appointment.getAppointmentId());
+                System.out.println("Appointment #" + appointment.getAppointmentId() + " has " + transactions.size() + " transactions");
+
                 for (Transaction transaction : transactions) {
                     if (transaction == null) continue;
                     if (transaction.getType() == TransactionType.REFUNDED) {
                         refundAmount = transaction.getAmount();
+                        if (transaction.getStatus() == TransactionStatus.PENDING) {
+                            hasPendingRefundedTransaction = true;
+                        }
                     } else if (transaction.getType() == TransactionType.NON_REFUNDED_DEPOSIT) {
                         nonRefundedDeposit = transaction.getAmount();
                     }
+                }
+
+                if (filter != null && filter.equals("pending") && !hasPendingRefundedTransaction) {
+                    System.out.println("Skipping appointment #" + appointment.getAppointmentId() + " (no PENDING REFUNDED transaction)");
+                    continue;
                 }
 
                 AppointmentResponse response = new AppointmentResponse(
@@ -1203,6 +1279,7 @@ public class AppointmentService {
                 response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
                 responses.add(response);
             }
+            System.out.println("Returning " + responses.size() + " refunded appointments");
             return responses;
         } catch (Exception e) {
             System.err.println("Error fetching refunded appointments: " + e.getMessage());
@@ -1371,9 +1448,9 @@ public class AppointmentService {
         try {
             LocalDate localDate = LocalDate.parse(date);
             List<AppointmentStatus> statuses = Arrays.asList(
-                AppointmentStatus.CONFIRMED,
-                AppointmentStatus.IN_PROGRESS,
-                AppointmentStatus.COMPLETED
+                    AppointmentStatus.CONFIRMED,
+                    AppointmentStatus.IN_PROGRESS,
+                    AppointmentStatus.COMPLETED
             );
             List<Appointment> appointments = new ArrayList<>();
             for (AppointmentStatus status : statuses) {
@@ -1386,15 +1463,15 @@ public class AppointmentService {
                     continue;
                 }
                 AppointmentResponse response = new AppointmentResponse(
-                    appointment.getAppointmentId(),
-                    appointment.getCustomerName(),
-                    appointment.getPhone(),
-                    appointment.getDate() != null ? appointment.getDate().toString() : null,
-                    appointment.getTime() != null ? appointment.getTime().toString() : null,
-                    appointment.getPaidAmount(),
-                    appointment.getTotalAmount(),
-                    appointment.getDepositAmount(),
-                    appointment.getPets() != null ? appointment.getPets().size() : 0
+                        appointment.getAppointmentId(),
+                        appointment.getCustomerName(),
+                        appointment.getPhone(),
+                        appointment.getDate() != null ? appointment.getDate().toString() : null,
+                        appointment.getTime() != null ? appointment.getTime().toString() : null,
+                        appointment.getPaidAmount(),
+                        appointment.getTotalAmount(),
+                        appointment.getDepositAmount(),
+                        appointment.getPets() != null ? appointment.getPets().size() : 0
                 );
                 response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
                 responses.add(response);
@@ -1409,9 +1486,9 @@ public class AppointmentService {
     public List<AppointmentResponse> getActiveAppointmentsByDateAndTime(LocalDate date, LocalTime time) {
         try {
             List<AppointmentStatus> statuses = Arrays.asList(
-                AppointmentStatus.CONFIRMED,
-                AppointmentStatus.IN_PROGRESS,
-                AppointmentStatus.COMPLETED
+                    AppointmentStatus.CONFIRMED,
+                    AppointmentStatus.IN_PROGRESS,
+                    AppointmentStatus.COMPLETED
             );
             List<Appointment> appointments = new ArrayList<>();
             for (AppointmentStatus status : statuses) {
@@ -1424,15 +1501,15 @@ public class AppointmentService {
                     continue;
                 }
                 AppointmentResponse response = new AppointmentResponse(
-                    appointment.getAppointmentId(),
-                    appointment.getCustomerName(),
-                    appointment.getPhone(),
-                    appointment.getDate() != null ? appointment.getDate().toString() : null,
-                    appointment.getTime() != null ? appointment.getTime().toString() : null,
-                    appointment.getPaidAmount(),
-                    appointment.getTotalAmount(),
-                    appointment.getDepositAmount(),
-                    appointment.getPets() != null ? appointment.getPets().size() : 0
+                        appointment.getAppointmentId(),
+                        appointment.getCustomerName(),
+                        appointment.getPhone(),
+                        appointment.getDate() != null ? appointment.getDate().toString() : null,
+                        appointment.getTime() != null ? appointment.getTime().toString() : null,
+                        appointment.getPaidAmount(),
+                        appointment.getTotalAmount(),
+                        appointment.getDepositAmount(),
+                        appointment.getPets() != null ? appointment.getPets().size() : 0
                 );
                 response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
                 responses.add(response);
@@ -1441,6 +1518,21 @@ public class AppointmentService {
         } catch (Exception e) {
             System.err.println("Error fetching active appointments by date and time: date=" + date + ", time=" + time + ", error: " + e.getMessage());
             throw new RuntimeException("Không thể tải danh sách lịch hẹn hoạt động: " + e.getMessage());
+        }
+    }
+
+    public List<Transaction> getTransactionsByAppointmentId(Long appointmentId) {
+        try {
+            Appointment appointment = appointmentRepository.findById(appointmentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
+            List<Transaction> transactions = transactionRepository.findByAppointmentAppointmentId(appointmentId);
+            return transactions != null ? transactions : new ArrayList<>();
+        } catch (IllegalArgumentException e) {
+            System.err.println("Error fetching transactions by appointment ID " + appointmentId + ": " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.err.println("Unexpected error fetching transactions by appointment ID " + appointmentId + ": " + e.getMessage());
+            throw new RuntimeException("Không thể tải danh sách giao dịch: " + e.getMessage());
         }
     }
 }

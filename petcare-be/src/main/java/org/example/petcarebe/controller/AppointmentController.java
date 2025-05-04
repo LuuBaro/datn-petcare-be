@@ -6,6 +6,7 @@ import org.example.petcarebe.dto.CancelAppointmentsRequest;
 import org.example.petcarebe.dto.PetResponse;
 import org.example.petcarebe.dto.AppointmentHistoryDTO;
 import org.example.petcarebe.model.Appointment;
+import org.example.petcarebe.model.Transaction;
 import org.example.petcarebe.service.AppointmentService;
 import org.example.petcarebe.service.AppointmentHistoryService;
 import org.example.petcarebe.service.UserService;
@@ -148,7 +149,8 @@ public class AppointmentController {
     @PostMapping("/{appointmentId}/complete")
     public ResponseEntity<?> completeService(
             @PathVariable Long appointmentId,
-            @RequestParam(value = "userId") Object userIdObj) {
+            @RequestParam(value = "userId") Object userIdObj,
+            @RequestBody Map<String, Object> payload) {
         try {
             Long userId = null;
             if (userIdObj != null) {
@@ -168,7 +170,7 @@ public class AppointmentController {
                 throw new IllegalArgumentException("userId hoặc email không hợp lệ");
             }
 
-            appointmentService.completeService(appointmentId, userId);
+            appointmentService.completeService(appointmentId, userId, payload);
             return ResponseEntity.ok(new AppointmentResponse(appointmentId, "COMPLETED", "Hoàn thành dịch vụ thành công"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new AppointmentResponse(appointmentId, "FAILED", e.getMessage()));
@@ -431,9 +433,10 @@ public class AppointmentController {
     }
 
     @GetMapping("/refunded")
-    public ResponseEntity<List<AppointmentResponse>> getRefundedAppointments() {
+    public ResponseEntity<List<AppointmentResponse>> getRefundedAppointments(
+            @RequestParam(value = "filter", required = false, defaultValue = "pending") String filter) {
         try {
-            List<AppointmentResponse> refundedAppointments = appointmentService.getRefundedAppointments();
+            List<AppointmentResponse> refundedAppointments = appointmentService.getRefundedAppointments(filter);
             return ResponseEntity.ok(refundedAppointments);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
@@ -511,6 +514,17 @@ public class AppointmentController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new AppointmentResponse(appointmentId, "FAILED", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{appointmentId}/transactions")
+    public ResponseEntity<List<Transaction>> getTransactionsByAppointmentId(
+            @PathVariable Long appointmentId) {
+        try {
+            List<Transaction> transactions = appointmentService.getTransactionsByAppointmentId(appointmentId);
+            return ResponseEntity.ok(transactions);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
         }
     }
 }
