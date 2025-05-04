@@ -5,6 +5,7 @@ public class AdditionalFeeRequest {
     private double amount;
     private String reason;
     private Long userId;
+    private String transactionType; // Thêm trường transactionType
 
     public Long getPetId() {
         return petId;
@@ -36,5 +37,13 @@ public class AdditionalFeeRequest {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public String getTransactionType() {
+        return transactionType;
+    }
+
+    public void setTransactionType(String transactionType) {
+        this.transactionType = transactionType;
     }
 }

@@ -46,6 +46,9 @@ public class Appointment {
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<AppointmentSlot> appointmentSlots = new ArrayList<>();
 
+    @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Transaction> transactions = new ArrayList<>();
+
     @Column(name = "deposit_amount")
     private double depositAmount;
 
@@ -91,5 +94,9 @@ public class Appointment {
 
     public void updateTotalAmount() {
         this.totalAmount = pets.stream().mapToDouble(Pet::getPrice).sum();
+    }
+
+    public List<Transaction> getTransactions() {
+        return this.transactions;
     }
 }

@@ -6,6 +6,7 @@ import org.example.petcarebe.dto.CancelAppointmentsRequest;
 import org.example.petcarebe.dto.PetResponse;
 import org.example.petcarebe.dto.AppointmentHistoryDTO;
 import org.example.petcarebe.model.Appointment;
+import org.example.petcarebe.model.Transaction;
 import org.example.petcarebe.service.AppointmentService;
 import org.example.petcarebe.service.AppointmentHistoryService;
 import org.example.petcarebe.service.UserService;
@@ -114,6 +115,78 @@ public class AppointmentController {
         }
     }
 
+    @PostMapping("/{appointmentId}/start")
+    public ResponseEntity<?> startService(
+            @PathVariable Long appointmentId,
+            @RequestBody Map<Long, Long> petAssignments,
+            @RequestParam(value = "userId") Object userIdObj) {
+        try {
+            Long userId = null;
+            if (userIdObj != null) {
+                if (userIdObj instanceof Number) {
+                    userId = ((Number) userIdObj).longValue();
+                } else if (userIdObj instanceof String) {
+                    try {
+                        userId = Long.parseLong((String) userIdObj);
+                    } catch (NumberFormatException e) {
+                        userId = userService.findByEmail((String) userIdObj).getUserId();
+                    }
+                } else {
+                    throw new IllegalArgumentException("userId phải là số hoặc email");
+                }
+            }
+            if (userId == null) {
+                throw new IllegalArgumentException("userId hoặc email không hợp lệ");
+            }
+
+            appointmentService.startService(appointmentId, userId, petAssignments);
+            return ResponseEntity.ok(new AppointmentResponse(appointmentId, "IN_PROGRESS", "Bắt đầu dịch vụ thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new AppointmentResponse(appointmentId, "FAILED", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{appointmentId}/complete")
+    public ResponseEntity<?> completeService(
+            @PathVariable Long appointmentId,
+            @RequestParam(value = "userId") Object userIdObj,
+            @RequestBody Map<String, Object> payload) {
+        try {
+            Long userId = null;
+            if (userIdObj != null) {
+                if (userIdObj instanceof Number) {
+                    userId = ((Number) userIdObj).longValue();
+                } else if (userIdObj instanceof String) {
+                    try {
+                        userId = Long.parseLong((String) userIdObj);
+                    } catch (NumberFormatException e) {
+                        userId = userService.findByEmail((String) userIdObj).getUserId();
+                    }
+                } else {
+                    throw new IllegalArgumentException("userId phải là số hoặc email");
+                }
+            }
+            if (userId == null) {
+                throw new IllegalArgumentException("userId hoặc email không hợp lệ");
+            }
+
+            appointmentService.completeService(appointmentId, userId, payload);
+            return ResponseEntity.ok(new AppointmentResponse(appointmentId, "COMPLETED", "Hoàn thành dịch vụ thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new AppointmentResponse(appointmentId, "FAILED", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{appointmentId}")
+    public ResponseEntity<AppointmentResponse> getAppointmentById(@PathVariable Long appointmentId) {
+        try {
+            AppointmentResponse appointment = appointmentService.getAppointmentById(appointmentId);
+            return ResponseEntity.ok(appointment);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
     @GetMapping("/confirmed-by-date-and-time")
     public ResponseEntity<List<AppointmentResponse>> getConfirmedAppointmentsByDateAndTime(
             @RequestParam("date") String date,
@@ -141,6 +214,59 @@ public class AppointmentController {
             }
 
             List<AppointmentResponse> appointments = appointmentService.getConfirmedAppointmentsByDateAndTime(localDate, localTime);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/confirmed")
+    public ResponseEntity<List<AppointmentResponse>> getConfirmedAppointmentsByDate(
+            @RequestParam("date") String date) {
+        try {
+            List<AppointmentResponse> appointments = appointmentService.getConfirmedAppointmentsByDate(date);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/active")
+    public ResponseEntity<List<AppointmentResponse>> getActiveAppointmentsByDate(
+            @RequestParam("date") String date) {
+        try {
+            List<AppointmentResponse> appointments = appointmentService.getActiveAppointmentsByDate(date);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/active-by-date-and-time")
+    public ResponseEntity<List<AppointmentResponse>> getActiveAppointmentsByDateAndTime(
+            @RequestParam("date") String date,
+            @RequestParam("time") String time) {
+        try {
+            LocalDate localDate = LocalDate.parse(date);
+            LocalTime localTime;
+            try {
+                localTime = LocalTime.parse(time);
+            } catch (Exception e) {
+                if (!time.contains(":")) {
+                    try {
+                        localTime = LocalTime.parse(time + ":00");
+                    } catch (Exception e2) {
+                        if (time.length() == 1) {
+                            localTime = LocalTime.parse("0" + time + ":00");
+                        } else {
+                            throw new IllegalArgumentException("Invalid time format: " + time);
+                        }
+                    }
+                } else {
+                    throw new IllegalArgumentException("Invalid time format: " + time);
+                }
+            }
+            List<AppointmentResponse> appointments = appointmentService.getActiveAppointmentsByDateAndTime(localDate, localTime);
             return ResponseEntity.ok(appointments);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
@@ -307,9 +433,10 @@ public class AppointmentController {
     }
 
     @GetMapping("/refunded")
-    public ResponseEntity<List<AppointmentResponse>> getRefundedAppointments() {
+    public ResponseEntity<List<AppointmentResponse>> getRefundedAppointments(
+            @RequestParam(value = "filter", required = false, defaultValue = "pending") String filter) {
         try {
-            List<AppointmentResponse> refundedAppointments = appointmentService.getRefundedAppointments();
+            List<AppointmentResponse> refundedAppointments = appointmentService.getRefundedAppointments(filter);
             return ResponseEntity.ok(refundedAppointments);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
@@ -387,6 +514,17 @@ public class AppointmentController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new AppointmentResponse(appointmentId, "FAILED", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{appointmentId}/transactions")
+    public ResponseEntity<List<Transaction>> getTransactionsByAppointmentId(
+            @PathVariable Long appointmentId) {
+        try {
+            List<Transaction> transactions = appointmentService.getTransactionsByAppointmentId(appointmentId);
+            return ResponseEntity.ok(transactions);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
         }
     }
 }

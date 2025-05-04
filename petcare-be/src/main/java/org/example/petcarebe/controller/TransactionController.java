@@ -29,14 +29,16 @@ public class TransactionController {
             System.out.println("  Amount: " + request.getAmount());
             System.out.println("  Reason: " + request.getReason());
             System.out.println("  User ID: " + request.getUserId());
+            System.out.println("  Transaction Type: " + request.getTransactionType());
 
             Transaction transaction = transactionService.createAdditionalFee(
                     appointmentId,
                     request.getPetId(),
                     request.getAmount(),
-                    request.getReason()
+                    request.getReason(),
+                    request.getTransactionType()
             );
-            
+
             System.out.println("TransactionController - Additional fee created successfully:");
             System.out.println("  Transaction ID: " + transaction.getId());
             System.out.println("  Transaction Amount: " + transaction.getAmount());
@@ -50,14 +52,16 @@ public class TransactionController {
                     null,
                     request.getReason()
             );
-            
+
             System.out.println("TransactionController - History logged for CREATE_ADDITIONAL_FEE action");
 
             return ResponseEntity.ok(transaction);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             System.err.println("TransactionController - Error creating additional fee: " + e.getMessage());
-            e.printStackTrace();
             return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            System.err.println("TransactionController - Unexpected error: " + e.getMessage());
+            return ResponseEntity.status(500).body(null);
         }
     }
 }

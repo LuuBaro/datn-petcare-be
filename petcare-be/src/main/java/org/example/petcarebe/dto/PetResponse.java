@@ -4,10 +4,15 @@ public class PetResponse {
     private Long id;
     private String name;
     private String petType;
-    private Float age; // Thay đổi từ Integer thành Float
+    private Float age;
     private String weightRange;
     private String serviceName;
-    private double price; // Thay đổi từ Double thành double
+    private Long petServiceId;
+    private double price;
+    private Integer weightUpdateCount;
+    private Long employeeId;
+    private String employeeName;
+    private Double paidAmount;
 
     public PetResponse(Long id, String name, String petType, Float age, String weightRange, String serviceName, double price) {
         this.id = id;
@@ -17,6 +22,62 @@ public class PetResponse {
         this.weightRange = weightRange;
         this.serviceName = serviceName;
         this.price = price;
+        this.paidAmount = 0.0; // Giá trị mặc định nếu không truyền paidAmount
+    }
+
+    public PetResponse(Long id, String name, String petType, Float age, String weightRange, String serviceName, Long petServiceId, double price) {
+        this.id = id;
+        this.name = name;
+        this.petType = petType;
+        this.age = age;
+        this.weightRange = weightRange;
+        this.serviceName = serviceName;
+        this.petServiceId = petServiceId;
+        this.price = price;
+        this.paidAmount = 0.0; // Giá trị mặc định nếu không truyền paidAmount
+    }
+
+    public PetResponse(Long id, String name, String petType, Float age, String weightRange, String serviceName, Long petServiceId, double price, Integer weightUpdateCount) {
+        this.id = id;
+        this.name = name;
+        this.petType = petType;
+        this.age = age;
+        this.weightRange = weightRange;
+        this.serviceName = serviceName;
+        this.petServiceId = petServiceId;
+        this.price = price;
+        this.weightUpdateCount = weightUpdateCount;
+        this.paidAmount = 0.0; // Giá trị mặc định nếu không truyền paidAmount
+    }
+
+    public PetResponse(Long id, String name, String petType, Float age, String weightRange, String serviceName, Long petServiceId, double price, Integer weightUpdateCount, Long employeeId, String employeeName) {
+        this.id = id;
+        this.name = name;
+        this.petType = petType;
+        this.age = age;
+        this.weightRange = weightRange;
+        this.serviceName = serviceName;
+        this.petServiceId = petServiceId;
+        this.price = price;
+        this.weightUpdateCount = weightUpdateCount;
+        this.employeeId = employeeId;
+        this.employeeName = employeeName;
+        this.paidAmount = 0.0; // Giá trị mặc định nếu không truyền paidAmount
+    }
+
+    public PetResponse(Long id, String name, String petType, Float age, String weightRange, String serviceName, Long petServiceId, double price, Integer weightUpdateCount, Long employeeId, String employeeName, Double paidAmount) {
+        this.id = id;
+        this.name = name;
+        this.petType = petType;
+        this.age = age;
+        this.weightRange = weightRange;
+        this.serviceName = serviceName;
+        this.petServiceId = petServiceId;
+        this.price = price;
+        this.weightUpdateCount = weightUpdateCount;
+        this.employeeId = employeeId;
+        this.employeeName = employeeName;
+        this.paidAmount = paidAmount != null ? paidAmount : 0.0;
     }
 
     // Getters và setters
@@ -68,11 +129,51 @@ public class PetResponse {
         this.serviceName = serviceName;
     }
 
+    public Long getPetServiceId() {
+        return petServiceId;
+    }
+
+    public void setPetServiceId(Long petServiceId) {
+        this.petServiceId = petServiceId;
+    }
+
     public double getPrice() {
         return price;
     }
 
     public void setPrice(double price) {
         this.price = price;
+    }
+
+    public Integer getWeightUpdateCount() {
+        return weightUpdateCount;
+    }
+
+    public void setWeightUpdateCount(Integer weightUpdateCount) {
+        this.weightUpdateCount = weightUpdateCount;
+    }
+
+    public Long getEmployeeId() {
+        return employeeId;
+    }
+
+    public void setEmployeeId(Long employeeId) {
+        this.employeeId = employeeId;
+    }
+
+    public String getEmployeeName() {
+        return employeeName;
+    }
+
+    public void setEmployeeName(String employeeName) {
+        this.employeeName = employeeName;
+    }
+
+    public Double getPaidAmount() {
+        return paidAmount;
+    }
+
+    public void setPaidAmount(Double paidAmount) {
+        this.paidAmount = paidAmount;
     }
 }
