@@ -31,7 +31,7 @@ public class VetPetService {
     @Transactional(readOnly = true)
     public Optional<VetPetDTO> getPetById(Long id) {
         return vetPetRepository.findById(id)
-                .filter(pet -> !pet.isDeleted())
+                .filter(pet -> !pet.getDeleted())
                 .map(this::convertToDTO);
     }
 
@@ -102,7 +102,7 @@ public class VetPetService {
         dto.setNote(pet.getNote());
         dto.setPhoneBoss(pet.getPhoneBoss());
         dto.setNameBoss(pet.getNameBoss());
-        dto.setDeleted(pet.isDeleted());
+        dto.setDeleted(pet.getDeleted());
         dto.setPetType(pet.getPetType());
 
         if (pet.getPetWeight() != null) {

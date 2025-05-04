@@ -308,7 +308,7 @@ public class VetOrderService {
             vetPetDTO.setPhoneBoss(pet.getPhoneBoss());
             vetPetDTO.setNameBoss(pet.getNameBoss());
             vetPetDTO.setPetType(pet.getPetType());
-            vetPetDTO.setDeleted(pet.isDeleted());
+            vetPetDTO.setDeleted(pet.getDeleted());
 
             // Chuyển đổi PetWeight nếu có
             if (pet.getPetWeight() != null) {
