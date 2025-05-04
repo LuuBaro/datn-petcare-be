@@ -293,9 +293,10 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
     List<Object[]> getRevenueByTypeAndDateRange(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
 
     // Lấy doanh thu hàng ngày theo loại đơn hàng (ONLINE hoặc OFFLINE) trong khoảng thời gian xác định.
-    @Query("SELECT DATE(o.orderDate) as date, o.type, COALESCE(SUM(o.totalAmount), 0) " +
+    @Query("SELECT DATE(o.orderDate) AS date, o.type, COALESCE(SUM(o.totalAmount), 0) " +
             "FROM Orders o " +
             "WHERE o.orderDate BETWEEN :startDate AND :endDate " +
+            "AND o.paymentStatus = 'Đã thanh toán' " +
             "GROUP BY DATE(o.orderDate), o.type")
     List<Object[]> getDailyRevenueByType(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
 
