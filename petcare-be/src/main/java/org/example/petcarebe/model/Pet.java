@@ -39,7 +39,7 @@ public class Pet {
     @Column(columnDefinition = "TEXT")
     private String note;
 
-    private double price; 
+    private double price;
 
     @Column(name = "name_pet", columnDefinition = "NVARCHAR(255)")
     private String namePet;
@@ -57,8 +57,21 @@ public class Pet {
     private Boolean deleted;
 
     @Column(name = "deposit_amount")
-    private double depositAmount; 
+    private double depositAmount;
 
     @Column(name = "paid_amount")
-    private double paidAmount; 
+    private double paidAmount;
+
+    @Column(name = "actual_weight")
+    private Float actualWeight; // Cân nặng thực tế (kg)
+
+    @Column(name = "weight_update_count")
+    private Integer weightUpdateCount; // Thêm trường để theo dõi số lần cập nhật cân nặng
+
+    // Tính lại giá dựa trên petService và petWeight
+    public void updatePrice() {
+        if (petService != null && petWeight != null) {
+            this.price = petService.getBasePrice().doubleValue() * petWeight.getPriceMultiplier();
+        }
+    }
 }

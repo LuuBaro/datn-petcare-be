@@ -2,7 +2,7 @@ package org.example.petcarebe.controller;
 
 import org.example.petcarebe.dto.UpdatePetWeightRequest;
 import org.example.petcarebe.model.Pet;
-import org.example.petcarebe.service.PetService;
+import org.example.petcarebe.service.PetManagementService;
 import org.example.petcarebe.service.AppointmentHistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 public class PetController {
 
     @Autowired
-    private PetService petService;
+    private PetManagementService petService;
 
     @Autowired
     private AppointmentHistoryService appointmentHistoryService;
@@ -30,20 +30,21 @@ public class PetController {
             System.out.println("  Appointment ID: " + request.getAppointmentId());
             System.out.println("  User ID: " + request.getUserId());
             System.out.println("  Reason: " + request.getReason());
-            
+            System.out.println("  Actual Weight: " + request.getActualWeight());
 
             Pet updatedPet = petService.updatePetWeight(
                     petId,
                     request.getPetWeightId(),
                     request.getPrice(),
-                    request.getAppointmentId()
+                    request.getAppointmentId(),
+                    request.getActualWeight() // Truyền actualWeight từ request
             );
 
             System.out.println("PetController - Pet weight updated successfully:");
             System.out.println("  Pet ID: " + updatedPet.getId());
             System.out.println("  New Weight Range: " + updatedPet.getPetWeight().getWeightRange());
             System.out.println("  New Price: " + updatedPet.getPrice());
-            
+            System.out.println("  Actual Weight: " + updatedPet.getActualWeight());
 
             appointmentHistoryService.logAction(
                     request.getAppointmentId(),
@@ -53,7 +54,7 @@ public class PetController {
                     null,
                     request.getReason()
             );
-            
+
             System.out.println("PetController - History logged for UPDATE_WEIGHT action");
 
             return ResponseEntity.ok(updatedPet);
