@@ -13,7 +13,7 @@ import java.util.*;
 @Component
 public class VNPayConfig {
     public static String vnp_PayUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-    public static String vnp_Returnurl = "http://localhost:5173/checkout";
+    // Không cấu hình cứng returnUrl, sẽ được cung cấp từ frontend
     public static String vnp_TmnCode = "I5T15YK9";
     public static String vnp_HashSecret = "F2YY8T3H5IX0R108I6VOENPZ9OEW0FLI";
 //	public static String vnp_apiUrl = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction";

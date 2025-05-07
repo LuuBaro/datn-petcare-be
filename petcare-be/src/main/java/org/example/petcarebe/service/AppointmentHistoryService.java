@@ -76,6 +76,21 @@ public class AppointmentHistoryService {
                 .collect(Collectors.toList());
     }
 
+    // Thêm phương thức để lấy userId của hành động REFUND_COMPLETED gần nhất cho một lịch hẹn
+    public Long getUserIdForRefundAction(Long appointmentId) {
+        List<AppointmentHistory> histories = appointmentHistoryRepository.findAll().stream()
+                .filter(h -> h.getAppointment().getAppointmentId().equals(appointmentId))
+                .filter(h -> "REFUND_COMPLETED".equals(h.getAction()))
+                .sorted((h1, h2) -> h2.getTimestamp().compareTo(h1.getTimestamp())) // Sắp xếp theo thời gian giảm dần
+                .collect(Collectors.toList());
+
+        if (histories.isEmpty()) {
+            return null; // Không tìm thấy lịch sử hoàn tiền
+        }
+
+        return histories.get(0).getUser().getUserId();
+    }
+
     private AppointmentHistoryDTO mapToDTO(AppointmentHistory history) {
         AppointmentHistoryDTO dto = new AppointmentHistoryDTO();
         dto.setId(history.getId());

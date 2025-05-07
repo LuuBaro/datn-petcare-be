@@ -101,6 +101,8 @@ public class OrderService {
 
     @Transactional
     public Orders checkout(CheckoutRequestDTO request) {
+        logger.info("Starting checkout process for user ID: {}, payment method: {}", request.getUserId(), request.getPaymentMethod());
+        
         // 1️⃣ Kiểm tra người dùng
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại!"));
@@ -122,7 +124,7 @@ public class OrderService {
         order.setPaymentStatus(request.getPaymentStatus() != null ? request.getPaymentStatus() : "Chờ thanh toán");
         order.setStatusOrder(statusOrderRepository.findById(1L)
                 .orElseThrow(() -> new RuntimeException("Trạng thái đơn hàng không hợp lệ!")));
-        order.setType(request.getType());
+        order.setType("ORDER ONLINE");
         order.setPointEarned(0);
         order.setPointUsed(0);
         
@@ -157,8 +159,14 @@ public class OrderService {
             ProductDetails product = productDetailsRepository.findById(item.getProductDetailId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + item.getProductDetailId()));
 
+            // Kiểm tra tồn kho hiện tại
+            logger.info("Checking inventory for product ID: {}, current stock: {}, requested quantity: {}", 
+                    item.getProductDetailId(), product.getQuantity(), item.getQuantity());
+            
             if (product.getQuantity() < item.getQuantity()) {
                 outOfStockItems.add(item.getProductDetailId());
+                logger.warn("Product out of stock: ID={}, requested={}, available={}", 
+                        item.getProductDetailId(), item.getQuantity(), product.getQuantity());
                 continue;
             }
 
@@ -203,38 +211,90 @@ public class OrderService {
 
         // 6️⃣ Lưu đơn hàng
         Orders savedOrder = orderRepository.save(order);
+        logger.info("Order saved with ID: {}, payment method: {}, payment status: {}", 
+                savedOrder.getOrderId(), savedOrder.getPaymentMethod(), savedOrder.getPaymentStatus());
 
         // 7️⃣ Trừ kho và clear giỏ hàng ngay lập tức cho COD
         if ("COD".equals(request.getPaymentMethod())) {
-            for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
-                int updated = productDetailsRepository.updateStock(
-                        orderDetail.getProductDetails().getProductDetailId(),
-                        orderDetail.getQuantity()
-                );
-                if (updated == 0) {
-                    throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " +
-                            orderDetail.getProductDetails().getProductDetailId());
+            try {
+                logger.info("Processing inventory update for COD order: {}", savedOrder.getOrderId());
+                for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
+                    ProductDetails productDetail = orderDetail.getProductDetails();
+                    int quantity = orderDetail.getQuantity();
+                    
+                    logger.info("Updating stock for product: {}, current quantity: {}, deducting: {}", 
+                            productDetail.getProductDetailId(), productDetail.getQuantity(), quantity);
+                    
+                    int updated = productDetailsRepository.updateStock(
+                            productDetail.getProductDetailId(), quantity
+                    );
+                    
+                    if (updated == 0) {
+                        logger.error("Failed to update stock for product: {}, possibly due to insufficient inventory", 
+                                productDetail.getProductDetailId());
+                        throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " +
+                                productDetail.getProductDetailId());
+                    }
+                    
+                    logger.info("Stock successfully updated for product: {}", productDetail.getProductDetailId());
                 }
+                
+                cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+                logger.info("Stock deducted and cart cleared for COD orderId: {}", savedOrder.getOrderId());
+            } catch (Exception e) {
+                logger.error("Error processing COD inventory updates: {}", e.getMessage(), e);
+                throw e;
             }
-            cartDetailsService.clearCartDetailsByUserId(request.getUserId());
-            logger.info("Stock deducted and cart cleared for COD orderId: {}", savedOrder.getOrderId());
         } 
         // Trừ kho và clear giỏ hàng cho VNPay/MoMo khi trạng thái là "Chờ xác nhận"
         else if (("VNPay".equals(request.getPaymentMethod()) || "MoMo".equals(request.getPaymentMethod())) 
                  && "Chờ xác nhận".equals(request.getPaymentStatus())) {
-            logger.info("Processing inventory and cart for VNPay/MoMo order with 'Chờ xác nhận' status, orderId: {}", savedOrder.getOrderId());
-            for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
-                int updated = productDetailsRepository.updateStock(
-                        orderDetail.getProductDetails().getProductDetailId(),
-                        orderDetail.getQuantity()
-                );
-                if (updated == 0) {
-                    throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " +
-                            orderDetail.getProductDetails().getProductDetailId());
+            try {
+                logger.info("Processing inventory and cart for VNPay/MoMo order with 'Chờ xác nhận' status, orderId: {}", 
+                        savedOrder.getOrderId());
+                
+                boolean allUpdatesSuccessful = true;
+                List<String> failedProducts = new ArrayList<>();
+                
+                for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
+                    ProductDetails productDetail = orderDetail.getProductDetails();
+                    int quantity = orderDetail.getQuantity();
+                    
+                    logger.info("Updating stock for product ({}): current={}, deducting={}", 
+                            productDetail.getProductDetailId(), productDetail.getQuantity(), quantity);
+                    
+                    try {
+                        int updated = productDetailsRepository.updateStock(
+                                productDetail.getProductDetailId(), quantity
+                        );
+                        
+                        if (updated == 0) {
+                            logger.error("Failed to update stock for product: {}", productDetail.getProductDetailId());
+                            allUpdatesSuccessful = false;
+                            failedProducts.add(productDetail.getProductDetailId().toString());
+                        } else {
+                            logger.info("Stock successfully updated for product: {}", productDetail.getProductDetailId());
+                        }
+                    } catch (Exception e) {
+                        logger.error("Exception updating stock for product: {}, error: {}", 
+                                productDetail.getProductDetailId(), e.getMessage(), e);
+                        allUpdatesSuccessful = false;
+                        failedProducts.add(productDetail.getProductDetailId().toString());
+                    }
                 }
+                
+                if (!allUpdatesSuccessful) {
+                    logger.error("Failed to update inventory for some products: {}", String.join(", ", failedProducts));
+                    throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " + 
+                            String.join(", ", failedProducts));
+                }
+                
+                cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+                logger.info("Stock deducted and cart cleared for VNPay/MoMo orderId: {}", savedOrder.getOrderId());
+            } catch (Exception e) {
+                logger.error("Error processing VNPay/MoMo inventory updates: {}", e.getMessage(), e);
+                throw e;
             }
-            cartDetailsService.clearCartDetailsByUserId(request.getUserId());
-            logger.info("Stock deducted and cart cleared for VNPay/MoMo orderId: {}", savedOrder.getOrderId());
         }
         // ❌ Không trừ kho cho VNPay/MoMo với trạng thái khác, chỉ trừ khi thanh toán thành công
 

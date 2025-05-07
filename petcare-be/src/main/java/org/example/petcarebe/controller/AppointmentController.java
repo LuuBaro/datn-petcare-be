@@ -527,4 +527,18 @@ public class AppointmentController {
             return ResponseEntity.badRequest().body(null);
         }
     }
+
+    // Thêm endpoint để lấy userId từ lịch sử hành động
+    @GetMapping("/{appointmentId}/refund-user")
+    public ResponseEntity<Long> getRefundUserId(@PathVariable Long appointmentId) {
+        try {
+            Long userId = appointmentHistoryService.getUserIdForRefundAction(appointmentId);
+            if (userId == null) {
+                return ResponseEntity.ok(null); // Không tìm thấy lịch sử hoàn tiền
+            }
+            return ResponseEntity.ok(userId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
 }

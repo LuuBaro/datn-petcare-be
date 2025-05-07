@@ -106,7 +106,7 @@ public class VNPayServices {
         }
         String signValue = VNPayConfig.hashAllFields(fields);
         if (signValue.equals(vnp_SecureHash)) {
-            if ("00".equals(request.getParameter("vnp_TransactionStatus"))) {
+            if ("00".equals(request.getParameter("vnp_ResponseCode"))) {
                 return 1;
             } else {
                 return 0;

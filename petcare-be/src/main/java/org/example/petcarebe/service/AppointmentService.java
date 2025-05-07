@@ -35,6 +35,7 @@ import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AppointmentService {
@@ -556,7 +557,6 @@ public class AppointmentService {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Lịch hẹn không tồn tại: " + appointmentId));
 
-        // Kiểm tra dữ liệu appointment
         if (appointment.getTotalAmount() <= 0) {
             throw new IllegalStateException("Tổng số tiền của lịch hẹn #" + appointmentId + " không hợp lệ: " + appointment.getTotalAmount());
         }
@@ -570,21 +570,17 @@ public class AppointmentService {
         String requestedPaymentMethod = (String) payload.get("paymentMethod");
         String paymentChannel = (String) payload.get("paymentChannel");
 
-        // Xác định paymentMethod
         String finalPaymentMethod;
         if (amountToRecord > 0) {
-            // Trường hợp có số tiền còn lại cần thanh toán
             if ("CASH".equalsIgnoreCase(requestedPaymentMethod)) {
-                finalPaymentMethod = "MIXED"; // Vì cọc là ONLINE, thanh toán còn lại bằng CASH
+                finalPaymentMethod = "MIXED";
             } else {
-                finalPaymentMethod = "ONLINE"; // Chuyển khoản, MoMo, VNPay
+                finalPaymentMethod = "ONLINE";
             }
         } else {
-            // Trường hợp đã thanh toán toàn bộ trước đó
-            finalPaymentMethod = "ONLINE"; // Thanh toán toàn bộ ở bước đặt lịch là ONLINE
+            finalPaymentMethod = "ONLINE";
         }
 
-        // Tạo Transaction chỉ khi có chênh lệch
         if (amountToRecord > 0) {
             Transaction paymentTransaction = new Transaction();
             paymentTransaction.setAppointment(appointment);
@@ -598,7 +594,6 @@ public class AppointmentService {
             transactionRepository.save(paymentTransaction);
         }
 
-        // Tạo Orders và OrderSpa
         orderSpaService.createSpaOrder(appointmentId, userId, finalPaymentMethod, paymentChannel);
     }
 
@@ -706,6 +701,9 @@ public class AppointmentService {
             AppointmentStatus oldStatus = appointment.getStatus();
             appointment.setStatus(AppointmentStatus.CANCELLED);
             appointment.setCancelReason(reason);
+            if (refundAmount > 0) {
+                appointment.setRefundStatus("PENDING");
+            }
             appointmentRepository.save(appointment);
             System.out.println("Đã cập nhật trạng thái lịch hẹn thành CANCELLED");
 
@@ -778,9 +776,9 @@ public class AppointmentService {
                     appointment.getTime() != null ? appointment.getTime().toString() : null,
                     refundAmount,
                     nonRefundedDeposit,
-                    null,
-                    null,
-                    null,
+                    appointment.getRefundStatus(),
+                    appointment.getRefundMethod() != null ? appointment.getRefundMethod().toString() : null,
+                    appointment.getRefundNote(),
                     appointment.getCancelReason()
             );
             response.setStatus("CANCELLED");
@@ -820,6 +818,9 @@ public class AppointmentService {
             AppointmentStatus oldStatus = appointment.getStatus();
             appointment.setStatus(AppointmentStatus.CANCELLED);
             appointment.setCancelReason(reason);
+            if (refundAmount > 0) {
+                appointment.setRefundStatus("PENDING");
+            }
             appointmentRepository.save(appointment);
             System.out.println("Đã cập nhật trạng thái lịch hẹn thành CANCELLED");
 
@@ -892,9 +893,9 @@ public class AppointmentService {
                     appointment.getTime() != null ? appointment.getTime().toString() : null,
                     refundAmount,
                     nonRefundedDeposit,
-                    null,
-                    null,
-                    null,
+                    appointment.getRefundStatus(),
+                    appointment.getRefundMethod() != null ? appointment.getRefundMethod().toString() : null,
+                    appointment.getRefundNote(),
                     appointment.getCancelReason()
             );
             response.setStatus("CANCELLED");
@@ -1229,38 +1230,29 @@ public class AppointmentService {
     @Transactional
     public List<AppointmentResponse> getRefundedAppointments(String filter) {
         try {
-            List<Appointment> refundedAppointments = appointmentRepository.findByStatusAndRefundStatusIsNotNull(AppointmentStatus.CANCELLED);
-            System.out.println("Found " + refundedAppointments.size() + " CANCELLED appointments with refundStatus not null");
-            List<AppointmentResponse> responses = new ArrayList<>();
+            List<Transaction> refundedTransactions = transactionRepository.findAll().stream()
+                    .filter(t -> t.getType() == TransactionType.REFUNDED)
+                    .filter(t -> filter.equals("pending") ? t.getStatus() == TransactionStatus.PENDING : true)
+                    .collect(Collectors.toList());
+            System.out.println("Found " + refundedTransactions.size() + " REFUNDED transactions");
 
-            for (Appointment appointment : refundedAppointments) {
+            List<AppointmentResponse> responses = new ArrayList<>();
+            for (Transaction transaction : refundedTransactions) {
+                Appointment appointment = transaction.getAppointment();
                 if (appointment == null) {
-                    System.err.println("Found null appointment in refunded appointments");
+                    System.err.println("Found null appointment for transaction ID: " + transaction.getId());
                     continue;
                 }
 
-                double refundAmount = 0;
+                double refundAmount = transaction.getAmount();
                 double nonRefundedDeposit = 0;
-                boolean hasPendingRefundedTransaction = false;
 
                 List<Transaction> transactions = transactionRepository.findByAppointmentAppointmentId(appointment.getAppointmentId());
-                System.out.println("Appointment #" + appointment.getAppointmentId() + " has " + transactions.size() + " transactions");
-
-                for (Transaction transaction : transactions) {
-                    if (transaction == null) continue;
-                    if (transaction.getType() == TransactionType.REFUNDED) {
-                        refundAmount = transaction.getAmount();
-                        if (transaction.getStatus() == TransactionStatus.PENDING) {
-                            hasPendingRefundedTransaction = true;
-                        }
-                    } else if (transaction.getType() == TransactionType.NON_REFUNDED_DEPOSIT) {
-                        nonRefundedDeposit = transaction.getAmount();
+                for (Transaction t : transactions) {
+                    if (t.getType() == TransactionType.NON_REFUNDED_DEPOSIT) {
+                        nonRefundedDeposit = t.getAmount();
+                        break;
                     }
-                }
-
-                if (filter != null && filter.equals("pending") && !hasPendingRefundedTransaction) {
-                    System.out.println("Skipping appointment #" + appointment.getAppointmentId() + " (no PENDING REFUNDED transaction)");
-                    continue;
                 }
 
                 AppointmentResponse response = new AppointmentResponse(
@@ -1271,12 +1263,12 @@ public class AppointmentService {
                         appointment.getTime() != null ? appointment.getTime().toString() : null,
                         refundAmount,
                         nonRefundedDeposit,
-                        appointment.getRefundStatus(),
+                        appointment.getRefundStatus() != null ? appointment.getRefundStatus() : "PENDING",
                         appointment.getRefundMethod() != null ? appointment.getRefundMethod().toString() : null,
                         appointment.getRefundNote(),
                         appointment.getCancelReason()
                 );
-                response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "UNKNOWN");
+                response.setStatus(appointment.getStatus() != null ? appointment.getStatus().toString() : "CANCELLED");
                 responses.add(response);
             }
             System.out.println("Returning " + responses.size() + " refunded appointments");
@@ -1306,12 +1298,15 @@ public class AppointmentService {
             if (appointment.getStatus() != AppointmentStatus.CANCELLED) {
                 throw new IllegalStateException("Lịch hẹn #" + appointmentId + " không ở trạng thái CANCELLED");
             }
-            if (appointment.getRefundStatus() == null) {
-                throw new IllegalStateException("Lịch hẹn #" + appointmentId + " không có trạng thái hoàn tiền");
-            }
-            if (appointment.getRefundStatus().equals("COMPLETED")) {
-                throw new IllegalStateException("Lịch hẹn #" + appointmentId + " đã được hoàn tiền");
-            }
+
+            List<Transaction> transactions = transactionRepository.findByAppointmentAppointmentId(appointmentId);
+            Transaction refundedTransaction = transactions.stream()
+                    .filter(t -> t.getType() == TransactionType.REFUNDED && t.getStatus() == TransactionStatus.PENDING)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Không tìm thấy giao dịch hoàn tiền PENDING cho lịch hẹn #" + appointmentId));
+
+            refundedTransaction.setStatus(TransactionStatus.COMPLETED);
+            transactionRepository.save(refundedTransaction);
 
             appointment.setRefundStatus(refundStatus);
             if (refundMethod != null) {
@@ -1332,6 +1327,7 @@ public class AppointmentService {
             Map<String, Object> refundMessage = new HashMap<>();
             refundMessage.put("type", "REFUND_STATUS_UPDATED");
             refundMessage.put("appointmentId", appointmentId);
+            refundMessage.put("refundStatus", refundStatus);
             webSocketService.sendToTopic("/topic/appointments", refundMessage.toString());
         } catch (Exception e) {
             System.err.println("Error updating refund status for appointment ID " + appointmentId + ": " + e.getMessage());
