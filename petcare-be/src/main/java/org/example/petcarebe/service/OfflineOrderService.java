@@ -180,6 +180,7 @@ public class OfflineOrderService {
             response.setTotalAmount(order.getTotalAmount());
             response.setStatus(order.getPaymentStatus());
             response.setPointsEarned(order.getPointEarned());
+            response.setPointUsed(order.getPointUsed());
             response.setUserId(order.getUser() != null ? order.getUser().getUserId() : null);
             response.setStaffName(order.getUser() != null ? order.getUser().getFullName() : "Không xác định");
             response.setOrderDate(order.getOrderDate());

@@ -2,6 +2,7 @@ package org.example.petcarebe.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.example.petcarebe.enums.PetType;
 
 @Entity
 @Table(name = "pets")
@@ -17,22 +18,60 @@ public class Pet {
 
     @ManyToOne
     @JoinColumn(name = "weight_id", nullable = false)
-    private PetWeight weight;
+    private PetWeight petWeight;
 
+    @ManyToOne
+    @JoinColumn(name = "service_id", nullable = true)
+    private PetService petService;
+
+    @ManyToOne
+    @JoinColumn(name = "employee_id", nullable = true)
+    private Employee employee;
+
+    @ManyToOne
+    @JoinColumn(name = "appointment_id", nullable = true)
+    private Appointment appointment;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pet_type", nullable = false)
+    private PetType petType;
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
+    private double price;
+
+    @Column(name = "name_pet", columnDefinition = "NVARCHAR(255)")
     private String namePet;
+
     private float age;
+
+    @Column(name = "phone_boss", columnDefinition = "NVARCHAR(255)")
     private String phoneBoss;
+
+    @Column(name = "name_boss", columnDefinition = "NVARCHAR(255)")
     private String nameBoss;
 
-    @ManyToOne
-    @JoinColumn(name = "service_id", nullable = false)
-    private Service service;
 
-    @ManyToOne
-    @JoinColumn(name = "employee_id", nullable = false)
-    private Employee employee; // FK - Nhân viên thực hiện
+    @Column(name = "deleted")
+    private Boolean deleted;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "deposit_amount")
+    private double depositAmount;
+
+    @Column(name = "paid_amount")
+    private double paidAmount;
+
+    @Column(name = "actual_weight")
+    private Float actualWeight; // Cân nặng thực tế (kg)
+
+    @Column(name = "weight_update_count")
+    private Integer weightUpdateCount; // Thêm trường để theo dõi số lần cập nhật cân nặng
+
+    // Tính lại giá dựa trên petService và petWeight
+    public void updatePrice() {
+        if (petService != null && petWeight != null) {
+            this.price = petService.getBasePrice().doubleValue() * petWeight.getPriceMultiplier();
+        }
+    }
 }

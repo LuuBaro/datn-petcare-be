@@ -101,6 +101,8 @@ public class OrderService {
 
     @Transactional
     public Orders checkout(CheckoutRequestDTO request) {
+        logger.info("Starting checkout process for user ID: {}, payment method: {}", request.getUserId(), request.getPaymentMethod());
+        
         // 1️⃣ Kiểm tra người dùng
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại!"));
@@ -122,7 +124,7 @@ public class OrderService {
         order.setPaymentStatus(request.getPaymentStatus() != null ? request.getPaymentStatus() : "Chờ thanh toán");
         order.setStatusOrder(statusOrderRepository.findById(1L)
                 .orElseThrow(() -> new RuntimeException("Trạng thái đơn hàng không hợp lệ!")));
-        order.setType(request.getType());
+        order.setType("ORDER ONLINE");
         order.setPointEarned(0);
         order.setPointUsed(0);
         
@@ -157,8 +159,14 @@ public class OrderService {
             ProductDetails product = productDetailsRepository.findById(item.getProductDetailId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + item.getProductDetailId()));
 
+            // Kiểm tra tồn kho hiện tại
+            logger.info("Checking inventory for product ID: {}, current stock: {}, requested quantity: {}", 
+                    item.getProductDetailId(), product.getQuantity(), item.getQuantity());
+            
             if (product.getQuantity() < item.getQuantity()) {
                 outOfStockItems.add(item.getProductDetailId());
+                logger.warn("Product out of stock: ID={}, requested={}, available={}", 
+                        item.getProductDetailId(), item.getQuantity(), product.getQuantity());
                 continue;
             }
 
@@ -203,38 +211,90 @@ public class OrderService {
 
         // 6️⃣ Lưu đơn hàng
         Orders savedOrder = orderRepository.save(order);
+        logger.info("Order saved with ID: {}, payment method: {}, payment status: {}", 
+                savedOrder.getOrderId(), savedOrder.getPaymentMethod(), savedOrder.getPaymentStatus());
 
         // 7️⃣ Trừ kho và clear giỏ hàng ngay lập tức cho COD
         if ("COD".equals(request.getPaymentMethod())) {
-            for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
-                int updated = productDetailsRepository.updateStock(
-                        orderDetail.getProductDetails().getProductDetailId(),
-                        orderDetail.getQuantity()
-                );
-                if (updated == 0) {
-                    throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " +
-                            orderDetail.getProductDetails().getProductDetailId());
+            try {
+                logger.info("Processing inventory update for COD order: {}", savedOrder.getOrderId());
+                for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
+                    ProductDetails productDetail = orderDetail.getProductDetails();
+                    int quantity = orderDetail.getQuantity();
+                    
+                    logger.info("Updating stock for product: {}, current quantity: {}, deducting: {}", 
+                            productDetail.getProductDetailId(), productDetail.getQuantity(), quantity);
+                    
+                    int updated = productDetailsRepository.updateStock(
+                            productDetail.getProductDetailId(), quantity
+                    );
+                    
+                    if (updated == 0) {
+                        logger.error("Failed to update stock for product: {}, possibly due to insufficient inventory", 
+                                productDetail.getProductDetailId());
+                        throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " +
+                                productDetail.getProductDetailId());
+                    }
+                    
+                    logger.info("Stock successfully updated for product: {}", productDetail.getProductDetailId());
                 }
+                
+                cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+                logger.info("Stock deducted and cart cleared for COD orderId: {}", savedOrder.getOrderId());
+            } catch (Exception e) {
+                logger.error("Error processing COD inventory updates: {}", e.getMessage(), e);
+                throw e;
             }
-            cartDetailsService.clearCartDetailsByUserId(request.getUserId());
-            logger.info("Stock deducted and cart cleared for COD orderId: {}", savedOrder.getOrderId());
         } 
         // Trừ kho và clear giỏ hàng cho VNPay/MoMo khi trạng thái là "Chờ xác nhận"
         else if (("VNPay".equals(request.getPaymentMethod()) || "MoMo".equals(request.getPaymentMethod())) 
                  && "Chờ xác nhận".equals(request.getPaymentStatus())) {
-            logger.info("Processing inventory and cart for VNPay/MoMo order with 'Chờ xác nhận' status, orderId: {}", savedOrder.getOrderId());
-            for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
-                int updated = productDetailsRepository.updateStock(
-                        orderDetail.getProductDetails().getProductDetailId(),
-                        orderDetail.getQuantity()
-                );
-                if (updated == 0) {
-                    throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " +
-                            orderDetail.getProductDetails().getProductDetailId());
+            try {
+                logger.info("Processing inventory and cart for VNPay/MoMo order with 'Chờ xác nhận' status, orderId: {}", 
+                        savedOrder.getOrderId());
+                
+                boolean allUpdatesSuccessful = true;
+                List<String> failedProducts = new ArrayList<>();
+                
+                for (OrderDetails orderDetail : savedOrder.getOrderDetails()) {
+                    ProductDetails productDetail = orderDetail.getProductDetails();
+                    int quantity = orderDetail.getQuantity();
+                    
+                    logger.info("Updating stock for product ({}): current={}, deducting={}", 
+                            productDetail.getProductDetailId(), productDetail.getQuantity(), quantity);
+                    
+                    try {
+                        int updated = productDetailsRepository.updateStock(
+                                productDetail.getProductDetailId(), quantity
+                        );
+                        
+                        if (updated == 0) {
+                            logger.error("Failed to update stock for product: {}", productDetail.getProductDetailId());
+                            allUpdatesSuccessful = false;
+                            failedProducts.add(productDetail.getProductDetailId().toString());
+                        } else {
+                            logger.info("Stock successfully updated for product: {}", productDetail.getProductDetailId());
+                        }
+                    } catch (Exception e) {
+                        logger.error("Exception updating stock for product: {}, error: {}", 
+                                productDetail.getProductDetailId(), e.getMessage(), e);
+                        allUpdatesSuccessful = false;
+                        failedProducts.add(productDetail.getProductDetailId().toString());
+                    }
                 }
+                
+                if (!allUpdatesSuccessful) {
+                    logger.error("Failed to update inventory for some products: {}", String.join(", ", failedProducts));
+                    throw new RuntimeException("Không thể cập nhật tồn kho cho sản phẩm: " + 
+                            String.join(", ", failedProducts));
+                }
+                
+                cartDetailsService.clearCartDetailsByUserId(request.getUserId());
+                logger.info("Stock deducted and cart cleared for VNPay/MoMo orderId: {}", savedOrder.getOrderId());
+            } catch (Exception e) {
+                logger.error("Error processing VNPay/MoMo inventory updates: {}", e.getMessage(), e);
+                throw e;
             }
-            cartDetailsService.clearCartDetailsByUserId(request.getUserId());
-            logger.info("Stock deducted and cart cleared for VNPay/MoMo orderId: {}", savedOrder.getOrderId());
         }
         // ❌ Không trừ kho cho VNPay/MoMo với trạng thái khác, chỉ trừ khi thanh toán thành công
 
@@ -324,7 +384,7 @@ public class OrderService {
         return savedOrder;
     }
 
-    // Lấy tất cả đơn hàng
+
     public List<OrderDTO> getAllOrders() {
         List<Orders> ordersList = orderRepository.findAll();
         return ordersList.stream().map(this::convertToOrderDTO).collect(Collectors.toList());
@@ -333,8 +393,6 @@ public class OrderService {
     // Chuyển từ Orders sang OrderDTO
     private OrderDTO convertToOrderDTO(Orders order) {
         List<OrderDetailDTO> orderDetailDTOList = order.getOrderDetails().stream().map(this::convertToOrderDetailDTO).collect(Collectors.toList());
-
-
 
         return OrderDTO.builder()
                 .orderId(order.getOrderId())
@@ -353,6 +411,9 @@ public class OrderService {
                 .statusId(order.getStatusOrder() != null ? order.getStatusOrder().getStatusId() : null)
                 .statusName(order.getStatusOrder() != null ? order.getStatusOrder().getStatusName() : null)
                 .voucherId(order.getVoucher() != null ? order.getVoucher().getVoucherId() : null)
+                // Thêm thông tin MoMo
+                .momoOrderId(order.getMomoOrderId())
+                .momoTransId(order.getMomoTransId())
                 .orderDetails(orderDetailDTOList)
                 .build();
     }
@@ -524,10 +585,12 @@ public class OrderService {
 
     // Thống kê
 
+    // Tính tổng doanh thu trong khoảng thời gian xác định
     public BigDecimal getRevenueByDateRange(Date startDate, Date endDate) {
         return orderRepository.getTotalRevenueByDateRange(startDate, endDate);
     }
 
+    // Lấy doanh thu hàng ngày và số lượng đơn hàng trong khoảng thời gian xác định
     public Map<Date, Map<String, Object>> getDailyRevenueByDateRange(Date startDate, Date endDate) {
         Calendar cal = Calendar.getInstance();
 
@@ -564,6 +627,7 @@ public class OrderService {
         return dailyStats;
     }
 
+    // Lấy doanh thu hàng ngày và số lượng đơn hàng trong một tháng cụ thể
     public Map<Date, Map<String, Object>> getDailyRevenueByMonth(int year, int month) {
         List<Object[]> results = orderRepository.getDailyRevenueByMonth(year, month);
         Map<Date, Map<String, Object>> dailyStats = new LinkedHashMap<>();
@@ -582,6 +646,7 @@ public class OrderService {
         return dailyStats;
     }
 
+    // Lấy doanh thu hàng tuần trong khoảng thời gian xác định
     public List<Map<String, Object>> getWeeklyRevenueByDateRange(Date startDate, Date endDate) {
         List<Object[]> results = orderRepository.getWeeklyRevenueByDateRange(startDate, endDate);
         List<Map<String, Object>> revenueList = new ArrayList<>();
@@ -594,34 +659,58 @@ public class OrderService {
         return revenueList;
     }
 
+    // Tính tổng doanh thu tháng hiện tại
     public BigDecimal getRevenueThisMonth() {
         return orderRepository.getTotalRevenueThisMonth();
     }
 
+    // Tính tổng doanh thu năm hiện tại
     public BigDecimal getRevenueThisYear() {
         return orderRepository.getTotalRevenueThisYear();
     }
 
+    // Tính tổng doanh thu hôm nay
     public BigDecimal getRevenueToday() {
         return orderRepository.getRevenueToday();
     }
 
+    // Tính tổng doanh thu hôm qua
     public BigDecimal getRevenueYesterday() {
         return orderRepository.getRevenueYesterday();
     }
 
-    // Tổng số đơn hàng OFFLINE hôm qua
+    // Đếm tổng số đơn hàng OFFLINE hôm qua
     public Long getTotalOfflineOrdersYesterday() {
         return orderRepository.getTotalOfflineOrdersYesterday();
     }
 
-    // Tổng số đơn hàng ONLINE hôm qua
+    // Đếm tổng số đơn hàng ONLINE hôm qua
     public Long getTotalOnlineOrdersYesterday() {
         return orderRepository.getTotalOnlineOrdersYesterday();
     }
 
+    // Lấy số lượng đơn hàng hàng ngày theo loại (ONLINE và OFFLINE)
     public Map<Date, Map<String, Long>> getDailyOrderCountByType(Date startDate, Date endDate) {
-        List<Object[]> results = orderRepository.getDailyOrderCountByType(startDate, endDate);
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Truy vấn dữ liệu với khoảng thời gian đã điều chỉnh
+        List<Object[]> results = orderRepository.getDailyOrderCountByType(startDateInclusive, endDateInclusive);
         Map<Date, Map<String, Long>> dailyOrderStats = new LinkedHashMap<>();
 
         for (Object[] row : results) {
@@ -630,71 +719,84 @@ public class OrderService {
             Long offlineOrders = (Long) row[2];
 
             Map<String, Long> stats = new HashMap<>();
-            stats.put("onlineOrders", onlineOrders);
-            stats.put("offlineOrders", offlineOrders);
+            stats.put("onlineOrders", onlineOrders != null ? onlineOrders : 0L);
+            stats.put("offlineOrders", offlineOrders != null ? offlineOrders : 0L);
 
             dailyOrderStats.put(date, stats);
         }
+
+        // Đảm bảo tất cả các ngày trong khoảng đều được bao gồm, kể cả khi không có đơn hàng
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            Date currentDate = cal.getTime();
+            dailyOrderStats.computeIfAbsent(currentDate, k -> {
+                Map<String, Long> stats = new HashMap<>();
+                stats.put("onlineOrders", 0L);
+                stats.put("offlineOrders", 0L);
+                return stats;
+            });
+            cal.add(Calendar.DAY_OF_MONTH, 1);
+        }
+
         return dailyOrderStats;
     }
 
-
-
-    // Tổng số đơn hàng trong ngày hôm nay
+    // Đếm tổng số đơn hàng trong ngày hôm nay
     public Long getTotalOrdersToday() {
         return orderRepository.getTotalOrdersToday();
     }
 
-    // Tổng số đơn hàng OFFLINE hôm nay
+    // Đếm tổng số đơn hàng OFFLINE hôm nay
     public Long getTotalOfflineOrdersToday() {
         return orderRepository.getTotalOfflineOrdersToday();
     }
 
-    // Tổng số đơn hàng ORDER ONLINE hôm nay
+    // Đếm tổng số đơn hàng ORDER ONLINE hôm nay
     public Long getTotalOnlineOrdersToday() {
         return orderRepository.getTotalOnlineOrdersToday();
     }
 
-    // Tổng số đơn hàng trong tuần này
+    // Đếm tổng số đơn hàng trong tuần này
     public Long getTotalOrdersThisWeek() {
         return orderRepository.getTotalOrdersThisWeek();
     }
 
-    // Tổng số đơn hàng trong tháng này
+    // Đếm tổng số đơn hàng trong tháng này
     public Long getTotalOrdersThisMonth() {
         return orderRepository.getTotalOrdersThisMonth();
     }
 
-    // Tổng số đơn hàng OFFLINE trong tháng này
+    // Đếm tổng số đơn hàng OFFLINE trong tháng này
     public Long getTotalOfflineOrdersThisMonth() {
         return orderRepository.getTotalOfflineOrdersThisMonth();
     }
 
-    // Tổng số đơn hàng ORDER ONLINE trong tháng này
+    // Đếm tổng số đơn hàng ORDER ONLINE trong tháng này
     public Long getTotalOnlineOrdersThisMonth() {
         return orderRepository.getTotalOnlineOrdersThisMonth();
     }
 
-    // Tổng số đơn hàng hôm qua
+    // Đếm tổng số đơn hàng hôm qua
     public Long getTotalOrdersYesterday() {
         return orderRepository.getTotalOrdersYesterday();
     }
 
-    // Tổng số đơn hàng OFFLINE trong khoảng thời gian
+    // Đếm tổng số đơn hàng OFFLINE trong khoảng thời gian
     public Long getTotalOfflineOrdersByDateRange(Date startDate, Date endDate) {
         return orderRepository.getTotalOfflineOrdersByDateRange(startDate, endDate);
     }
 
-    // Tổng số đơn hàng ORDER ONLINE trong khoảng thời gian
+    // Đếm tổng số đơn hàng ORDER ONLINE trong khoảng thời gian
     public Long getTotalOnlineOrdersByDateRange(Date startDate, Date endDate) {
         return orderRepository.getTotalOnlineOrdersByDateRange(startDate, endDate);
     }
 
-    // Tổng số khách hàng
+    // Đếm tổng số khách hàng
     public Long getTotalCustomers() {
         return orderRepository.getTotalCustomers();
     }
 
+    // Lấy danh sách 5 khách hàng có số lượng đơn hàng ORDER ONLINE nhiều nhất
     public List<Map<String, Object>> getTopFiveCustomersByOrderCount() {
         List<Object[]> results = orderRepository.getTopFiveCustomersByOrderCount();
         List<Map<String, Object>> topCustomers = new ArrayList<>();
@@ -710,6 +812,8 @@ public class OrderService {
 
         return topCustomers;
     }
+
+    // Lấy số lượng đơn hàng hàng tuần theo loại (ONLINE và OFFLINE)
     public List<Map<String, Object>> getWeeklyOrderCountByType(Date startDate, Date endDate) {
         List<Object[]> results = orderRepository.getWeeklyOrderCountByType(startDate, endDate);
         List<Map<String, Object>> orderList = new ArrayList<>();
@@ -724,20 +828,612 @@ public class OrderService {
         return orderList;
     }
 
-    public List<Map<String, Object>> getMonthlyOrderCountByType(Date startDate, Date endDate) {
-        List<Object[]> results = orderRepository.getMonthlyOrderCountByType(startDate, endDate);
-        List<Map<String, Object>> orderList = new ArrayList<>();
-        for (Object[] row : results) {
-            Map<String, Object> orderMap = new HashMap<>();
-            orderMap.put("month", row[0]); // String: yyyy-MM
-            orderMap.put("orderCount", row[1]); // Long: tổng số đơn hàng
-            orderMap.put("onlineOrders", row[2]); // Long: số đơn online
-            orderMap.put("offlineOrders", row[3]); // Long: số đơn offline
-            orderList.add(orderMap);
+    // Lấy doanh thu hàng tháng theo loại (ONLINE và OFFLINE)
+    public List<Map<String, Object>> getMonthlyRevenueByOrderType(Date startDate, Date endDate) {
+        // Chuẩn hóa thời gian
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Truy vấn dữ liệu
+        List<Object[]> results = orderRepository.getMonthlyRevenueByOrderType(startDateInclusive, endDateInclusive);
+
+        // Tạo danh sách tháng đầy đủ
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            String monthKey = String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
+            Map<String, Object> map = new HashMap<>();
+            map.put("month", monthKey);
+            map.put("onlineRevenue", BigDecimal.ZERO);
+            map.put("offlineRevenue", BigDecimal.ZERO);
+            revenueList.add(map);
+            cal.add(Calendar.MONTH, 1);
         }
+
+        // Gán dữ liệu từ query
+        for (Object[] row : results) {
+            String month = (String) row[0];
+            BigDecimal online = convertToBigDecimal(row[1]);
+            BigDecimal offline = convertToBigDecimal(row[2]);
+
+            for (Map<String, Object> map : revenueList) {
+                if (map.get("month").equals(month)) {
+                    map.put("onlineRevenue", online);
+                    map.put("offlineRevenue", offline);
+                    break;
+                }
+            }
+        }
+
+
+        return revenueList;
+    }
+
+
+
+    // Lấy số lượng đơn hàng hàng tháng theo loại (ONLINE và OFFLINE)
+    public List<Map<String, Object>> getMonthlyOrderCountByType(Date startDate, Date endDate) {
+        // Điều chỉnh thời gian
+        Calendar cal = Calendar.getInstance();
+
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+
+        // Truy vấn dữ liệu
+        List<Object[]> results = orderRepository.getMonthlyOrderCountByType(startDateInclusive, endDateInclusive);
+
+
+        // Tạo danh sách tháng đầy đủ
+        List<Map<String, Object>> orderList = new ArrayList<>();
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            String monthKey = String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
+            Map<String, Object> orderMap = new HashMap<>();
+            orderMap.put("month", monthKey);
+            orderMap.put("orderCount", 0L);
+            orderMap.put("onlineOrders", 0L);
+            orderMap.put("offlineOrders", 0L);
+            orderList.add(orderMap);
+            cal.add(Calendar.MONTH, 1);
+        }
+
+        // Gán dữ liệu từ kết quả truy vấn
+        for (Object[] row : results) {
+            String month = (String) row[0]; // yyyy-MM
+            Long orderCount = ((Number) row[1]).longValue();
+            Long onlineOrders = ((Number) row[2]).longValue();
+            Long offlineOrders = ((Number) row[3]).longValue();
+
+            // Tìm và cập nhật tháng tương ứng
+            for (Map<String, Object> orderMap : orderList) {
+                if (month.equals(orderMap.get("month"))) {
+                    orderMap.put("orderCount", orderCount);
+                    orderMap.put("onlineOrders", onlineOrders);
+                    orderMap.put("offlineOrders", offlineOrders);
+                    break;
+                }
+            }
+        }
+
         return orderList;
     }
 
+    // Tính tổng doanh thu offline và online hôm nay
+    public Map<String, BigDecimal> getRevenueTodayByType() {
+        LocalDate today = LocalDate.now();
+        Date startDate = Date.from(today.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDate = cal.getTime();
+
+        List<Object[]> results = orderRepository.getRevenueByTypeAndDateRange(startDate, endDate);
+        Map<String, BigDecimal> revenueByType = new HashMap<>();
+        revenueByType.put("onlineRevenue", BigDecimal.ZERO);
+        revenueByType.put("offlineRevenue", BigDecimal.ZERO);
+
+        for (Object[] row : results) {
+            String type = (String) row[0];
+            BigDecimal revenue = convertToBigDecimal(row[1]); // Chuyển đổi an toàn
+            if ("ORDER ONLINE".equals(type)) {
+                revenueByType.put("onlineRevenue", revenue);
+            } else if ("OFFLINE".equals(type)) {
+                revenueByType.put("offlineRevenue", revenue);
+            }
+        }
+
+        return revenueByType;
+    }
+
+    // Tính tổng doanh thu offline và online hôm qua
+    public Map<String, BigDecimal> getRevenueYesterdayByType() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        Date startDate = Date.from(yesterday.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDate = cal.getTime();
+
+        List<Object[]> results = orderRepository.getRevenueByTypeAndDateRange(startDate, endDate);
+        Map<String, BigDecimal> revenueByType = new HashMap<>();
+        revenueByType.put("onlineRevenue", BigDecimal.ZERO);
+        revenueByType.put("offlineRevenue", BigDecimal.ZERO);
+
+        for (Object[] row : results) {
+            String type = (String) row[0];
+            BigDecimal revenue = convertToBigDecimal(row[1]); // Chuyển đổi an toàn
+            if ("ORDER ONLINE".equals(type)) {
+                revenueByType.put("onlineRevenue", revenue);
+            } else if ("OFFLINE".equals(type)) {
+                revenueByType.put("offlineRevenue", revenue);
+            }
+        }
+
+        return revenueByType;
+    }
+
+    // Tính tổng doanh thu offline và online tháng này
+    public Map<String, BigDecimal> getRevenueThisMonthByType() {
+        LocalDate now = LocalDate.now();
+        LocalDate startOfMonth = LocalDate.of(now.getYear(), now.getMonthValue(), 1);
+        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
+
+        Date startDate = Date.from(startOfMonth.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date endDate = Date.from(endOfMonth.atTime(23, 59, 59, 999_000_000).atZone(ZoneId.systemDefault()).toInstant());
+
+        List<Object[]> results = orderRepository.getRevenueByTypeAndDateRange(startDate, endDate);
+        Map<String, BigDecimal> revenueByType = new HashMap<>();
+        revenueByType.put("onlineRevenue", BigDecimal.ZERO);
+        revenueByType.put("offlineRevenue", BigDecimal.ZERO);
+
+        for (Object[] row : results) {
+            String type = (String) row[0];
+            BigDecimal revenue = convertToBigDecimal(row[1]); // Chuyển đổi an toàn
+            if ("ORDER ONLINE".equals(type)) {
+                revenueByType.put("onlineRevenue", revenue);
+            } else if ("OFFLINE".equals(type)) {
+                revenueByType.put("offlineRevenue", revenue);
+            }
+        }
+
+        return revenueByType;
+    }
+
+    // Lấy doanh thu online và offline từng ngày trong khoảng thời gian xác định
+    public Map<Date, Map<String, BigDecimal>> getDailyRevenueByType(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        List<Object[]> results = orderRepository.getDailyRevenueByType(startDateInclusive, endDateInclusive);
+        Map<Date, Map<String, BigDecimal>> dailyRevenueByType = new LinkedHashMap<>();
+
+        // Khởi tạo dữ liệu cho tất cả các ngày trong khoảng
+        LocalDate startLocalDate = startDateInclusive.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate endLocalDate = endDateInclusive.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate current = startLocalDate;
+        while (!current.isAfter(endLocalDate)) {
+            Date date = Date.from(current.atStartOfDay(ZoneId.systemDefault()).toInstant());
+            dailyRevenueByType.put(date, new HashMap<>(Map.of(
+                    "onlineRevenue", BigDecimal.ZERO,
+                    "offlineRevenue", BigDecimal.ZERO
+            )));
+            current = current.plusDays(1);
+        }
+
+        // Gán dữ liệu từ kết quả truy vấn
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            String type = (String) row[1];
+            BigDecimal revenue = convertToBigDecimal(row[2]);
+
+            Map<String, BigDecimal> revenueMap = dailyRevenueByType.computeIfAbsent(date, k -> new HashMap<>(Map.of(
+                    "onlineRevenue", BigDecimal.ZERO,
+                    "offlineRevenue", BigDecimal.ZERO
+            )));
+
+            if ("ORDER ONLINE".equals(type)) {
+                revenueMap.put("onlineRevenue", revenue);
+            } else if ("OFFLINE".equals(type)) {
+                revenueMap.put("offlineRevenue", revenue);
+            }
+        }
+
+        return dailyRevenueByType;
+    }
+
+    // Lấy tổng doanh thu từng tháng trong khoảng thời gian xác định
+    public List<Map<String, Object>> getMonthlyRevenueByDateRange(Date startDate, Date endDate) {
+        // Adjust time
+        Calendar cal = Calendar.getInstance();
+
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        // Query data
+        List<Object[]> results = orderRepository.getMonthlyRevenueByDateRange(startDateInclusive, endDateInclusive);
+
+        // Create full month list
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            String monthKey = String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("month", monthKey);
+            revenueMap.put("revenue", BigDecimal.ZERO);
+            revenueMap.put("orderCount", 0L);
+            revenueList.add(revenueMap);
+            cal.add(Calendar.MONTH, 1);
+        }
+
+        // Assign data from query results
+        for (Object[] row : results) {
+            String month = (String) row[0]; // yyyy-MM
+            BigDecimal revenue = convertToBigDecimal(row[1]);
+            Long orderCount = ((Number) row[2]).longValue();
+
+            // Find and update corresponding month
+            for (Map<String, Object> revenueMap : revenueList) {
+                if (month.equals(revenueMap.get("month"))) {
+                    revenueMap.put("revenue", revenue);
+                    revenueMap.put("orderCount", orderCount);
+                    break;
+                }
+            }
+        }
+
+        return revenueList;
+    }
+    // Lấy doanh thu hàng tuần theo loại (ONLINE và OFFLINE) trong khoảng thời gian xác định
+    public List<Map<String, Object>> getWeeklyRevenueByTypeAndDateRange(Date startDate, Date endDate) {
+        List<Object[]> results = orderRepository.getWeeklyRevenueByTypeAndDateRange(startDate, endDate);
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+
+        for (Object[] row : results) {
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("week", row[0]); // YEARWEEK (e.g., 202510)
+            revenueMap.put("type", row[1]); // Loại đơn hàng: ORDER ONLINE hoặc OFFLINE
+            revenueMap.put("revenue", new BigDecimal(row[2].toString())); // Doanh thu
+            revenueList.add(revenueMap);
+        }
+
+        return revenueList;
+    }
+
+    // Hàm tiện ích để chuyển đổi an toàn sang BigDecimal
+    private BigDecimal convertToBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof Double) {
+            return BigDecimal.valueOf((Double) value);
+        }
+        if (value instanceof Long) {
+            return BigDecimal.valueOf((Long) value);
+        }
+        if (value instanceof Integer) {
+            return BigDecimal.valueOf((Integer) value);
+        }
+        throw new IllegalArgumentException("Unsupported type for conversion to BigDecimal: " + value.getClass().getName());
+    }
+
+    // 5 sản phẩm yêu thích nhất
+    public List<Map<String, Object>> getTopFiveFavoriteProducts() {
+        // Gọi phương thức từ OrderRepository để lấy top 5 sản phẩm yêu thích
+        List<Object[]> results = orderRepository.getTopFiveFavoriteProducts();
+        List<Map<String, Object>> favoriteProducts = new ArrayList<>();
+
+        // Chuyển đổi kết quả thành danh sách Map
+        for (Object[] result : results) {
+            Map<String, Object> productInfo = new HashMap<>();
+            productInfo.put("productId", result[0]); // product_id
+            productInfo.put("productName", result[1]); // product_name
+            productInfo.put("image", result[2]); // image
+            productInfo.put("favoriteCount", result[3]); // favorite_count
+            favoriteProducts.add(productInfo);
+        }
+
+        return favoriteProducts;
+    }
+
+    // Tính tổng doanh thu OFFLINE hôm nay theo phương thức thanh toán CASH và MOMO
+    public Map<String, BigDecimal> getOfflineRevenueTodayByPaymentMethod() {
+        Map<String, BigDecimal> revenueByPaymentMethod = new HashMap<>();
+        revenueByPaymentMethod.put("cashRevenue", orderRepository.getOfflineRevenueTodayByCash());
+        revenueByPaymentMethod.put("momoRevenue", orderRepository.getOfflineRevenueTodayByMomo());
+        return revenueByPaymentMethod;
+    }
+
+    // Tính tổng doanh thu OFFLINE tháng hiện tại theo phương thức thanh toán CASH và MOMO
+    public Map<String, BigDecimal> getOfflineRevenueThisMonthByPaymentMethod() {
+        Map<String, BigDecimal> revenueByPaymentMethod = new HashMap<>();
+        revenueByPaymentMethod.put("cashRevenue", orderRepository.getOfflineRevenueThisMonthByCash());
+        revenueByPaymentMethod.put("momoRevenue", orderRepository.getOfflineRevenueThisMonthByMomo());
+        return revenueByPaymentMethod;
+    }
+
+    // Tính tổng doanh thu OFFLINE trong khoảng thời gian xác định theo phương thức thanh toán CASH và MOMO
+    public Map<String, BigDecimal> getOfflineRevenueByDateRangeAndPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        Map<String, BigDecimal> revenueByPaymentMethod = new HashMap<>();
+        revenueByPaymentMethod.put("cashRevenue", orderRepository.getOfflineRevenueByDateRangeAndCash(startDateInclusive, endDateInclusive));
+        revenueByPaymentMethod.put("momoRevenue", orderRepository.getOfflineRevenueByDateRangeAndMomo(startDateInclusive, endDateInclusive));
+        return revenueByPaymentMethod;
+    }
+
+    // Lấy doanh thu hàng ngày của đơn hàng OFFLINE theo phương thức thanh toán CASH và MOMO trong khoảng thời gian xác định
+    public Map<Date, Map<String, BigDecimal>> getDailyOfflineRevenueByPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        List<Object[]> results = orderRepository.getDailyOfflineRevenueByPaymentMethod(startDateInclusive, endDateInclusive);
+        Map<Date, Map<String, BigDecimal>> dailyRevenueByPaymentMethod = new LinkedHashMap<>();
+
+        // Khởi tạo dữ liệu cho tất cả các ngày trong khoảng
+        LocalDate startLocalDate = startDateInclusive.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate endLocalDate = endDateInclusive.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate current = startLocalDate;
+        while (!current.isAfter(endLocalDate)) {
+            Date date = Date.from(current.atStartOfDay(ZoneId.systemDefault()).toInstant());
+            dailyRevenueByPaymentMethod.put(date, new HashMap<>(Map.of(
+                    "cashRevenue", BigDecimal.ZERO,
+                    "momoRevenue", BigDecimal.ZERO
+            )));
+            current = current.plusDays(1);
+        }
+
+        // Gán dữ liệu từ kết quả truy vấn
+        for (Object[] row : results) {
+            Date date = (Date) row[0];
+            BigDecimal cashRevenue = convertToBigDecimal(row[1]);
+            BigDecimal momoRevenue = convertToBigDecimal(row[2]);
+
+            Map<String, BigDecimal> revenueMap = dailyRevenueByPaymentMethod.computeIfAbsent(date, k -> new HashMap<>(Map.of(
+                    "cashRevenue", BigDecimal.ZERO,
+                    "momoRevenue", BigDecimal.ZERO
+            )));
+
+            revenueMap.put("cashRevenue", cashRevenue);
+            revenueMap.put("momoRevenue", momoRevenue);
+        }
+
+        return dailyRevenueByPaymentMethod;
+    }
+
+    // Lấy doanh thu hàng tuần của đơn hàng OFFLINE theo phương thức thanh toán CASH và MOMO trong khoảng thời gian xác định
+    public List<Map<String, Object>> getWeeklyOfflineRevenueByPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        List<Object[]> results = orderRepository.getWeeklyOfflineRevenueByPaymentMethod(startDateInclusive, endDateInclusive);
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+
+        for (Object[] row : results) {
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("week", row[0]); // YEARWEEK (e.g., 202510)
+            revenueMap.put("cashRevenue", convertToBigDecimal(row[1]));
+            revenueMap.put("momoRevenue", convertToBigDecimal(row[2]));
+            revenueList.add(revenueMap);
+        }
+
+        return revenueList;
+    }
+
+    // Lấy doanh thu hàng tháng của đơn hàng OFFLINE theo phương thức thanh toán CASH và MOMO trong khoảng thời gian xác định
+    public List<Map<String, Object>> getMonthlyOfflineRevenueByPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        List<Object[]> results = orderRepository.getMonthlyOfflineRevenueByPaymentMethod(startDateInclusive, endDateInclusive);
+        List<Map<String, Object>> revenueList = new ArrayList<>();
+
+        // Tạo danh sách tháng đầy đủ
+        cal.setTime(startDateInclusive);
+        while (!cal.getTime().after(endDateInclusive)) {
+            String monthKey = String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
+            Map<String, Object> revenueMap = new HashMap<>();
+            revenueMap.put("month", monthKey);
+            revenueMap.put("cashRevenue", BigDecimal.ZERO);
+            revenueMap.put("momoRevenue", BigDecimal.ZERO);
+            revenueList.add(revenueMap);
+            cal.add(Calendar.MONTH, 1);
+        }
+
+        // Gán dữ liệu từ kết quả truy vấn
+        for (Object[] row : results) {
+            String month = (String) row[0]; // yyyy-MM
+            BigDecimal cashRevenue = convertToBigDecimal(row[1]);
+            BigDecimal momoRevenue = convertToBigDecimal(row[2]);
+
+            for (Map<String, Object> revenueMap : revenueList) {
+                if (month.equals(revenueMap.get("month"))) {
+                    revenueMap.put("cashRevenue", cashRevenue);
+                    revenueMap.put("momoRevenue", momoRevenue);
+                    break;
+                }
+            }
+        }
+
+        return revenueList;
+    }
+
+    // Đếm số lượng đơn hàng OFFLINE hôm nay theo phương thức thanh toán CASH và MOMO
+    public Map<String, Long> getOfflineOrderCountTodayByPaymentMethod() {
+        Object[] results = orderRepository.getOfflineOrderCountTodayByPaymentMethod();
+        Map<String, Long> orderCountByPaymentMethod = new HashMap<>();
+        orderCountByPaymentMethod.put("cashOrders", results[0] != null ? ((Number) results[0]).longValue() : 0L);
+        orderCountByPaymentMethod.put("momoOrders", results[1] != null ? ((Number) results[1]).longValue() : 0L);
+        return orderCountByPaymentMethod;
+    }
+
+    // Đếm số lượng đơn hàng OFFLINE tháng hiện tại theo phương thức thanh toán CASH và MOMO
+    public Map<String, Long> getOfflineOrderCountThisMonthByPaymentMethod() {
+        Object[] results = orderRepository.getOfflineOrderCountThisMonthByPaymentMethod();
+        Map<String, Long> orderCountByPaymentMethod = new HashMap<>();
+        orderCountByPaymentMethod.put("cashOrders", results[0] != null ? ((Number) results[0]).longValue() : 0L);
+        orderCountByPaymentMethod.put("momoOrders", results[1] != null ? ((Number) results[1]).longValue() : 0L);
+        return orderCountByPaymentMethod;
+    }
+
+    // Đếm số lượng đơn hàng OFFLINE trong khoảng thời gian xác định theo phương thức thanh toán CASH và MOMO
+    public Map<String, Long> getOfflineOrderCountByDateRangeAndPaymentMethod(Date startDate, Date endDate) {
+        Calendar cal = Calendar.getInstance();
+
+        // Đặt startDate về 00:00:00
+        cal.setTime(startDate);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startDateInclusive = cal.getTime();
+
+        // Đặt endDate về 23:59:59.999
+        cal.setTime(endDate);
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        Date endDateInclusive = cal.getTime();
+
+        Object[] results = orderRepository.getOfflineOrderCountByDateRangeAndPaymentMethod(startDateInclusive, endDateInclusive);
+        Map<String, Long> orderCountByPaymentMethod = new HashMap<>();
+        orderCountByPaymentMethod.put("cashOrders", results[0] != null ? ((Number) results[0]).longValue() : 0L);
+        orderCountByPaymentMethod.put("momoOrders", results[1] != null ? ((Number) results[1]).longValue() : 0L);
+        return orderCountByPaymentMethod;
+    }
+
+
+    // ********* SPA ******* //
+
+    /**
+     * Lấy doanh thu hàng ngày của đơn hàng loại SPA trong khoảng thời gian xác định.
+     *
+     * @param startDate Ngày bắt đầu của khoảng thời gian
+     * @param endDate   Ngày kết thúc của khoảng thời gian
+     * @return Danh sách các Object[] chứa ngày và doanh thu tương ứng
+     */
+    public List<Object[]> getDailySpaRevenue(Date startDate, Date endDate) {
+        return orderRepository.getDailySpaRevenueByDateRange(startDate, endDate);
+    }
 
 
     public List<OrderDTO> getOrdersByUserId(Long userId) {
@@ -946,62 +1642,81 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
     }
 
+    @Transactional
     public Orders updateOrderStatusAndPayment(Long orderId, Long statusId, String paymentStatus) {
         Orders order = getOrderById(orderId);
-        
-        logger.info("Updating order status and payment: orderId={}, statusId={}, paymentStatus={}", 
+
+        logger.info("Updating order status and payment: orderId={}, statusId={}, paymentStatus={}",
                 orderId, statusId, paymentStatus);
-        
+
         String oldStatus = order.getStatusOrder() != null ? order.getStatusOrder().getStatusName() : "null";
         String oldPaymentStatus = order.getPaymentStatus();
-        
+
         if (statusId != null) {
             // Kiểm tra trạng thái hiện tại
             Long currentStatusId = order.getStatusOrder().getStatusId();
-            
+
             // Chặn cập nhật từ các trạng thái cuối
             List<Long> finalStatuses = Arrays.asList(4L, 5L, 6L);
             if (finalStatuses.contains(currentStatusId)) {
                 throw new RuntimeException("Không thể cập nhật trạng thái từ 'Hoàn thành', 'Đã hủy' hoặc 'Trả hàng'.");
             }
-            
+
             // Kiểm tra tính hợp lệ của việc chuyển trạng thái
             if (currentStatusId == 1L && statusId != 2L && statusId != 5L) {
                 throw new RuntimeException("Đơn hàng ở trạng thái 'Chờ xác nhận' chỉ có thể chuyển sang 'Đang vận chuyển' hoặc 'Đã hủy'.");
             }
-            
+
             if (currentStatusId == 2L && statusId != 3L && statusId != 5L) {
                 throw new RuntimeException("Đơn hàng ở trạng thái 'Đang vận chuyển' chỉ có thể chuyển sang 'Chờ giao hàng' hoặc 'Đã hủy'.");
             }
-            
+
             if (currentStatusId == 3L && statusId != 4L && statusId != 5L) {
                 throw new RuntimeException("Đơn hàng ở trạng thái 'Chờ giao hàng' chỉ có thể chuyển sang 'Hoàn thành' hoặc 'Đã hủy'.");
             }
-            
+
             StatusOrder statusOrder = statusOrderRepository.findById(statusId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy trạng thái với ID: " + statusId));
             order.setStatusOrder(statusOrder);
-            
+
             // Nếu chuyển sang trạng thái "Hoàn thành" (statusId = 4) và không có paymentStatus cụ thể
             if (statusId == 4L && paymentStatus == null) {
-                logger.info("Auto setting paymentStatus to 'Đã thanh toán' for completed order: {}", orderId);
+                logger.info("Auto setting paymentStatus to 'Đã thanh toán' for completed order: {}", statusOrder);
                 order.setPaymentStatus("Đã thanh toán");
             }
         }
-        
+
         // Chỉ cập nhật paymentStatus khi có giá trị rõ ràng
         if (paymentStatus != null) {
-            logger.info("Explicitly updating paymentStatus for orderId={} from '{}' to '{}'", 
+            logger.info("Explicitly updating paymentStatus for orderId={} from '{}' to '{}'",
                     orderId, oldPaymentStatus, paymentStatus);
             order.setPaymentStatus(paymentStatus);
         }
-        
+
         Orders savedOrder = orderRepository.save(order);
-        
-        logger.info("Updated order: {} status from '{}' to '{}', paymentStatus from '{}' to '{}'", 
-                orderId, oldStatus, savedOrder.getStatusOrder().getStatusName(), 
+        logger.info("Updated order: {} status from '{}' to '{}', paymentStatus from '{}' to '{}'",
+                orderId, oldStatus, savedOrder.getStatusOrder().getStatusName(),
                 oldPaymentStatus, savedOrder.getPaymentStatus());
-        
+
+        // Gửi thông báo qua WebSocket
+        // 11️⃣ Lưu và gửi thông báo qua WebSocket
+        Long userId = order.getUser().getUserId();
+        String message = "Đơn hàng #" + orderId + " của bạn đã được cập nhật thành trạng thái: " +
+                savedOrder.getStatusOrder().getStatusName();
+
+        // Lưu thông báo vào database trước
+        Notification notification = notificationService.saveNotification(userId, message);
+
+        // Gửi thông báo qua WebSocket với ID thực tế
+        String webSocketMessage = "{\"id\": " + notification.getId() + ", \"message\": \"" + message + "\", \"orderId\": " + orderId + "}";
+        try {
+            webSocketService.sendToTopic("/topic/status", webSocketMessage); // Gửi broadcast với JSON
+            System.out.println("✅ WebSocket notification broadcast to /topic/status: " + webSocketMessage);
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send WebSocket notification to /topic/status: " + e.getMessage());
+            logger.error("Failed to send WebSocket notification for orderId: " + orderId, e); // Ghi log chi tiết
+        }
+
         // Nếu trạng thái mới là "Đã hủy" (statusId = 5), khôi phục tồn kho
         if (statusId != null && statusId == 5L) {
             try {
@@ -1011,24 +1726,23 @@ public class OrderService {
                             orderDetail.getQuantity()
                     );
                     if (updated > 0) {
-                        logger.info("Đã khôi phục {} sản phẩm {} vào kho khi cập nhật trạng thái sang Đã hủy", 
-                                orderDetail.getQuantity(), 
+                        logger.info("Đã khôi phục {} sản phẩm {} vào kho khi cập nhật trạng thái sang Đã hủy",
+                                orderDetail.getQuantity(),
                                 orderDetail.getProductDetails().getProductDetailId());
                     } else {
-                        logger.error("Không thể khôi phục tồn kho cho sản phẩm {} khi hủy đơn", 
+                        logger.error("Không thể khôi phục tồn kho cho sản phẩm {} khi hủy đơn",
                                 orderDetail.getProductDetails().getProductDetailId());
                     }
                 }
                 logger.info("Đã khôi phục tồn kho cho đơn hàng {} khi cập nhật trạng thái sang Đã hủy", orderId);
             } catch (Exception e) {
-                logger.error("Lỗi khi khôi phục tồn kho cho đơn hàng {} sau khi cập nhật trạng thái: {}", 
+                logger.error("Lỗi khi khôi phục tồn kho cho đơn hàng {} sau khi cập nhật trạng thái: {}",
                         orderId, e.getMessage());
             }
         }
-        
+
         return savedOrder;
     }
-
     // Kiểm tra đơn hàng MoMo có tồn tại theo momoOrderId
     public boolean checkMomoOrderExists(String momoOrderId) {
         // Sử dụng cách lưu momoOrderId trong CheckoutRequestDTO
@@ -1087,61 +1801,45 @@ public class OrderService {
      * @param orderId ID đơn hàng
      * @param momoOrderId ID đơn hàng từ MoMo
      * @param momoTransId ID giao dịch từ MoMo
-     * @param momoAmount Số tiền thanh toán qua MoMo
      * @return Đối tượng đơn hàng đã cập nhật
      */
     @Transactional
-    public Orders updateMomoInfo(Long orderId, String momoOrderId, String momoTransId, String momoAmount) {
-        // Tìm đơn hàng
-        Orders order = getOrderById(orderId);
-        
-        // Kiểm tra phương thức thanh toán
-        if (!"MoMo".equals(order.getPaymentMethod())) {
-            logger.warn("Attempt to update MoMo info for non-MoMo payment method: {}", order.getPaymentMethod());
-            throw new RuntimeException("Không thể cập nhật thông tin MoMo cho đơn hàng không thanh toán qua MoMo");
-        }
-        
-        // Cập nhật thông tin MoMo
-        if (momoOrderId != null && !momoOrderId.isEmpty()) {
-            order.setMomoOrderId(momoOrderId);
-        }
-        
-        if (momoTransId != null && !momoTransId.isEmpty()) {
-            order.setMomoTransId(momoTransId);
-        }
-        
-        // Xử lý trường hợp momoAmount là undefined, NaN hoặc không hợp lệ
-        if (momoAmount != null && !momoAmount.isEmpty() && 
-            !"undefined".equals(momoAmount) && !"NaN".equals(momoAmount)) {
-            // Thử parse giá trị để xác nhận là số hợp lệ
-            try {
-                // Kiểm tra xem có phải là số hợp lệ không
-                double amount = Double.parseDouble(momoAmount);
-                if (Double.isNaN(amount)) {
-                    throw new NumberFormatException("Value is NaN");
+    public Orders updateMomoInfo(Long orderId, String momoOrderId, String momoTransId) {
+        try {
+            logger.info("Cập nhật thông tin MoMo cho đơn hàng {}: momoOrderId={}, momoTransId={}", 
+                    orderId, momoOrderId, momoTransId);
+            
+            Orders order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
+            
+            // Kiểm tra momoOrderId đã có trong hệ thống chưa
+            if (momoOrderId != null && !momoOrderId.isEmpty() && 
+                !momoOrderId.equals(order.getMomoOrderId())) {
+                
+                boolean exists = orderRepository.existsByMomoOrderId(momoOrderId);
+                if (exists) {
+                    throw new RuntimeException("MoMo orderId này đã tồn tại trong hệ thống: " + momoOrderId);
                 }
-                logger.info("Cập nhật momoAmount cho đơn hàng {}: {}", orderId, momoAmount);
-                order.setMomoAmount(momoAmount);
-            } catch (NumberFormatException e) {
-                // Nếu không phải số hợp lệ, sử dụng giá trị totalAmount thay thế
-                String totalAmountStr = String.valueOf(Math.round(order.getTotalAmount()));
-                order.setMomoAmount(totalAmountStr);
-                logger.info("momoAmount không phải là số hợp lệ ({}), thay thế bằng totalAmount cho đơn hàng {}: {}", 
-                        momoAmount, orderId, totalAmountStr);
+                
+                order.setMomoOrderId(momoOrderId);
+                logger.info("Đã cập nhật momoOrderId cho đơn hàng {}: {}", orderId, momoOrderId);
             }
-        } else {
-            // Sử dụng totalAmount nếu momoAmount không hợp lệ
-            String totalAmountStr = String.valueOf(Math.round(order.getTotalAmount()));
-            order.setMomoAmount(totalAmountStr);
-            logger.info("Thay thế momoAmount không hợp lệ ({}) bằng totalAmount cho đơn hàng {}: {}", 
-                    momoAmount, orderId, totalAmountStr);
+            
+            // Cập nhật momoTransId nếu không rỗng
+            if (momoTransId != null && !momoTransId.isEmpty()) {
+                order.setMomoTransId(momoTransId);
+                logger.info("Đã cập nhật momoTransId cho đơn hàng {}: {}", orderId, momoTransId);
+            }
+            
+            // Lưu đơn hàng
+            Orders updatedOrder = orderRepository.save(order);
+            logger.info("Đã lưu thông tin MoMo cho đơn hàng {}", orderId);
+            
+            return updatedOrder;
+        } catch (Exception e) {
+            logger.error("Lỗi khi cập nhật thông tin MoMo cho đơn hàng {}: {}", orderId, e.getMessage());
+            throw e;
         }
-        
-        logger.info("Updated MoMo info for orderId={}: momoOrderId={}, momoTransId={}, momoAmount={}", 
-                orderId, momoOrderId, momoTransId, order.getMomoAmount());
-        
-        // Lưu và trả về đơn hàng cập nhật
-        return orderRepository.save(order);
     }
 
     /**
@@ -1171,4 +1869,6 @@ public class OrderService {
         Orders order = getOrderById(orderId);
         return convertToOrderDTO(order);
     }
+    
+
 }

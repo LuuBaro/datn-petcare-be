@@ -34,6 +34,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.text.SimpleDateFormat;
 
 @Service
 public class PaymentService {
@@ -123,9 +124,9 @@ public class PaymentService {
     
     /**
      * Gọi API hoàn tiền MoMo
-     * @param orderId MoMo orderId cần hoàn tiền
-     * @param amount Số tiền hoàn lại 
-     * @param transId ID giao dịch MoMo
+     * @param orderId MoMo orderId cần hoàn tiền (có thể là giá trị bất kỳ miễn là hợp lệ, không nhất thiết phải khớp với orderId ban đầu)
+     * @param amount Số tiền hoàn lại (cần khớp với số tiền đã thanh toán)
+     * @param transId ID giao dịch MoMo (bắt buộc và phải chính xác, đây là thông số quan trọng nhất để xác định giao dịch)
      * @param description Mô tả lý do hoàn tiền
      * @return Kết quả hoàn tiền
      */
@@ -207,33 +208,212 @@ public class PaymentService {
                 // Parse response
                 Map<String, Object> momoResponse = objectMapper.readValue(responseBody, Map.class);
                 
+                // Log chi tiết kết quả từ MoMo
+                logger.info("=============== CHI TIẾT KẾT QUẢ HOÀN TIỀN MOMO ===============");
+                logger.info("RequestId: {}", requestId);
+                logger.info("OrderId (gửi đi): {}", orderId);
+                logger.info("TransId (gửi đi): {}", transId);
+                logger.info("Amount (gửi đi): {}", amount);
+                
+                // Log các thông tin từ response của MoMo
+                logger.info("ResultCode: {}", momoResponse.get("resultCode"));
+                logger.info("Message: {}", momoResponse.get("message"));
+                logger.info("TransId (nhận về): {}", momoResponse.get("transId"));
+                logger.info("OrderId (nhận về): {}", momoResponse.get("orderId"));
+                logger.info("RequestId (nhận về): {}", momoResponse.get("requestId"));
+                logger.info("ExtraData: {}", momoResponse.get("extraData"));
+                
+                if (momoResponse.containsKey("refundTrans")) {
+                    logger.info("RefundTrans: {}", momoResponse.get("refundTrans"));
+                }
+                
                 // Check result code
                 int resultCode = ((Number) momoResponse.get("resultCode")).intValue();
+                
+                // Ghi log thông tin kết quả chi tiết với mã lỗi
                 if (resultCode == 0) {
-                    System.out.println("[BE] MoMo refund successful: orderId=" + orderId + ", transId=" + transId);
+                    logger.info("[BE] MoMo refund THÀNH CÔNG: orderId={}, transId={}, resultCode={}", 
+                            orderId, transId, resultCode);
                     result.put("success", true);
                     result.put("message", "Hoàn tiền thành công");
                     result.put("refundTrans", momoResponse.get("refundTrans"));
                     result.put("responseTime", new Date());
                 } else {
-                    System.err.println("[BE] MoMo refund failed: resultCode=" + resultCode + 
-                            ", message=" + momoResponse.get("message"));
+                    logger.error("[BE] MoMo refund THẤT BẠI: orderId={}, transId={}, resultCode={}, message={}", 
+                            orderId, transId, resultCode, momoResponse.get("message"));
+                    
+                    // Log ý nghĩa của mã lỗi
+                    String errorDescription = getMomoResultCodeDescription(resultCode);
+                    logger.error("[BE] Mô tả lỗi: {}", errorDescription);
+                    
                     result.put("success", false);
                     result.put("message", "Hoàn tiền thất bại: " + momoResponse.get("message"));
                     result.put("resultCode", resultCode);
+                    result.put("errorDescription", errorDescription);
                 }
+                logger.info("=============== KẾT THÚC CHI TIẾT HOÀN TIỀN MOMO ===============");
                 
                 result.put("momoResponse", momoResponse);
+                result.put("statusCode", statusCode);
+                result.put("requestDetails", Map.of(
+                    "requestId", requestId,
+                    "orderId", orderId,
+                    "transId", transId,
+                    "amount", amount,
+                    "timestamp", new Date()
+                ));
+                
                 return result;
             }
         } catch (Exception e) {
             System.err.println("[BE] Exception in refundMomoPayment: " + e.getMessage());
             e.printStackTrace();
+            logger.error("[BE] Lỗi ngoại lệ khi hoàn tiền MoMo: {}", e.getMessage(), e);
+            
             result.put("success", false);
             result.put("message", "Lỗi khi hoàn tiền: " + e.getMessage());
             result.put("error", e.getClass().getName());
+            result.put("stackTrace", e.getStackTrace()[0].toString());
             result.put("timestamp", new Date());
             return result;
+        }
+    }
+    
+    /**
+     * Lấy mô tả chi tiết cho mã kết quả của MoMo
+     * @param resultCode Mã kết quả từ MoMo
+     * @return Mô tả chi tiết về mã kết quả
+     */
+    private String getMomoResultCodeDescription(int resultCode) {
+        switch (resultCode) {
+            case 0:
+                return "Giao dịch thành công";
+            case 1:
+                return "Giao dịch đã tồn tại trong hệ thống";
+            case 2:
+                return "Merchant không hợp lệ (không tìm thấy, bị khóa, không được kích hoạt...)";
+            case 3:
+                return "Dữ liệu gửi sang không đúng định dạng";
+            case 4:
+                return "Khởi tạo GD không thành công do url hoặc IPN không hợp lệ";
+            case 5:
+                return "Tài khoản người dùng không đủ tiền";
+            case 6:
+                return "Giao dịch không thành công do người dùng nhập sai OTP";
+            case 7:
+                return "Giao dịch bị từ chối bởi người dùng";
+            case 8:
+                return "Quá thời gian giao dịch";
+            case 9:
+                return "Mã đơn hàng không hợp lệ";
+            case 10:
+                return "Mã đơn hàng đã tồn tại";
+            case 11:
+                return "Mã đơn hàng đã thanh toán";
+            case 12:
+                return "Số tiền không hợp lệ";
+            case 13:
+                return "Số tiền vượt quá hạn mức cho phép";
+            case 14:
+                return "Tài khoản người nhận không tồn tại";
+            case 15:
+                return "Giao dịch không thành công";
+            case 16:
+                return "Điểm giao dịch không được phép giao dịch";
+            case 20:
+                return "Địa chỉ IP truy cập bị chặn";
+            case 21:
+                return "Mã orderInfo không hợp lệ";
+            case 22:
+                return "Tài khoản người dùng không tồn tại";
+            case 23:
+                return "Giao dịch chưa được thanh toán";
+            case 24:
+                return "Giao dịch bị từ chối";
+            case 25:
+                return "Giao dịch không thể hoàn trả";
+            case 26:
+                return "Giao dịch đã được hoàn trả";
+            case 28:
+                return "Số tiền hoàn lại lớn hơn số tiền thanh toán";
+            case 29:
+                return "Số tiền còn lại không đủ để hoàn trả";
+            case 30:
+                return "Giao dịch đã bị đóng hoặc hết hạn";
+            case 31:
+                return "Yêu cầu hoàn tiền đang được xử lý";
+            case 32:
+                return "Giao dịch không được xử lý do MoMo bảo trì";
+            case 33:
+                return "Giao dịch không thể hủy";
+            case 34:
+                return "Giao dịch đã bị hủy";
+            case 36:
+                return "Phiên làm việc đã hết hạn";
+            case 37:
+                return "Chữ ký không hợp lệ";
+            case 38:
+                return "Thiếu tham số bắt buộc";
+            case 39:
+                return "Giao dịch không được phép thực hiện";
+            case 40:
+                return "Số tiền truy vấn và thanh toán không trùng khớp";
+            case 41:
+                return "Xác thực OTP thất bại";
+            case 42:
+                return "Số điện thoại không hợp lệ";
+            case 43:
+                return "Thuê bao chưa kích hoạt";
+            case 44:
+                return "Tài khoản bị tạm khóa";
+            case 45:
+                return "Tài khoản chưa xác thực KYC";
+            case 46:
+                return "Số tiền gửi vượt quá tỷ lệ phí";
+            case 47:
+                return "Giao dịch ngoài giờ phục vụ";
+            case 48:
+                return "Thẻ bị khóa hoặc hết hạn mức";
+            case 49:
+                return "Giao dịch nghi ngờ gian lận";
+            case 50:
+                return "Sai thông tin chủ thẻ";
+            case 51:
+                return "Tài khoản không đủ tiền";
+            case 63:
+                return "Sai thông tin xác thực thẻ";
+            case 64:
+                return "Thẻ hết hạn mức hoặc không được phép giao dịch online";
+            case 65:
+                return "Tài khoản người dùng đang bị tạm khóa";
+            case 66:
+                return "3DS Token không hợp lệ";
+            case 67:
+                return "3DS Token đã hết hạn";
+            case 69:
+                return "Thẻ chưa kích hoạt hoặc không được phép giao dịch trực tuyến";
+            case 70:
+                return "Khách hàng chưa xác thực OTP";
+            case 71:
+                return "Khách hàng đã hủy giao dịch";
+            case 72:
+                return "Bank từ chối xử lý giao dịch";
+            case 73:
+                return "Bank timeout";
+            case 79:
+                return "Chữ ký NAPAS không hợp lệ";
+            case 80:
+                return "Không tìm thấy thông tin khách hàng";
+            case 81:
+                return "Hết thời gian giao dịch";
+            case 82:
+                return "Bank bảo trì";
+            case 99:
+                return "Lỗi không xác định";
+            case 9043:
+                return "Thuê bao MoMo bị khóa";
+            default:
+                return "Mã lỗi chưa được định nghĩa: " + resultCode;
         }
     }
     
@@ -247,88 +427,99 @@ public class PaymentService {
         Map<String, Object> result = new HashMap<>();
         
         try {
+            System.out.println("\n===== BẮT ĐẦU XỬ LÝ HOÀN TIỀN MOMO =====");
+            System.out.println("OrderId: " + orderId);
+            System.out.println("Mô tả: " + description);
+            
             logger.info("Bắt đầu hoàn tiền MoMo cho đơn hàng nội bộ: {}", orderId);
             
             // Tìm đơn hàng từ CSDL
             Orders order = orderRepository.findById(orderId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
             
+            System.out.println("Tìm thấy đơn hàng: " + order.getOrderId());
+            System.out.println("PaymentMethod: " + order.getPaymentMethod());
+            System.out.println("MomoOrderId: " + order.getMomoOrderId());
+            System.out.println("MomoTransId: " + order.getMomoTransId());
+            
             // Kiểm tra phương thức thanh toán
             if (!"MoMo".equals(order.getPaymentMethod())) {
                 logger.error("Đơn hàng {} không phải thanh toán qua MoMo", orderId);
+                System.out.println("Đơn hàng không phải thanh toán qua MoMo");
                 result.put("success", false);
                 result.put("message", "Đơn hàng không phải thanh toán qua MoMo");
                 return result;
             }
             
             // Kiểm tra và log chi tiết thông tin MoMo
-            logger.info("Thông tin MoMo của đơn hàng {}: momoOrderId={}, momoTransId={}, momoAmount={}, totalAmount={}",
-                    orderId, order.getMomoOrderId(), order.getMomoTransId(), order.getMomoAmount(), order.getTotalAmount());
+            logger.info("Thông tin MoMo của đơn hàng {}: momoOrderId={}, momoTransId={}, totalAmount={}",
+                    orderId, order.getMomoOrderId(), order.getMomoTransId(), order.getTotalAmount());
             
             boolean hasMissingInfo = false;
             StringBuilder missingFields = new StringBuilder("Thiếu thông tin: ");
             
-            if (order.getMomoOrderId() == null) {
-                missingFields.append("momoOrderId, ");
-                hasMissingInfo = true;
-            }
-            
             if (order.getMomoTransId() == null) {
                 missingFields.append("momoTransId, ");
                 hasMissingInfo = true;
-            }
-            
-            if (order.getMomoAmount() == null) {
-                missingFields.append("momoAmount, ");
-                hasMissingInfo = true;
-            }
-            
-            // Nếu thiếu momoAmount, sử dụng totalAmount
-            String amount = order.getMomoAmount();
-            if (amount == null || amount.isEmpty() || "undefined".equals(amount) || "NaN".equals(amount)) {
-                logger.warn("Đơn hàng {} thiếu momoAmount hoặc giá trị không hợp lệ ({}), sử dụng totalAmount thay thế", orderId, amount);
-                amount = String.valueOf(Math.round(order.getTotalAmount()));
-            } else {
-                // Kiểm tra xem amount có phải là số hợp lệ không
-                try {
-                    double amountValue = Double.parseDouble(amount);
-                    if (Double.isNaN(amountValue) || amountValue <= 0) {
-                        logger.warn("Đơn hàng {} có momoAmount không hợp lệ: {}, sử dụng totalAmount thay thế", orderId, amount);
-                        amount = String.valueOf(Math.round(order.getTotalAmount()));
-                    }
-                } catch (NumberFormatException e) {
-                    logger.warn("Đơn hàng {} có momoAmount không phải là số hợp lệ: {}, sử dụng totalAmount thay thế", orderId, amount);
-                    amount = String.valueOf(Math.round(order.getTotalAmount()));
-                }
+                System.out.println("Thiếu thông tin: momoTransId");
             }
             
             // Nếu thiếu thông tin MoMo, cập nhật trạng thái và thông báo
             if (hasMissingInfo) {
                 logger.error("Đơn hàng {} thiếu thông tin thanh toán MoMo: {}", orderId, missingFields.toString());
+                System.out.println("Đơn hàng thiếu thông tin thanh toán MoMo: " + missingFields.toString());
                 
                 // Vẫn cập nhật trạng thái sang đã hoàn tiền
                 order.setPaymentStatus("Đã hoàn tiền");
                 orderRepository.save(order);
+                System.out.println("Đã cập nhật trạng thái thanh toán thành 'Đã hoàn tiền'");
                 
-                // Gửi email thông báo
-                sendRefundNotificationEmail(order, description);
-                
+                // Chuẩn bị kết quả để trả về trước khi gửi email
                 result.put("success", true);
                 result.put("message", "Đã cập nhật đơn hàng sang trạng thái hoàn tiền, nhưng không thể gọi API MoMo do " + missingFields.toString());
+                
+                // Gửi email thông báo sau khi đã trả về kết quả (xử lý bất đồng bộ)
+                new Thread(() -> {
+                    try {
+                        sendRefundNotificationEmail(order, description);
+                        System.out.println("Đã gửi email thông báo hoàn tiền");
+                    } catch (Exception e) {
+                        logger.error("Lỗi khi gửi email thông báo hoàn tiền: {}", e.getMessage());
+                    }
+                }).start();
+                
+                System.out.println("===== KẾT THÚC XỬ LÝ HOÀN TIỀN MOMO =====\n");
                 return result;
             }
             
+            // Tạo một orderId mới và ngẫu nhiên để tránh trùng lặp
+            String refundOrderId = "REFUND_" + orderId + "_" + System.currentTimeMillis();
+            logger.info("Tạo orderId mới cho hoàn tiền MoMo: {}", refundOrderId);
+            System.out.println("Tạo orderId mới cho hoàn tiền MoMo: " + refundOrderId);
+            
+            // Sử dụng totalAmount thay vì momoAmount
+            String amount = String.valueOf(Math.round(order.getTotalAmount()));
+            
             // Gọi API hoàn tiền MoMo
+            System.out.println("Bắt đầu gọi API hoàn tiền MoMo với thông tin:");
+            System.out.println("- refundOrderId: " + refundOrderId + " (thay cho momoOrderId cũ: " + order.getMomoOrderId() + ")");
+            System.out.println("- momoTransId: " + order.getMomoTransId());
+            System.out.println("- amount: " + amount);
+            System.out.println("- description: " + description);
+            
             Map<String, Object> refundResult = refundMomoPayment(
-                    order.getMomoOrderId(),
+                    refundOrderId, // Sử dụng orderId mới thay vì momoOrderId cũ
                     amount,
                     order.getMomoTransId(),
                     description
             );
             
+            System.out.println("Kết quả từ API hoàn tiền MoMo: " + refundResult);
+            
             // Luôn cập nhật trạng thái đơn hàng thành "Đã hoàn tiền", bất kể kết quả từ MoMo
             order.setPaymentStatus("Đã hoàn tiền");
             orderRepository.save(order);
+            System.out.println("Đã cập nhật trạng thái đơn hàng thành 'Đã hoàn tiền'");
             
             // Khôi phục tồn kho cho các sản phẩm trong đơn hàng
             try {
@@ -341,37 +532,58 @@ public class PaymentService {
                         logger.info("Đã khôi phục {} sản phẩm {} vào kho khi hoàn tiền MoMo", 
                                 orderDetail.getQuantity(), 
                                 orderDetail.getProductDetails().getProductDetailId());
+                        System.out.println("Đã khôi phục " + orderDetail.getQuantity() + " sản phẩm " + 
+                                           orderDetail.getProductDetails().getProductDetailId() + " vào kho");
                     } else {
                         logger.error("Không thể khôi phục tồn kho cho sản phẩm {} khi hoàn tiền MoMo", 
                                 orderDetail.getProductDetails().getProductDetailId());
+                        System.out.println("Không thể khôi phục tồn kho cho sản phẩm " + 
+                                          orderDetail.getProductDetails().getProductDetailId());
                     }
                 }
                 logger.info("Đã khôi phục tồn kho cho đơn hàng {} khi hoàn tiền MoMo", orderId);
+                System.out.println("Đã khôi phục tồn kho cho đơn hàng");
             } catch (Exception e) {
                 logger.error("Lỗi khi khôi phục tồn kho cho đơn hàng {} khi hoàn tiền MoMo: {}", 
                         orderId, e.getMessage());
+                System.out.println("Lỗi khi khôi phục tồn kho: " + e.getMessage());
             }
             
-            // Gửi email thông báo
-            sendRefundNotificationEmail(order, description);
-            
+            // Chuẩn bị kết quả để trả về trước khi gửi email
             if ((Boolean) refundResult.get("success")) {
                 logger.info("Hoàn tiền thành công cho đơn hàng: {}", orderId);
+                System.out.println("Hoàn tiền thành công cho đơn hàng: " + orderId);
             } else {
                 logger.warn("Gọi API hoàn tiền MoMo không thành công cho đơn hàng: {}, lý do: {}", 
                         orderId, refundResult.get("message"));
+                System.out.println("Gọi API hoàn tiền MoMo không thành công, lý do: " + refundResult.get("message"));
                 
                 // Ghi đè kết quả để frontend hiển thị là thành công
                 refundResult.put("success", true);
                 refundResult.put("message", "Đã cập nhật trạng thái đơn hàng thành 'Đã hoàn tiền'. " + 
                                            "MoMo API response: " + refundResult.get("message"));
+                System.out.println("Đã ghi đè kết quả để hiển thị thành công");
             }
             
+            // Gửi email thông báo sau khi đã trả về kết quả (xử lý bất đồng bộ)
+            new Thread(() -> {
+                try {
+                    sendRefundNotificationEmail(order, description);
+                    System.out.println("Đã gửi email thông báo hoàn tiền");
+                } catch (Exception e) {
+                    logger.error("Lỗi khi gửi email thông báo hoàn tiền: {}", e.getMessage());
+                }
+            }).start();
+            
+            System.out.println("===== KẾT THÚC XỬ LÝ HOÀN TIỀN MOMO =====\n");
             return refundResult;
         } catch (Exception e) {
             logger.error("Lỗi khi hoàn tiền cho đơn hàng {}: {}", orderId, e.getMessage());
+            System.out.println("Lỗi khi hoàn tiền cho đơn hàng: " + orderId + ": " + e.getMessage());
+            e.printStackTrace();
             result.put("success", false);
             result.put("message", "Lỗi khi hoàn tiền: " + e.getMessage());
+            System.out.println("===== KẾT THÚC XỬ LÝ HOÀN TIỀN MOMO VỚI LỖI =====\n");
             return result;
         }
     }
@@ -381,66 +593,39 @@ public class PaymentService {
      */
     private void sendRefundNotificationEmail(Orders order, String reason) {
         try {
-            // Lấy thông tin người dùng
             User user = order.getUser();
-            String userEmail = user.getEmail();
-            
-            // Kiểm tra email
-            if (userEmail == null || userEmail.trim().isEmpty()) {
-                logger.warn("Không thể gửi email thông báo hoàn tiền vì email người dùng trống, orderId: {}", order.getOrderId());
+            if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+                logger.warn("Không thể gửi email hoàn tiền cho đơn hàng {}: Người dùng không có email", order.getOrderId());
                 return;
             }
             
-            // Log thông tin trước khi gửi email
-            logger.info("Chuẩn bị gửi email hoàn tiền cho đơn hàng: {}, email: {}", order.getOrderId(), userEmail);
-            logger.info("Thông tin MoMo của đơn hàng {}: momoOrderId={}, momoTransId={}, momoAmount={}",
-                order.getOrderId(), order.getMomoOrderId(), order.getMomoTransId(), order.getMomoAmount());
+            logger.info("Gửi email thông báo hoàn tiền cho đơn hàng {}", order.getOrderId());
             
-            // Chuẩn bị dữ liệu cho email
-            String subject = "Thông báo hoàn tiền đơn hàng #" + order.getOrderId();
+            String subject = "Thông báo hoàn tiền cho đơn hàng #" + order.getOrderId();
             
-            // Xử lý momoAmount nếu null hoặc "undefined"
-            String amount = order.getMomoAmount();
-            if (amount == null || amount.isEmpty() || "undefined".equals(amount) || "NaN".equals(amount)) {
-                amount = String.valueOf(Math.round(order.getTotalAmount()));
-                logger.info("Sử dụng totalAmount thay thế cho momoAmount: {}", amount);
-            }
+            StringBuilder content = new StringBuilder();
+            content.append("<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; padding: 20px; border-radius: 5px;'>");
+            content.append("<h2 style='color: #4CAF50; text-align: center;'>Thông Báo Hoàn Tiền</h2>");
+            content.append("<p>Xin chào <strong>").append(user.getFullName()).append("</strong>,</p>");
+            content.append("<p>Đơn hàng <strong>#").append(order.getOrderId()).append("</strong> của bạn đã được hoàn tiền thành công.</p>");
+            content.append("<p><strong>Lý do hoàn tiền:</strong> ").append(reason).append("</p>");
+            content.append("<p><strong>Thông tin đơn hàng:</strong></p>");
+            content.append("<ul>");
+            content.append("<li><strong>Mã đơn hàng:</strong> #").append(order.getOrderId()).append("</li>");
+            content.append("<li><strong>Ngày đặt hàng:</strong> ").append(new SimpleDateFormat("dd/MM/yyyy HH:mm").format(order.getOrderDate())).append("</li>");
+            content.append("<li><strong>Phương thức thanh toán:</strong> ").append(order.getPaymentMethod()).append("</li>");
+            content.append("</ul>");
             
-            // Tạo nội dung HTML
-            String htmlContent = String.format(
-                "<html>" +
-                "<body style='font-family: Arial, sans-serif;'>" +
-                "<div style='max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd;'>" +
-                "<h2 style='color: #4a4a4a;'>Thông báo hoàn tiền</h2>" +
-                "<p>Xin chào %s,</p>" +
-                "<p>Đơn hàng <strong>#%d</strong> của bạn đã được hủy với lý do: <em>%s</em></p>" +
-                "<p>Số tiền <strong>%s VND</strong> đã được hoàn trả về tài khoản MoMo của bạn.</p>" +
-                "<p>Thời gian hoàn tiền: Trong vòng 24-48 giờ làm việc.</p>" +
-                "<p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>" +
-                "<p>Trân trọng,<br>Pet Care</p>" +
-                "</div>" +
-                "</body>" +
-                "</html>",
-                user.getFullName(),
-                order.getOrderId(),
-                reason,
-                amount
-            );
+            content.append("<p>Tiền hoàn trả sẽ được chuyển về tài khoản thanh toán của bạn trong vòng 3-5 ngày làm việc (tùy theo chính sách của ngân hàng/ví điện tử).</p>");
             
-            // Sử dụng EmailService để gửi email
-            boolean success = emailService.sendHtmlEmail(userEmail, subject, htmlContent);
+            content.append("<p>Nếu bạn có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi qua email hỗ trợ hoặc hotline.</p>");
+            content.append("<p>Trân trọng,<br/>Đội ngũ Petcare</p>");
+            content.append("</div>");
             
-            if (success) {
-                logger.info("Email thông báo hoàn tiền đơn hàng #{} đã được gửi thành công đến: {}", 
-                            order.getOrderId(), userEmail);
-            } else {
-                logger.warn("Không thể gửi email thông báo hoàn tiền đơn hàng #{} đến: {}", 
-                           order.getOrderId(), userEmail);
-            }
+            emailService.sendEmail(user.getEmail(), subject, content.toString());
+            logger.info("Đã gửi email thông báo hoàn tiền thành công cho đơn hàng {}", order.getOrderId());
         } catch (Exception e) {
-            logger.error("Lỗi tổng quát khi gửi email thông báo hoàn tiền: {}", e.getMessage());
-            logger.error("Chi tiết lỗi:", e);
-            e.printStackTrace(); // In chi tiết lỗi để dễ dàng debug
+            logger.error("Lỗi khi gửi email thông báo hoàn tiền cho đơn hàng {}: {}", order.getOrderId(), e.getMessage());
         }
     }
 

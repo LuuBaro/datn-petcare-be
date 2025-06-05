@@ -29,6 +29,10 @@ public class OrderDTO {
     private String statusName;
 
     private Long voucherId;
+    
+    // MoMo payment fields
+    private String momoOrderId;
+    private String momoTransId;
 
     private List<OrderDetailDTO> orderDetails;
 }
